@@ -1,0 +1,8 @@
+schemaVersion: "rules-index/v1"
+
+items:
+  # necessary rules
+  - path: "rules/behavioral_guidelines.md"
+  - path: "rules/plan.md"
+  - path: "rules/test.md"
+  - path: "rules/knowledge.md"
