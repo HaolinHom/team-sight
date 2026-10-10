@@ -14,6 +14,6 @@ items:
   - id: tapd-api-workitem-queries
     title: "TAPD 任务/缺陷查询、字段差异与时间窗"
     path: "knowledge/tapd-api-workitem-queries.md"
-    summary: "任务与缺陷的标题/负责人字段名不同；分页上限 200；时间查询只支持闭区间（开区间被静默忽略）；窗口相交查询写法与数据量级；成员目录不支持服务端过滤，需前端本地搜索。"
+    summary: "任务与缺陷的标题/负责人字段名不同；分页上限 200；时间查询只支持闭区间（开区间被静默忽略）；窗口相交查询写法与数据量级；成员目录不支持服务端过滤；详情页链接形态为 tapd_fe/<workspace_id>/<task|bug>/detail/<id>。"
     tags: ["tapd", "api", "query", "pagination"]
     verifiedAt: "2026-10-10"

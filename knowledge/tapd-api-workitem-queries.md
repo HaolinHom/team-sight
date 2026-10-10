@@ -44,3 +44,19 @@ due   = <窗口开始> ~ <远期上限，如 2999-12-31>
 - 实测项目 A：任务 24272 条、缺陷 9599 条；项目 B：任务 2904 条。
 - 当前月窗口内：项目 A 任务 103 条、项目 B 任务 12 条，缺陷 0 条。
 - 结论：首屏必须按时间窗查询，禁止拉取全量任务后本地过滤。
+
+## 详情页链接形态（Web 前端）
+
+- 正确形态（实测 HTTP 200，未登录即可命中前端路由）：
+
+```text
+任务：https://www.tapd.cn/tapd_fe/<workspace_id>/task/detail/<task_id>
+缺陷：https://www.tapd.cn/tapd_fe/<workspace_id>/bug/detail/<bug_id>
+```
+
+- 错误形态 `https://www.tapd.cn/<workspace_id>/<task|bug>/view/<id>` 会 **302 跳转到登录页**，不要使用。
+- 列表接口不返回详情页地址字段，链接需前端拼接；`workspace_id` 必须取该工作项自身的 `workspace_id`，不能跨项目拼接。
+- 实测样例：
+  - `https://www.tapd.cn/tapd_fe/62120799/task/detail/1162120799001210310`
+  - `https://www.tapd.cn/tapd_fe/63253157/bug/detail/1163253157001041841`
+- 该规则由用户在桌面端验收时纠正，并已用真实 ID 补回归测试。

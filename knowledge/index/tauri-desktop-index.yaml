@@ -1,0 +1,12 @@
+schemaVersion: "knowledge-index/v1"
+
+title: "Tauri 桌面能力"
+description: "桌面端（Tauri 2）能力的接入方式、能力作用域与踩坑事实。"
+
+items:
+  - id: tauri-desktop-external-link
+    title: "Tauri 2 打开外部链接（opener 插件与能力作用域）"
+    path: "knowledge/tauri-desktop-notes.md"
+    summary: "webview 不处理 target=_blank 且默认无外部打开权限（点击静默失效）；需 tauri-plugin-opener + opener:allow-open-url 作用域（glob 匹配，* 可跨 /）；gen/schemas/capabilities.json 可自查能力是否被接受；打开失败必须显式回显。"
+    tags: ["tauri", "desktop", "capability", "external-link"]
+    verifiedAt: "2026-10-10"
