@@ -1,0 +1,150 @@
+import { isValidDateKey } from '@/gantt/dateUtils';
+import type { MemberDirectory, ProjectConfig, ScheduleTask, WorkItemType } from '@/types/schedule';
+import type { RawRow } from './types';
+
+/** TAPD 列表接口返回的字段集合（按已验证字段裁剪，避免拉取几百个自定义字段）。 */
+export const TASK_FIELDS = [
+  'id',
+  'name',
+  'workspace_id',
+  'owner',
+  'creator',
+  'status',
+  'priority_label',
+  'begin',
+  'due',
+  'iteration_id',
+  'created',
+  'modified',
+  'completed',
+].join(',');
+
+export const BUG_FIELDS = [
+  'id',
+  'title',
+  'workspace_id',
+  'current_owner',
+  'creator',
+  'status',
+  'priority_label',
+  'begin',
+  'due',
+  'iteration_id',
+  'created',
+  'modified',
+  'closed',
+].join(',');
+
+export function fieldsFor(type: WorkItemType): string {
+  return type === 'task' ? TASK_FIELDS : BUG_FIELDS;
+}
+
+function asString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+/**
+ * 规范化 TAPD 日期字段为 `YYYY-MM-DD`。
+ * 只接受日期或日期时间前缀，无法识别时返回 null，绝不推算。
+ */
+export function normalizeDateKey(value: unknown): string | null {
+  const raw = asString(value);
+  if (!raw) return null;
+  const candidate = raw.slice(0, 10);
+  return isValidDateKey(candidate) ? candidate : null;
+}
+
+export interface ParsedAssignee {
+  id: string | null;
+  name: string;
+}
+
+/**
+ * 解析 TAPD 负责人字段。
+ * 已验证格式：task 为 `姓名_工号;`（可多值），bug 为 `姓名_工号`（无尾分号）。
+ * 多人时取第一个处理人作为该行的归组依据，其余暂不建模。
+ */
+export function parseAssignee(value: unknown): ParsedAssignee {
+  const raw = asString(value);
+  if (!raw) return { id: null, name: '' };
+
+  const primary = raw
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)[0];
+  if (!primary) return { id: null, name: '' };
+
+  const matched = /^(.*)_(\d+)$/.exec(primary);
+  if (!matched) return { id: null, name: primary };
+  return { id: matched[2], name: matched[1].trim() };
+}
+
+export function buildTapdUrl(workspaceId: string, type: WorkItemType, id: string): string {
+  const view = type === 'task' ? 'task' : 'bug';
+  return `https://www.tapd.cn/${workspaceId}/${view}/view/${id}`;
+}
+
+export function mapRow(
+  row: RawRow,
+  project: ProjectConfig,
+  type: WorkItemType,
+  members: MemberDirectory = {}
+): ScheduleTask | null {
+  const id = asString(row.id);
+  if (!id) return null;
+
+  const title = type === 'task' ? asString(row.name) : asString(row.title);
+  const assignee = parseAssignee(type === 'task' ? row.owner : row.current_owner);
+  const directoryName = assignee.id ? members[assignee.id] : undefined;
+
+  return {
+    id,
+    sourceType: type,
+    title: title || '(无标题)',
+    projectId: project.id,
+    projectName: project.name,
+    projectColor: project.color,
+    assigneeId: assignee.id,
+    assigneeName: directoryName ?? assignee.name,
+    startDate: normalizeDateKey(row.begin),
+    dueDate: normalizeDateKey(row.due),
+    status: asString(row.status),
+    priority: asString(row.priority_label) || undefined,
+    tapdUrl: buildTapdUrl(project.id, type, id),
+    rawStatus: asString(row.status),
+  };
+}
+
+/** 去重键：同类工作项 ID + 来源类型，避免跨类型重号。 */
+export function taskKey(task: Pick<ScheduleTask, 'id' | 'sourceType'>): string {
+  return `${task.sourceType}:${task.id}`;
+}
+
+export function dedupeTasks(tasks: ScheduleTask[]): ScheduleTask[] {
+  const seen = new Set<string>();
+  const result: ScheduleTask[] = [];
+  for (const task of tasks) {
+    const key = taskKey(task);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(task);
+  }
+  return result;
+}
+
+/** 解析 `/workspaces/users` 返回，建立 工号 -> 姓名 索引。 */
+export function mapWorkspaceUsers(rows: RawRow[]): MemberDirectory {
+  const directory: MemberDirectory = {};
+  for (const row of rows) {
+    const user = asString(row.user);
+    const name = asString(row.name);
+    const matched = /^(.*)_(\d+)$/.exec(user);
+    if (matched) {
+      directory[matched[2]] = name || matched[1];
+      continue;
+    }
+    if (user) directory[user] = name || user;
+  }
+  return directory;
+}
