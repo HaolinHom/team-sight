@@ -1,3 +1,6 @@
 schemaVersion: "root-index/v1"
 
 indexes:
+  - path: "knowledge/index/tapd-api-index.yaml"
+  - path: "knowledge/index/gantt-rendering-index.yaml"
+  - path: "knowledge/index/local-environment-index.yaml"

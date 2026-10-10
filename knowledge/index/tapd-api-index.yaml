@@ -1,0 +1,19 @@
+schemaVersion: "knowledge-index/v1"
+
+title: "TAPD Open API"
+description: "TAPD 开放平台接口的实测事实（认证、错误语义、工作项查询行为）。启动时只读本索引，按需再加载具体知识文件。"
+
+items:
+  - id: tapd-api-auth-and-errors
+    title: "TAPD 认证形态与错误语义"
+    path: "knowledge/tapd-api-auth-and-errors.md"
+    summary: "personal_token 走 Bearer 可用、Basic 不可用；无效令牌返回 422、越权项目返回 403；/workspaces 不支持枚举项目。"
+    tags: ["tapd", "auth", "error-handling"]
+    verifiedAt: "2026-10-10"
+
+  - id: tapd-api-workitem-queries
+    title: "TAPD 任务/缺陷查询、字段差异与时间窗"
+    path: "knowledge/tapd-api-workitem-queries.md"
+    summary: "任务与缺陷的标题/负责人字段名不同；分页上限 200；时间查询只支持闭区间（开区间被静默忽略）；窗口相交查询写法与数据量级。"
+    tags: ["tapd", "api", "query", "pagination"]
+    verifiedAt: "2026-10-10"

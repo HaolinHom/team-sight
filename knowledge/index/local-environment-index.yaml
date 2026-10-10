@@ -1,0 +1,12 @@
+schemaVersion: "knowledge-index/v1"
+
+title: "本机/团队环境与工具链"
+description: "影响本机（macOS）开发效率与构建成功率的工具链事实。"
+
+items:
+  - id: local-toolchain-notes
+    title: "Rust/Tauri 工具链与网络注意事项"
+    path: "knowledge/local-toolchain-notes.md"
+    summary: "rustup 官方源在本网络极慢、切 USTC 镜像后秒级完成；crates.io 首次索引约 15 分钟；Tauri 2 必须有 src-tauri/icons/icon.png 才能编译。"
+    tags: ["environment", "toolchain", "rust", "tauri"]
+    verifiedAt: "2026-10-10"

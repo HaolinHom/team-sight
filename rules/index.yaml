@@ -6,3 +6,4 @@ items:
   - path: "rules/plan.md"
   - path: "rules/test.md"
   - path: "rules/knowledge.md"
+  - path: "rules/terminal.md"
