@@ -7,6 +7,6 @@ items:
   - id: local-toolchain-notes
     title: "Rust/Tauri 工具链与网络注意事项"
     path: "knowledge/local-toolchain-notes.md"
-    summary: "rustup 官方源在本网络极慢、切 USTC 镜像后秒级完成；crates.io 首次索引约 15 分钟；Tauri 2 必须有 src-tauri/icons/icon.png 才能编译。"
+    summary: "rustup 官方源在本网络极慢、切 USTC 镜像后秒级完成；crates.io 首次索引约 15 分钟；Tauri 2 必须有 src-tauri/icons/icon.png 才能编译；应用配置目录位置与本地凭据（0600、原子写入、令牌解析顺序）。"
     tags: ["environment", "toolchain", "rust", "tauri"]
     verifiedAt: "2026-10-10"

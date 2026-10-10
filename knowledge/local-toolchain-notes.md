@@ -27,3 +27,11 @@ sh /tmp/rustup-init.sh -y --profile minimal --default-toolchain stable
 - 开发模式下 Rust 进程的工作目录是 `src-tauri/`，读取仓库根配置需使用 `../<文件名>`；发布版不适用该相对路径。
 - `tauri dev` 会通过 `beforeDevCommand` 自行启动前端 dev server；若已有进程占用 `devUrl` 端口（本项目 5183）会启动失败，需先释放端口。
 - 开发二进制没有 bundle id，自动化工具无法按应用名绑定窗口；需要自动验证前端到 Rust 的链路时，可用环境变量开关触发启动即加载真实数据。
+
+## 应用配置目录与本地凭据（阶段1）
+
+- `app_config_dir()` 在 macOS 上为 `~/Library/Application Support/<identifier>/`（本项目 identifier 为 `com.haolinhom.team-sight`）；配置与凭据都写在这里，不进仓库。
+- 凭据文件权限用 `std::os::unix::fs::PermissionsExt` 设为 `0600`，写入采用「临时文件 + rename」避免半截文件（Rust 单测已覆盖，含权限断言）。
+- 令牌解析顺序：应用内保存的凭据文件 → 环境变量 `TAPD_PERSONAL_TOKEN` → 仓库根 `.env.local`（仅 debug 构建）。
+- 当前凭据为本地明文文件，属已知临时取舍；技术方案 §4.3 要求最终切换系统钥匙串，届时只需替换 Rust 侧读写实现。
+- 浏览器模式无法直连 TAPD（原因见 `tapd-api-auth-and-errors.md` 的跨域小节），只能用于界面调试，真实数据必须经桌面端加载。
