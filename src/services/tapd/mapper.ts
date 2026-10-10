@@ -3,7 +3,7 @@ import type { MemberDirectory, ProjectConfig, ScheduleTask, WorkItemType } from 
 import type { RawRow } from './types';
 
 /** TAPD 列表接口返回的字段集合（按已验证字段裁剪，避免拉取几百个自定义字段）。 */
-export const TASK_FIELDS = [
+const TASK_FIELDS = [
   'id',
   'name',
   'workspace_id',
@@ -20,7 +20,7 @@ export const TASK_FIELDS = [
   'completed',
 ].join(',');
 
-export const BUG_FIELDS = [
+const BUG_FIELDS = [
   'id',
   'title',
   'workspace_id',
@@ -57,7 +57,7 @@ export function normalizeDateKey(value: unknown): string | null {
   return isValidDateKey(candidate) ? candidate : null;
 }
 
-export interface ParsedAssignee {
+interface ParsedAssignee {
   id: string | null;
   name: string;
 }
@@ -76,15 +76,6 @@ export function parseAssignees(value: unknown): ParsedAssignee[] {
       if (!matched) return { id: null, name: part };
       return { id: matched[2], name: matched[1].trim() };
     });
-}
-
-/**
- * 解析 TAPD 负责人字段。
- * 已验证格式：task 为 `姓名_工号;`（可多值），bug 为 `姓名_工号`（无尾分号）。
- * 返回第一个处理人，多负责人场景请使用 `parseAssignees`。
- */
-export function parseAssignee(value: unknown): ParsedAssignee {
-  return parseAssignees(value)[0] ?? { id: null, name: '' };
 }
 
 /**
@@ -137,7 +128,7 @@ export function mapRow(
 }
 
 /** 去重键：同类工作项 ID + 来源类型，避免跨类型重号。 */
-export function taskKey(task: Pick<ScheduleTask, 'id' | 'sourceType'>): string {
+function taskKey(task: Pick<ScheduleTask, 'id' | 'sourceType'>): string {
   return `${task.sourceType}:${task.id}`;
 }
 

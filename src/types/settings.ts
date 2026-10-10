@@ -57,7 +57,7 @@ export function pickProjectColor(
   return available[Math.floor(random() * available.length)];
 }
 
-export function normalizeMember(raw: unknown): MemberEntry | null {
+function normalizeMember(raw: unknown): MemberEntry | null {
   if (!raw || typeof raw !== 'object') return null;
   const record = raw as Record<string, unknown>;
   const staffId = asString(record.staffId);

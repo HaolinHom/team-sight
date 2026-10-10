@@ -6,7 +6,7 @@ import {
   mapRow,
   mapWorkspaceUsers,
   normalizeDateKey,
-  parseAssignee,
+  parseAssignees,
 } from './mapper';
 import type { ProjectConfig } from '@/types/schedule';
 
@@ -17,27 +17,27 @@ const PROJECT: ProjectConfig = {
   color: '#3b82f6',
 };
 
-describe('parseAssignee', () => {
+describe('parseAssignees', () => {
   it('解析任务的 姓名_工号; 格式并按分号拆分多人', () => {
-    expect(parseAssignee('吴亿鑫_800164110;')).toEqual({ id: '800164110', name: '吴亿鑫' });
-    expect(parseAssignee('张三_800100001;李四_800100002;')).toEqual({
-      id: '800100001',
-      name: '张三',
-    });
+    expect(parseAssignees('吴亿鑫_800164110;')).toEqual([{ id: '800164110', name: '吴亿鑫' }]);
+    expect(parseAssignees('张三_800100001;李四_800100002;')).toEqual([
+      { id: '800100001', name: '张三' },
+      { id: '800100002', name: '李四' },
+    ]);
   });
 
   it('解析缺陷的 姓名_工号 格式（无尾分号）', () => {
-    expect(parseAssignee('蔡宏炯_800170307')).toEqual({ id: '800170307', name: '蔡宏炯' });
+    expect(parseAssignees('蔡宏炯_800170307')).toEqual([{ id: '800170307', name: '蔡宏炯' }]);
   });
 
-  it('空负责人返回空结果，不臆造姓名', () => {
-    expect(parseAssignee('')).toEqual({ id: null, name: '' });
-    expect(parseAssignee(null)).toEqual({ id: null, name: '' });
-    expect(parseAssignee('   ')).toEqual({ id: null, name: '' });
+  it('空负责人返回空数组，不臆造姓名', () => {
+    expect(parseAssignees('')).toEqual([]);
+    expect(parseAssignees(null)).toEqual([]);
+    expect(parseAssignees('   ')).toEqual([]);
   });
 
   it('无工号时保留姓名、不生成 ID', () => {
-    expect(parseAssignee('张三')).toEqual({ id: null, name: '张三' });
+    expect(parseAssignees('张三')).toEqual([{ id: null, name: '张三' }]);
   });
 });
 

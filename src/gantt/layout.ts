@@ -22,8 +22,8 @@ export const DEFAULT_LAYOUT_CONFIG: GanttLayoutConfig = {
   barHeight: 18,
 };
 
-export const UNASSIGNED_MEMBER_KEY = 'unassigned';
-export const UNASSIGNED_MEMBER_NAME = '未分配成员';
+const UNASSIGNED_MEMBER_KEY = 'unassigned';
+const UNASSIGNED_MEMBER_NAME = '未分配成员';
 
 const memberCollator = new Intl.Collator('zh-Hans-CN');
 
@@ -61,7 +61,7 @@ export function resolveDateIssue(task: ScheduleTask): DateIssue | undefined {
 }
 
 /** 组内任务排序：开始日 → 截止日 → 项目 → ID，保证多次刷新顺序稳定。 */
-export function sortTasksForLayout(tasks: ScheduleTask[]): ScheduleTask[] {
+function sortTasksForLayout(tasks: ScheduleTask[]): ScheduleTask[] {
   return [...tasks].sort((left, right) => {
     const byStart = compareDateKeys(left.startDate, right.startDate);
     if (byStart !== 0) return byStart;

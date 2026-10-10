@@ -1,5 +1,5 @@
 /** 看板展示状态：页面只负责渲染，判定集中在纯函数里。 */
-export type BoardStateKind =
+type BoardStateKind =
   | 'loading'
   | 'fixture'
   | 'no-credential'

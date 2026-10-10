@@ -7,7 +7,7 @@ import type { RawRow, ScheduleFetchResult, TapdEnvelope, WorkspaceFetchError } f
 export const PAGE_SIZE = 200;
 const MAX_PAGES = 50;
 /** 并发上限：避免一次刷新打满 TAPD 限流。 */
-export const MAX_CONCURRENCY = 3;
+const MAX_CONCURRENCY = 3;
 const RETRY_DELAYS_MS = [300, 900];
 /**
  * 时间窗固定下限/上限。
@@ -87,7 +87,7 @@ async function requestWithRetry(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-export function endpointFor(type: WorkItemType): string {
+function endpointFor(type: WorkItemType): string {
   return type === 'task' ? '/tasks' : '/bugs';
 }
 
@@ -117,7 +117,7 @@ function countOf(envelope: TapdEnvelope<unknown>): number {
 }
 
 /** 查询时间窗内命中的条数（用于分页收敛判断）。 */
-export async function fetchWorkspaceItemCount(
+async function fetchWorkspaceItemCount(
   options: TapdRequestOptions,
   transport: TapdTransport = tauriTransport
 ): Promise<number> {

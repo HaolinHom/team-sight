@@ -10,7 +10,6 @@ import {
   isValidDateKey,
   maxDateKey,
   minDateKey,
-  overlapsRange,
   todayKey,
 } from './dateUtils';
 
@@ -74,26 +73,6 @@ describe('isWeekend', () => {
     expect(isWeekend('2026-10-03')).toBe(true);
     expect(isWeekend('2026-10-04')).toBe(true);
     expect(isWeekend('2026-10-05')).toBe(false);
-  });
-});
-
-describe('overlapsRange', () => {
-  const range = { start: '2026-10-01', end: '2026-10-31' };
-
-  it('命中跨越窗口的任务', () => {
-    expect(overlapsRange('2026-09-25', '2026-10-06', range)).toBe(true);
-    expect(overlapsRange('2026-10-25', '2026-11-10', range)).toBe(true);
-  });
-
-  it('完全在窗口外的任务不命中', () => {
-    expect(overlapsRange('2026-09-01', '2026-09-30', range)).toBe(false);
-    expect(overlapsRange('2026-11-01', '2026-11-30', range)).toBe(false);
-  });
-
-  it('缺失日期或日期倒挂不参与日历绘制', () => {
-    expect(overlapsRange(null, '2026-10-10', range)).toBe(false);
-    expect(overlapsRange('2026-10-10', null, range)).toBe(false);
-    expect(overlapsRange('2026-10-16', '2026-10-12', range)).toBe(false);
   });
 });
 

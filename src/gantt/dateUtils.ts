@@ -23,7 +23,7 @@ export function isValidDateKey(value: unknown): value is string {
   return formatDateKey(date) === value;
 }
 
-export function parseDateKey(value: string): Date {
+function parseDateKey(value: string): Date {
   if (!isValidDateKey(value)) {
     throw new RangeError(`非法日期：${value}（要求 YYYY-MM-DD）`);
   }
@@ -31,7 +31,7 @@ export function parseDateKey(value: string): Date {
   return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
 }
 
-export function formatDateKey(date: Date): string {
+function formatDateKey(date: Date): string {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
@@ -77,20 +77,6 @@ export function eachDateKey(range: DateRange): string[] {
 export function isWeekend(dateKey: string): boolean {
   const weekday = parseDateKey(dateKey).getUTCDay();
   return weekday === 0 || weekday === 6;
-}
-
-/**
- * 任务区间是否与时间窗相交。
- * 缺失日期返回 false（缺失日期由调度层单独归类，不参与日历绘制）。
- */
-export function overlapsRange(
-  startDate: string | null,
-  dueDate: string | null,
-  range: DateRange
-): boolean {
-  if (!isValidDateKey(startDate) || !isValidDateKey(dueDate)) return false;
-  if (dateDiffInDays(startDate, dueDate) < 0) return false;
-  return dateDiffInDays(range.start, dueDate) >= 0 && dateDiffInDays(startDate, range.end) >= 0;
 }
 
 export function compareDateKeys(left: string | null, right: string | null): number {

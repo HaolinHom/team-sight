@@ -4,7 +4,7 @@ import type { TapdEnvelope } from './tapd/types';
 /** 浏览器开发模式的令牌存储键（仅开发用途，技术方案 §4.3 禁止在生产中使用）。 */
 export const DEV_TOKEN_STORAGE_KEY = 'teamsight.dev.token';
 
-export type CredentialSource = 'file' | 'env' | 'none' | 'browser';
+type CredentialSource = 'file' | 'env' | 'none' | 'browser';
 
 export interface CredentialStatus {
   configured: boolean;

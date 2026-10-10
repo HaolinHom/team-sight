@@ -25,7 +25,7 @@ export function statusKey(sourceType: WorkItemType, value: string): string {
 }
 
 /** TAPD 常见终态：命中即视为已完成。自定义（含中文）状态一律按未完成处理。 */
-export const COMPLETED_STATUS_VALUES = ['done', 'closed', 'resolved', 'rejected'];
+const COMPLETED_STATUS_VALUES = ['done', 'closed', 'resolved', 'rejected'];
 
 /** 时间范围上限：超过则截断，避免一次拉取过多数据。 */
 export const MAX_RANGE_DAYS = 366;
