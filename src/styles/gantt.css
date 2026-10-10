@@ -165,3 +165,51 @@
   fill: #ffffff;
   pointer-events: none;
 }
+
+.gantt__tooltip {
+  position: fixed;
+  z-index: 20;
+  max-width: 340px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: rgba(31, 35, 41, 0.96);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.5;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+}
+
+.gantt__tooltip--below {
+  transform: translate(-50%, 14px);
+}
+
+.gantt__tooltip-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.gantt__tooltip-fields {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+}
+
+.gantt__tooltip-fields div {
+  display: flex;
+  gap: 6px;
+}
+
+.gantt__tooltip-fields dt {
+  flex: 0 0 auto;
+  color: #b6bcc6;
+}
+
+.gantt__tooltip-fields dd {
+  margin: 0;
+}
+
+.gantt__tooltip-note {
+  margin: 4px 0 0;
+  color: #ffd58a;
+}

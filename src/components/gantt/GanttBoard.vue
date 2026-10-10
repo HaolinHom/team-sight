@@ -3,7 +3,9 @@ import { computed, ref } from 'vue';
 
 import { isWeekend, todayKey, type DateRange } from '@/gantt/dateUtils';
 import { computeLayout } from '@/gantt/layout';
+import { buildTooltipContent, type GanttTooltipContent } from '@/gantt/tooltip';
 import type { ScheduleTask } from '@/types/schedule';
+import type { GanttBar } from '@/gantt/types';
 import '@/styles/gantt.css';
 
 const props = withDefaults(
@@ -34,6 +36,18 @@ const emit = defineEmits<{
 
 const timelineRef = ref<HTMLElement | null>(null);
 const viewportOffset = ref(0);
+
+interface TooltipState {
+  content: GanttTooltipContent;
+  x: number;
+  y: number;
+  below: boolean;
+}
+
+const TOOLTIP_HALF_WIDTH = 170;
+const TOOLTIP_FLIP_THRESHOLD = 160;
+
+const tooltip = ref<TooltipState | null>(null);
 
 const layout = computed(() =>
   computeLayout({
@@ -106,6 +120,32 @@ function onLabelsWheel(event: WheelEvent): void {
   timeline.scrollTop += event.deltaY;
   viewportOffset.value = timeline.scrollTop;
   event.preventDefault();
+}
+
+/** 提示贴近视口边缘时向内侧收，光标靠近顶部时翻到下方显示。 */
+function clampTooltipX(clientX: number): number {
+  if (typeof window === 'undefined') return clientX;
+  const min = TOOLTIP_HALF_WIDTH + 8;
+  const max = Math.max(min, window.innerWidth - TOOLTIP_HALF_WIDTH - 8);
+  return Math.min(Math.max(clientX, min), max);
+}
+
+function updateTooltip(bar: GanttBar, event: MouseEvent): void {
+  const task = taskOf(bar.taskId);
+  if (!task) return;
+  tooltip.value = {
+    content: buildTooltipContent(task, {
+      clippedStart: bar.clippedStart,
+      clippedEnd: bar.clippedEnd,
+    }),
+    x: clampTooltipX(event.clientX),
+    y: event.clientY,
+    below: event.clientY < TOOLTIP_FLIP_THRESHOLD,
+  };
+}
+
+function hideTooltip(): void {
+  tooltip.value = null;
 }
 </script>
 
@@ -260,12 +300,10 @@ function onLabelsWheel(event: WheelEvent): void {
               :stroke="props.selectedTaskKey === bar.taskId ? '#1f2329' : 'transparent'"
               stroke-width="2"
               @click="emit('select-task', bar.taskId)"
-            >
-              <title>
-                {{ bar.title }}｜{{ bar.startDate }} ~ {{ bar.dueDate
-                }}{{ bar.clippedStart || bar.clippedEnd ? '（已按时间窗裁剪显示）' : '' }}
-              </title>
-            </rect>
+              @mouseenter="updateTooltip(bar, $event)"
+              @mousemove="updateTooltip(bar, $event)"
+              @mouseleave="hideTooltip"
+            />
             <text
               v-for="bar in layout.bars"
               :key="`label-${bar.key}`"
@@ -278,6 +316,26 @@ function onLabelsWheel(event: WheelEvent): void {
           </g>
         </svg>
       </div>
+    </div>
+
+    <div
+      v-if="tooltip"
+      class="gantt__tooltip"
+      :class="{ 'gantt__tooltip--below': tooltip.below }"
+      :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
+      role="tooltip"
+    >
+      <p class="gantt__tooltip-title">{{ tooltip.content.title }}</p>
+      <dl class="gantt__tooltip-fields">
+        <div><dt>项目</dt><dd>{{ tooltip.content.project }}</dd></div>
+        <div><dt>负责人</dt><dd>{{ tooltip.content.assignee }}</dd></div>
+        <div><dt>状态</dt><dd>{{ tooltip.content.status }}</dd></div>
+        <div v-if="tooltip.content.priority"><dt>优先级</dt><dd>{{ tooltip.content.priority }}</dd></div>
+        <div><dt>日期</dt><dd>{{ tooltip.content.dateRange }}</dd></div>
+      </dl>
+      <p v-for="note in tooltip.content.notes" :key="note" class="gantt__tooltip-note">
+        {{ note }}
+      </p>
     </div>
   </div>
 </template>

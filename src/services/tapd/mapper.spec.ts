@@ -80,7 +80,7 @@ describe('mapRow', () => {
       startDate: '2026-10-01',
       dueDate: '2026-10-08',
       priority: 'High',
-      tapdUrl: 'https://www.tapd.cn/63253157/task/view/9001',
+      tapdUrl: 'https://www.tapd.cn/tapd_fe/63253157/task/detail/9001',
     });
   });
 
@@ -99,7 +99,7 @@ describe('mapRow', () => {
       assigneeName: '蔡宏炯',
       startDate: null,
       dueDate: null,
-      tapdUrl: 'https://www.tapd.cn/63253157/bug/view/7001',
+      tapdUrl: 'https://www.tapd.cn/tapd_fe/63253157/bug/detail/7001',
     });
   });
 
@@ -183,12 +183,22 @@ describe('dedupeTasks', () => {
 });
 
 describe('buildTapdUrl', () => {
-  it('按工作项类型生成任务/缺陷详情地址', () => {
+  it('按工作项类型生成 tapd_fe 详情地址', () => {
     expect(buildTapdUrl('62120799', 'task', '123')).toBe(
-      'https://www.tapd.cn/62120799/task/view/123'
+      'https://www.tapd.cn/tapd_fe/62120799/task/detail/123'
     );
     expect(buildTapdUrl('62120799', 'bug', '456')).toBe(
-      'https://www.tapd.cn/62120799/bug/view/456'
+      'https://www.tapd.cn/tapd_fe/62120799/bug/detail/456'
+    );
+  });
+
+  // 真实 ID 回归：用户在桌面端验收时提供的正确链接形态
+  it('与真实任务/缺陷链接一致', () => {
+    expect(buildTapdUrl('62120799', 'task', '1162120799001210310')).toBe(
+      'https://www.tapd.cn/tapd_fe/62120799/task/detail/1162120799001210310'
+    );
+    expect(buildTapdUrl('63253157', 'bug', '1163253157001041841')).toBe(
+      'https://www.tapd.cn/tapd_fe/63253157/bug/detail/1163253157001041841'
     );
   });
 });

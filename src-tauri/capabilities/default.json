@@ -1,7 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "TeamSight 默认权限集：仅启用核心能力，不开放任何文件系统或 shell 权限。",
+  "description": "TeamSight 默认权限集：仅启用核心能力，以及打开 TAPD 域名链接的系统浏览器能力；不开放文件系统与 shell 权限。",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://www.tapd.cn/*" }]
+    }
+  ]
 }

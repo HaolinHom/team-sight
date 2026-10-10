@@ -1,11 +1,11 @@
 import type { ProjectConfig, ScheduleTask } from '@/types/schedule';
 
 /**
- * 甘特图 PoC 固定数据（技术方案 7.6 节要求）：
+ * 甘特图固定验收数据（技术方案 7.6 节要求，用于 §10.3 视觉验收）：
  * 2 个以上成员、每人 3+ 任务、多项目颜色、同成员日期重叠、跨多天任务、
  * 成员任务数不等、含折叠成员，并额外覆盖缺失日期与日期倒挂。
  */
-export const POC_PROJECTS: ProjectConfig[] = [
+export const GANTT_FIXTURE_PROJECTS: ProjectConfig[] = [
   { id: '63253157', name: '中台项目', enabled: true, color: '#3b82f6' },
   { id: '62120799', name: '商城项目', enabled: true, color: '#10b981' },
   { id: '70000111', name: '数据平台', enabled: true, color: '#f59e0b' },
@@ -13,8 +13,8 @@ export const POC_PROJECTS: ProjectConfig[] = [
 ];
 
 function project(id: string): ProjectConfig {
-  const found = POC_PROJECTS.find((item) => item.id === id);
-  if (!found) throw new Error(`未定义的 PoC 项目：${id}`);
+  const found = GANTT_FIXTURE_PROJECTS.find((item) => item.id === id);
+  if (!found) throw new Error(`未定义的验收项目：${id}`);
   return found;
 }
 
@@ -182,7 +182,7 @@ const SEEDS: MockSeed[] = [
   },
 ];
 
-export const POC_TASKS: ScheduleTask[] = SEEDS.map((seed) => {
+export const GANTT_FIXTURE_TASKS: ScheduleTask[] = SEEDS.map((seed) => {
   const meta = project(seed.projectId);
   const view = seed.sourceType === 'task' ? 'task' : 'bug';
   return {
@@ -199,10 +199,10 @@ export const POC_TASKS: ScheduleTask[] = SEEDS.map((seed) => {
     dueDate: seed.dueDate,
     status: seed.status,
     priority: seed.priority,
-    tapdUrl: `https://www.tapd.cn/${meta.id}/${view}/view/${seed.id}`,
+    tapdUrl: `https://www.tapd.cn/tapd_fe/${meta.id}/${view}/detail/${seed.id}`,
     rawStatus: seed.status,
   };
 });
 
-/** 默认折叠成员（技术方案要求 PoC 含一个折叠成员）。 */
-export const POC_COLLAPSED_MEMBERS = ['staff:800100003'];
+/** 默认折叠成员（技术方案要求验收数据含一个折叠成员）。 */
+export const GANTT_FIXTURE_COLLAPSED_MEMBERS = ['staff:800100003'];

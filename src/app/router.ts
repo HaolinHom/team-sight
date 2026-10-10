@@ -5,12 +5,12 @@ export const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/poc/gantt',
+      redirect: '/board',
     },
     {
-      path: '/poc/gantt',
-      name: 'poc-gantt',
-      component: () => import('@/poc/PocGantt.vue'),
+      path: '/board',
+      name: 'board',
+      component: () => import('@/pages/BoardPage.vue'),
     },
     {
       path: '/settings',

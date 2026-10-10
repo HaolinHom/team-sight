@@ -85,9 +85,16 @@ export function parseAssignee(value: unknown): ParsedAssignee {
   return parseAssignees(value)[0] ?? { id: null, name: '' };
 }
 
+/**
+ * TAPD 详情页地址。
+ * 已验证形态（HTTP 200，无需登录即可命中前端路由）：
+ *   https://www.tapd.cn/tapd_fe/<workspace_id>/task/detail/<id>
+ *   https://www.tapd.cn/tapd_fe/<workspace_id>/bug/detail/<id>
+ * 旧形态 `/<workspace_id>/<task|bug>/view/<id>` 只会 302 跳登录，不要使用。
+ */
 export function buildTapdUrl(workspaceId: string, type: WorkItemType, id: string): string {
   const view = type === 'task' ? 'task' : 'bug';
-  return `https://www.tapd.cn/${workspaceId}/${view}/view/${id}`;
+  return `https://www.tapd.cn/tapd_fe/${workspaceId}/${view}/detail/${id}`;
 }
 
 export function mapRow(

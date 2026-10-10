@@ -250,6 +250,9 @@ fn settings_write(app: tauri::AppHandle, settings_json: String) -> Result<(), St
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 外部链接（TAPD 任务/缺陷页）交给系统浏览器打开：
+        // Tauri 的 webview 不处理 <a target="_blank">，必须显式调用 opener。
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             tapd_get,
             credential_set,

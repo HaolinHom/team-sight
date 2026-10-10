@@ -6,7 +6,7 @@ import { RouterLink, RouterView } from 'vue-router';
   <div class="app">
     <nav class="app__nav">
       <span class="app__brand">TeamSight</span>
-      <RouterLink class="app__link" to="/poc/gantt">排期验证</RouterLink>
+      <RouterLink class="app__link" to="/board">看板</RouterLink>
       <RouterLink class="app__link" to="/settings">设置</RouterLink>
     </nav>
     <main class="app__main">

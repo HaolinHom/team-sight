@@ -17,7 +17,7 @@ function task(partial: Partial<ScheduleTask> & Pick<ScheduleTask, 'id' | 'title'
     startDate: '2026-10-01',
     dueDate: '2026-10-02',
     status: 'open',
-    tapdUrl: 'https://www.tapd.cn/1/task/view/1',
+    tapdUrl: 'https://www.tapd.cn/tapd_fe/1/task/detail/1',
     ...partial,
   };
 }
