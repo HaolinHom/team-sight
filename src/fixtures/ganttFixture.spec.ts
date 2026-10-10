@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GANTT_FIXTURE_COLLAPSED_MEMBERS, GANTT_FIXTURE_TASKS } from './ganttFixture';
 import { dateDiffInDays } from '@/gantt/dateUtils';
+import { isCompletedStatus } from '@/gantt/filters';
 import { resolveDateIssue, resolveMemberKey } from '@/gantt/layout';
 
 /**
@@ -87,5 +88,13 @@ describe('甘特图固定验收数据', () => {
   it('任务键唯一（去重键为来源类型 + ID）', () => {
     const keys = tasks.map((task) => `${task.sourceType}:${task.id}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('包含已完成与未完成状态，以及有工时与无工时的样本', () => {
+    const statuses = new Set(tasks.map((task) => task.status));
+    expect([...statuses].some((status) => isCompletedStatus(status))).toBe(true);
+    expect([...statuses].some((status) => !isCompletedStatus(status))).toBe(true);
+    expect(tasks.some((task) => Boolean(task.effort))).toBe(true);
+    expect(tasks.some((task) => !task.effort)).toBe(true);
   });
 });

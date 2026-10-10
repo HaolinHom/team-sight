@@ -11,6 +11,8 @@ import {
 import type { GanttBar, GanttLayout, GanttLayoutConfig, GanttMemberGroup, GanttRow } from './types';
 import type { DateIssue, ScheduleTask } from '@/types/schedule';
 
+import { isCompletedStatus } from './filters';
+
 export const DEFAULT_LAYOUT_CONFIG: GanttLayoutConfig = {
   headerHeight: 44,
   memberRowHeight: 30,
@@ -180,6 +182,7 @@ export function computeLayout(input: ComputeLayoutInput): GanttLayout {
         dueDate,
         clippedStart: dateDiffInDays(startDate, input.range.start) > 0,
         clippedEnd: dateDiffInDays(dueDate, input.range.end) < 0,
+        completed: isCompletedStatus(task.status),
       });
     }
   }

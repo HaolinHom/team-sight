@@ -11,6 +11,7 @@ export const TASK_FIELDS = [
   'creator',
   'status',
   'priority_label',
+  'effort',
   'begin',
   'due',
   'iteration_id',
@@ -27,6 +28,7 @@ export const BUG_FIELDS = [
   'creator',
   'status',
   'priority_label',
+  'effort',
   'begin',
   'due',
   'iteration_id',
@@ -128,6 +130,7 @@ export function mapRow(
     dueDate: normalizeDateKey(row.due),
     status: asString(row.status),
     priority: asString(row.priority_label) || undefined,
+    effort: asString(row.effort) || undefined,
     tapdUrl: buildTapdUrl(project.id, type, id),
     rawStatus: asString(row.status),
   };

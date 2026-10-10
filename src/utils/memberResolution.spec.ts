@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { ScheduleTask } from '@/types/schedule';
 import type { MemberEntry } from '@/types/settings';
 import {
+  createMemberResolution,
   expandTasksByMember,
   memberKeyOf,
   membersFromTasks,
   resolveTaskMembers,
+  selectMembersByKeys,
 } from './memberResolution';
 
 function task(partial: Partial<ScheduleTask> & Pick<ScheduleTask, 'id'>): ScheduleTask {
@@ -93,5 +95,42 @@ describe('membersFromTasks', () => {
       { staffId: '800100001', name: '张三' },
       { staffId: '800100002', name: '李四' },
     ]);
+  });
+});
+
+describe('selectMembersByKeys', () => {
+  it('null 表示全选，数组表示子集，空数组表示全部取消', () => {
+    expect(selectMembersByKeys(MEMBERS, null)).toHaveLength(2);
+    expect(selectMembersByKeys(MEMBERS, [memberKeyOf('800100002')])).toEqual([
+      { staffId: '800100002', name: '李四' },
+    ]);
+    expect(selectMembersByKeys(MEMBERS, [])).toEqual([]);
+  });
+});
+
+describe('createMemberResolution', () => {
+  it('返回成员键解析、展示名与隐藏任务数', () => {
+    const tasks = [
+      task({ id: 'a', assigneeIds: ['800100001'] }),
+      task({ id: 'b', assigneeIds: ['999'] }),
+    ];
+    const resolution = createMemberResolution(tasks, selectMembersByKeys(MEMBERS, null));
+
+    expect(resolution.memberKeysOf(tasks[0])).toEqual([memberKeyOf('800100001')]);
+    expect(resolution.memberKeysOf(tasks[1])).toEqual([]);
+    expect(resolution.memberNames.get(memberKeyOf('800100002'))).toBe('李四');
+    expect(resolution.hiddenTaskCount).toBe(1);
+  });
+
+  it('取消勾选成员后其任务不再产生分组，隐藏计数增加', () => {
+    const tasks = [
+      task({ id: 'a', assigneeIds: ['800100001'] }),
+      task({ id: 'b', assigneeIds: ['800100002'] }),
+    ];
+    const selected = selectMembersByKeys(MEMBERS, [memberKeyOf('800100001')]);
+    const resolution = createMemberResolution(tasks, selected);
+
+    expect(resolution.memberKeysOf(tasks[1])).toEqual([]);
+    expect(resolution.hiddenTaskCount).toBe(1);
   });
 });

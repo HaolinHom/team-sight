@@ -64,6 +64,7 @@ describe('mapRow', () => {
         owner: '张三_800100001;',
         status: 'open',
         priority_label: 'High',
+        effort: '2',
         begin: '2026-10-01',
         due: '2026-10-08',
       },
@@ -80,8 +81,15 @@ describe('mapRow', () => {
       startDate: '2026-10-01',
       dueDate: '2026-10-08',
       priority: 'High',
+      effort: '2',
       tapdUrl: 'https://www.tapd.cn/tapd_fe/63253157/task/detail/9001',
     });
+  });
+
+  it('映射预估工时：有值保留原字符串，null 不臆造为 0', () => {
+    expect(mapRow({ id: '9100', name: 'A', effort: '0.5' }, PROJECT, 'task')?.effort).toBe('0.5');
+    expect(mapRow({ id: '9101', name: 'A', effort: null }, PROJECT, 'task')?.effort).toBeUndefined();
+    expect(mapRow({ id: '9102', name: 'A' }, PROJECT, 'task')?.effort).toBeUndefined();
   });
 
   it('映射缺陷字段，标题取 title、负责人取 current_owner', () => {

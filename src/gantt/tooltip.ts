@@ -1,5 +1,6 @@
 import type { ScheduleTask } from '@/types/schedule';
 
+import { isCompletedStatus } from './filters';
 import { resolveDateIssue } from './layout';
 
 /** 任务条提示内容：字段全部来自真实任务数据，不做任何推算。 */
@@ -8,6 +9,8 @@ export interface GanttTooltipContent {
   project: string;
   status: string;
   priority: string;
+  effort: string;
+  completed: boolean;
   assignee: string;
   dateRange: string;
   notes: string[];
@@ -49,6 +52,8 @@ export function buildTooltipContent(
     project: task.projectName || task.projectId,
     status: task.status || '未知',
     priority: task.priority ?? '',
+    effort: task.effort ?? '',
+    completed: isCompletedStatus(task.status),
     assignee: task.assigneeName?.trim() || '未分配',
     dateRange: formatDateRange(task.startDate, task.dueDate),
     notes,

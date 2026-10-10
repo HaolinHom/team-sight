@@ -296,7 +296,7 @@ function hideTooltip(): void {
               :height="bar.height"
               rx="4"
               :fill="bar.color"
-              :opacity="props.selectedTaskKey === bar.taskId ? 1 : 0.9"
+              :fill-opacity="bar.completed ? 0.35 : 1"
               :stroke="props.selectedTaskKey === bar.taskId ? '#1f2329' : 'transparent'"
               stroke-width="2"
               @click="emit('select-task', bar.taskId)"
@@ -310,6 +310,7 @@ function hideTooltip(): void {
               class="gantt__bar-label"
               :x="bar.x + 8"
               :y="bar.y + bar.height / 2 + 4"
+              :fill="bar.completed ? '#475569' : '#ffffff'"
             >
               {{ barLabel(bar.taskId, bar.width) }}
             </text>
@@ -329,8 +330,12 @@ function hideTooltip(): void {
       <dl class="gantt__tooltip-fields">
         <div><dt>项目</dt><dd>{{ tooltip.content.project }}</dd></div>
         <div><dt>负责人</dt><dd>{{ tooltip.content.assignee }}</dd></div>
-        <div><dt>状态</dt><dd>{{ tooltip.content.status }}</dd></div>
+        <div>
+          <dt>状态</dt>
+          <dd>{{ tooltip.content.status }}{{ tooltip.content.completed ? '（已完成）' : '' }}</dd>
+        </div>
         <div v-if="tooltip.content.priority"><dt>优先级</dt><dd>{{ tooltip.content.priority }}</dd></div>
+        <div v-if="tooltip.content.effort"><dt>预估工时</dt><dd>{{ tooltip.content.effort }}</dd></div>
         <div><dt>日期</dt><dd>{{ tooltip.content.dateRange }}</dd></div>
       </dl>
       <p v-for="note in tooltip.content.notes" :key="note" class="gantt__tooltip-note">

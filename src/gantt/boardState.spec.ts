@@ -48,4 +48,16 @@ describe('resolveBoardState', () => {
     const state = resolveBoardState(input({ isDesktop: false, credentialConfigured: false }));
     expect(state.hint).toContain('浏览器模式无法直连 TAPD');
   });
+
+  it('已加载数据但筛选后为空时给出筛选相关文案', () => {
+    const state = resolveBoardState(input({ taskCount: 0, loadedTaskCount: 283 }));
+    expect(state.kind).toBe('empty');
+    expect(state.message).toContain('筛选条件');
+    expect(state.hint).toContain('放宽');
+  });
+
+  it('未加载数据与筛选为空使用不同文案', () => {
+    const state = resolveBoardState(input({ taskCount: 0, loadedTaskCount: 0 }));
+    expect(state.message).toContain('时间范围内');
+  });
 });

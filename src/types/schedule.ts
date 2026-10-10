@@ -35,6 +35,8 @@ export interface ScheduleTask {
 
   status: string;
   priority?: string;
+  /** TAPD 预估工时原值（字符串，单位由项目设置决定，不做换算）。 */
+  effort?: string;
 
   tapdUrl: string;
   rawStatus?: string;

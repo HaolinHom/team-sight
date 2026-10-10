@@ -31,10 +31,27 @@ describe('buildTooltipContent', () => {
       project: '巨像销售中台产品线',
       status: 'open',
       priority: 'High',
+      effort: '',
+      completed: false,
       assignee: '张三',
       dateRange: '2026-10-01 ~ 2026-10-08',
       notes: [],
     });
+  });
+
+  it('展示预估工时原值，缺失时留空（不臆造 0）', () => {
+    expect(buildTooltipContent(task({ effort: '2.5' })).effort).toBe('2.5');
+    expect(buildTooltipContent(task()).effort).toBe('');
+  });
+
+  it('终态任务标记为已完成，并保留原始状态值', () => {
+    const completed = buildTooltipContent(task({ status: 'done' }));
+    expect(completed.completed).toBe(true);
+    expect(completed.status).toBe('done');
+
+    const unknown = buildTooltipContent(task({ status: '已完成' }));
+    expect(unknown.completed).toBe(false);
+    expect(unknown.status).toBe('已完成');
   });
 
   it('按时间窗裁剪时给出提示，但不改日期', () => {

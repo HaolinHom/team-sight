@@ -29,6 +29,7 @@ interface MockSeed {
   dueDate: string | null;
   status: string;
   priority?: string;
+  effort?: string;
 }
 
 const SEEDS: MockSeed[] = [
@@ -44,6 +45,7 @@ const SEEDS: MockSeed[] = [
     dueDate: '2026-10-08',
     status: 'open',
     priority: 'High',
+    effort: '2',
   },
   {
     id: '9002',
@@ -55,6 +57,7 @@ const SEEDS: MockSeed[] = [
     startDate: '2026-10-05',
     dueDate: '2026-10-09',
     status: 'open',
+    effort: '3',
   },
   {
     id: '9003',
@@ -111,6 +114,7 @@ const SEEDS: MockSeed[] = [
     startDate: '2026-10-10',
     dueDate: '2026-10-10',
     status: 'done',
+    effort: '0.5',
   },
   // 王五：2 个任务（默认折叠，用于验证折叠后的行错位）
   {
@@ -123,6 +127,7 @@ const SEEDS: MockSeed[] = [
     startDate: '2026-10-03',
     dueDate: '2026-10-15',
     status: 'open',
+    effort: '1.5',
   },
   {
     id: '9202',
@@ -199,6 +204,7 @@ export const GANTT_FIXTURE_TASKS: ScheduleTask[] = SEEDS.map((seed) => {
     dueDate: seed.dueDate,
     status: seed.status,
     priority: seed.priority,
+    effort: seed.effort,
     tapdUrl: `https://www.tapd.cn/tapd_fe/${meta.id}/${view}/detail/${seed.id}`,
     rawStatus: seed.status,
   };

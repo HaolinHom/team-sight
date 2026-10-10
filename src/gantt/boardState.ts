@@ -15,7 +15,10 @@ export interface BoardStateInput {
   credentialConfigured: boolean;
   enabledProjectCount: number;
   memberCount: number;
+  /** 当前筛选后可见的任务数。 */
   taskCount: number;
+  /** 已加载的原始任务数，用于区分「无数据」与「筛选后为空」。 */
+  loadedTaskCount?: number;
 }
 
 export interface BoardState {
@@ -67,10 +70,17 @@ export function resolveBoardState(input: BoardStateInput): BoardState {
   }
 
   if (input.taskCount === 0) {
+    const filteredOut = (input.loadedTaskCount ?? 0) > 0;
     return {
       kind: 'empty',
-      message: '当前时间范围内没有可展示的任务。',
-      hint: browserHint || '可切换月份，或确认所选项目的排期数据与成员配置。',
+      message: filteredOut
+        ? '当前筛选条件下没有可展示的任务。'
+        : '当前时间范围内没有可展示的任务。',
+      hint:
+        browserHint ||
+        (filteredOut
+          ? '可放宽项目、成员或状态筛选，或调整时间范围。'
+          : '可切换月份，或确认所选项目的排期数据与成员配置。'),
     };
   }
 

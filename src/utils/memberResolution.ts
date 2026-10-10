@@ -81,3 +81,34 @@ export function membersFromTasks(tasks: readonly ScheduleTask[]): MemberEntry[] 
   }
   return [...members.values()];
 }
+
+/** 按筛选结果取成员子集；`null` 表示全选。 */
+export function selectMembersByKeys(
+  members: readonly MemberEntry[],
+  memberKeys: string[] | null
+): MemberEntry[] {
+  if (memberKeys === null) return [...members];
+  const selected = new Set(memberKeys);
+  return members.filter((member) => selected.has(memberKeyOf(member.staffId)));
+}
+
+export interface MemberResolution {
+  memberKeysOf: (task: ScheduleTask) => string[];
+  memberNames: Map<string, string>;
+  hiddenTaskCount: number;
+}
+
+/** 统一构造布局需要的成员解析函数，避免页面与组件各自拼装。 */
+export function createMemberResolution(
+  tasks: readonly ScheduleTask[],
+  members: readonly MemberEntry[]
+): MemberResolution {
+  const expansion = expandTasksByMember(tasks, members);
+  const names = new Map(members.map((member) => [memberKeyOf(member.staffId), member.name]));
+
+  return {
+    memberKeysOf: (task) => resolveTaskMembers(task, members).map((member) => member.key),
+    memberNames: names,
+    hiddenTaskCount: expansion.hiddenTaskCount,
+  };
+}

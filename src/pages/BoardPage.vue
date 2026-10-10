@@ -3,15 +3,28 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import GanttBoard from '@/components/gantt/GanttBoard.vue';
+import FilterPanel from '@/components/board/FilterPanel.vue';
 import { useCredentials } from '@/composables/useCredentials';
 import { useSchedule } from '@/composables/useSchedule';
 import { useSettings } from '@/composables/useSettings';
-import { GANTT_FIXTURE_COLLAPSED_MEMBERS, GANTT_FIXTURE_TASKS } from '@/fixtures/ganttFixture';
+import {
+  GANTT_FIXTURE_COLLAPSED_MEMBERS,
+  GANTT_FIXTURE_PROJECTS,
+  GANTT_FIXTURE_TASKS,
+} from '@/fixtures/ganttFixture';
 import { resolveBoardState } from '@/gantt/boardState';
 import { currentMonthRange, todayKey, type DateRange } from '@/gantt/dateUtils';
+import {
+  collectStatusOptions,
+  createDefaultFilters,
+  filterTasks,
+  type ScheduleFilters,
+} from '@/gantt/filters';
 import { describeTapdError } from '@/services/credentials';
 import { openExternalUrl } from '@/services/externalLink';
 import { isTauriRuntime } from '@/services/tapd/client';
+import type { MemberEntry } from '@/types/settings';
+import { createMemberResolution, membersFromTasks, selectMembersByKeys } from '@/utils/memberResolution';
 
 /** 视觉验收模式：使用固定数据，不请求 TAPD，也不要求凭据与配置。 */
 const FIXTURE_MODE = import.meta.env.VITE_BOARD_FIXTURE === '1';
@@ -22,21 +35,37 @@ const schedule = useSchedule();
 const credentials = useCredentials();
 
 const isDesktop = isTauriRuntime();
-const range = ref<DateRange>(currentMonthRange());
+const filters = ref<ScheduleFilters>(createDefaultFilters(currentMonthRange()));
 const collapsedMemberKeys = ref<string[]>(
   FIXTURE_MODE ? [...GANTT_FIXTURE_COLLAPSED_MEMBERS] : []
 );
 const selectedTaskKey = ref<string | null>(null);
 const externalLinkError = ref('');
 
-const tasks = computed(() => (FIXTURE_MODE ? GANTT_FIXTURE_TASKS : schedule.liveTasks.value));
-const boardMemberKeysOf = computed(() => (FIXTURE_MODE ? undefined : schedule.memberKeysOf));
-const boardMemberNames = computed<Map<string, string> | undefined>(() =>
-  FIXTURE_MODE ? undefined : schedule.memberNames.value
+const range = computed<DateRange>(() => filters.value.range);
+
+/** 数据源：fixture 用固定验收数据，真实模式用阶段1 拉取结果。 */
+const rawTasks = computed(() => (FIXTURE_MODE ? GANTT_FIXTURE_TASKS : schedule.liveTasks.value));
+const projectSource = computed(() =>
+  FIXTURE_MODE ? GANTT_FIXTURE_PROJECTS : store.enabledProjects.value
+);
+const memberSource = computed<MemberEntry[]>(() =>
+  FIXTURE_MODE ? membersFromTasks(GANTT_FIXTURE_TASKS) : store.settings.value.members
 );
 
-const enabledProjectCount = computed(() => store.enabledProjects.value.length);
-const memberCount = computed(() => store.settings.value.members.length);
+const statusOptions = computed(() => collectStatusOptions(rawTasks.value));
+const selectedMembers = computed(() =>
+  selectMembersByKeys(memberSource.value, filters.value.memberKeys)
+);
+const filteredTasks = computed(() => filterTasks(rawTasks.value, filters.value));
+const resolution = computed(() => createMemberResolution(filteredTasks.value, selectedMembers.value));
+
+const tasks = computed(() => filteredTasks.value);
+const boardMemberKeysOf = computed(() => resolution.value.memberKeysOf);
+const boardMemberNames = computed(() => resolution.value.memberNames);
+
+/** fixture 模式下列表来自固定数据，真实模式下来自设置页已启用项目。 */
+const enabledProjectCount = computed(() => projectSource.value.length);
 
 const canAutoLoad = computed(
   () =>
@@ -53,8 +82,9 @@ const boardState = computed(() =>
     isDesktop,
     credentialConfigured: credentials.status.value.configured,
     enabledProjectCount: enabledProjectCount.value,
-    memberCount: memberCount.value,
+    memberCount: memberSource.value.length,
     taskCount: tasks.value.length,
+    loadedTaskCount: rawTasks.value.length,
   })
 );
 
@@ -72,22 +102,6 @@ const errorMessages = computed(() =>
       `${error.type} @ ${error.workspaceId}：${describeTapdError(error.status, error.message, error.workspaceId)}`
   )
 );
-
-function monthRange(offsetMonths: number): DateRange {
-  const now = new Date();
-  return currentMonthRange(new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1));
-}
-
-function shiftMonth(offset: number): void {
-  const start = new Date(`${range.value.start}T00:00:00Z`);
-  range.value = currentMonthRange(
-    new Date(start.getUTCFullYear(), start.getUTCMonth() + offset, 1)
-  );
-}
-
-function resetMonth(): void {
-  range.value = monthRange(0);
-}
 
 function toggleMember(memberKey: string): void {
   const next = new Set(collapsedMemberKeys.value);
@@ -116,7 +130,7 @@ async function openTapdLink(event: MouseEvent): Promise<void> {
 
 async function refresh(): Promise<void> {
   if (!canAutoLoad.value) return;
-  await schedule.refresh(store.enabledProjects.value, range.value);
+  await schedule.refresh(store.enabledProjects.value, filters.value.range);
 }
 
 onMounted(async () => {
@@ -125,30 +139,37 @@ onMounted(async () => {
   await refresh();
 });
 
-// 切换月份后按新时间窗重新拉取（fixture 模式只重算布局）。
-watch(range, () => {
-  void refresh();
-});
+// 只有时间范围变化才重新拉取；项目/成员/状态筛选只作用于已获取数据。
+watch(
+  () => `${filters.value.range.start}~${filters.value.range.end}`,
+  () => {
+    void refresh();
+  }
+);
 
 const today = todayKey();
 </script>
 
 <template>
   <div class="board">
+    <FilterPanel
+      v-model="filters"
+      :projects="projectSource"
+      :members="memberSource"
+      :status-options="statusOptions"
+    />
+
     <header class="board__toolbar">
-      <div class="board__group">
-        <button type="button" @click="shiftMonth(-1)">上一月</button>
-        <button type="button" @click="resetMonth">本月</button>
-        <button type="button" @click="shiftMonth(1)">下一月</button>
-        <span class="board__range">{{ range.start }} ~ {{ range.end }}</span>
-      </div>
       <div class="board__group board__group--meta">
         <button type="button" :disabled="!canAutoLoad || schedule.loading.value" @click="refresh">
           刷新
         </button>
         <span>已启用项目 {{ enabledProjectCount }}</span>
-        <span>展示成员 {{ memberCount }}</span>
+        <span>展示成员 {{ selectedMembers.length }}</span>
         <span>任务行 {{ tasks.length }}</span>
+        <span v-if="resolution.hiddenTaskCount">
+          未命中展示成员 {{ resolution.hiddenTaskCount }} 条
+        </span>
         <span v-if="unscheduledCount">缺失日期 {{ unscheduledCount }}</span>
         <span v-if="schedule.lastLoadedAt.value">最后刷新 {{ schedule.lastLoadedAt.value }}</span>
       </div>
@@ -185,13 +206,14 @@ const today = todayKey();
         <strong>[{{ selectedTask.projectName }}] {{ selectedTask.title }}</strong>
         <span>负责人：{{ selectedTask.assigneeName || '未分配' }}</span>
         <span>状态：{{ selectedTask.status || '未知' }}</span>
+        <span v-if="selectedTask.effort">预估工时：{{ selectedTask.effort }}</span>
         <span>日期：{{ selectedTask.startDate ?? '无' }} ~ {{ selectedTask.dueDate ?? '无' }}</span>
         <a :href="selectedTask.tapdUrl" target="_blank" rel="noreferrer" @click="openTapdLink">
           打开 TAPD
         </a>
       </template>
       <span v-else class="board__muted">
-        点击任务条或左侧任务标题可查看要点；完整任务详情在阶段3 实现。
+        点击任务条或左侧任务标题可查看要点（悬停任务条显示完整提示）。
       </span>
     </footer>
 

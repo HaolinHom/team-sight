@@ -43,6 +43,8 @@ export interface GanttBar {
   /** 任务区间被时间窗裁剪的标记，原始日期不因此改变。 */
   clippedStart: boolean;
   clippedEnd: boolean;
+  /** 状态命中 TAPD 常见终态，仅用于视觉弱化。 */
+  completed: boolean;
 }
 
 export interface GanttMemberGroup {
