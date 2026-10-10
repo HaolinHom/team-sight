@@ -60,24 +60,29 @@ export interface ParsedAssignee {
   name: string;
 }
 
+/** 解析全部负责人：task 为 `姓名_工号;` 分号分隔多人，bug 通常只有一个。 */
+export function parseAssignees(value: unknown): ParsedAssignee[] {
+  const raw = asString(value);
+  if (!raw) return [];
+
+  return raw
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const matched = /^(.*)_(\d+)$/.exec(part);
+      if (!matched) return { id: null, name: part };
+      return { id: matched[2], name: matched[1].trim() };
+    });
+}
+
 /**
  * 解析 TAPD 负责人字段。
  * 已验证格式：task 为 `姓名_工号;`（可多值），bug 为 `姓名_工号`（无尾分号）。
- * 多人时取第一个处理人作为该行的归组依据，其余暂不建模。
+ * 返回第一个处理人，多负责人场景请使用 `parseAssignees`。
  */
 export function parseAssignee(value: unknown): ParsedAssignee {
-  const raw = asString(value);
-  if (!raw) return { id: null, name: '' };
-
-  const primary = raw
-    .split(';')
-    .map((part) => part.trim())
-    .filter(Boolean)[0];
-  if (!primary) return { id: null, name: '' };
-
-  const matched = /^(.*)_(\d+)$/.exec(primary);
-  if (!matched) return { id: null, name: primary };
-  return { id: matched[2], name: matched[1].trim() };
+  return parseAssignees(value)[0] ?? { id: null, name: '' };
 }
 
 export function buildTapdUrl(workspaceId: string, type: WorkItemType, id: string): string {
@@ -95,8 +100,12 @@ export function mapRow(
   if (!id) return null;
 
   const title = type === 'task' ? asString(row.name) : asString(row.title);
-  const assignee = parseAssignee(type === 'task' ? row.owner : row.current_owner);
-  const directoryName = assignee.id ? members[assignee.id] : undefined;
+  const assignees = parseAssignees(type === 'task' ? row.owner : row.current_owner);
+  const primary = assignees[0] ?? { id: null, name: '' };
+  const assigneeIds = [
+    ...new Set(assignees.map((item) => item.id).filter((id): id is string => Boolean(id))),
+  ];
+  const directoryName = primary.id ? members[primary.id] : undefined;
 
   return {
     id,
@@ -105,8 +114,9 @@ export function mapRow(
     projectId: project.id,
     projectName: project.name,
     projectColor: project.color,
-    assigneeId: assignee.id,
-    assigneeName: directoryName ?? assignee.name,
+    assigneeId: primary.id,
+    assigneeName: directoryName ?? primary.name,
+    assigneeIds,
     startDate: normalizeDateKey(row.begin),
     dueDate: normalizeDateKey(row.due),
     status: asString(row.status),

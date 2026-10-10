@@ -257,6 +257,7 @@ export async function fetchScheduleTasks(
       errors.push({
         workspaceId: job.project.id,
         type: job.type,
+        status: error instanceof TapdApiError ? error.status : 0,
         message: error instanceof Error ? error.message : String(error),
       });
       return [];

@@ -26,6 +26,8 @@ export interface ScheduleTask {
 
   assigneeId: string | null;
   assigneeName: string;
+  /** 全部负责人工号（多负责人任务按 TAPD 返回顺序），用于按配置成员归属与拆行。 */
+  assigneeIds: string[];
 
   startDate: string | null;
   dueDate: string | null;

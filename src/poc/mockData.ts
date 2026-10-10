@@ -194,6 +194,7 @@ export const POC_TASKS: ScheduleTask[] = SEEDS.map((seed) => {
     projectColor: meta.color,
     assigneeId: seed.staffId,
     assigneeName: seed.assigneeName,
+    assigneeIds: seed.staffId ? [seed.staffId] : [],
     startDate: seed.startDate,
     dueDate: seed.dueDate,
     status: seed.status,

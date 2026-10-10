@@ -31,6 +31,13 @@ export interface ComputeLayoutInput {
   collapsedMemberKeys?: readonly string[];
   config?: Partial<GanttLayoutConfig>;
   today?: string;
+  /**
+   * 任务归属的成员键列表。默认按任务第一个负责人归组；
+   * 传入配置成员解析器后，多负责人任务会在多个成员分组下各占一行。
+   */
+  memberKeysOf?: (task: ScheduleTask) => string[];
+  /** 成员键 -> 展示名，用于配置成员分组标题。 */
+  memberNames?: ReadonlyMap<string, string>;
 }
 
 /** 稳定成员键：优先工号；无工号时退回 `name:<姓名>`，同名单列不合并。 */
@@ -64,26 +71,35 @@ export function sortTasksForLayout(tasks: ScheduleTask[]): ScheduleTask[] {
 }
 
 /** 按成员分组：具名成员按中文排序，未分配成员固定排最后。 */
-export function groupTasksByMember(tasks: ScheduleTask[]): GanttMemberGroup[] {
+export function groupTasksByMember(
+  tasks: ScheduleTask[],
+  options: Pick<ComputeLayoutInput, 'memberKeysOf' | 'memberNames'> = {}
+): GanttMemberGroup[] {
   const groups = new Map<string, GanttMemberGroup>();
+  const keysOf = options.memberKeysOf ?? ((task: ScheduleTask) => [resolveMemberKey(task)]);
 
   for (const task of tasks) {
-    const key = resolveMemberKey(task);
-    const existing = groups.get(key);
-    if (existing) {
-      existing.tasks.push(task);
-      continue;
+    for (const key of keysOf(task)) {
+      const existing = groups.get(key);
+      if (existing) {
+        existing.tasks.push(task);
+        continue;
+      }
+      groups.set(key, {
+        key,
+        memberId: task.assigneeId ?? null,
+        memberName: options.memberNames?.get(key) ?? task.assigneeName?.trim() ?? '',
+        tasks: [task],
+      });
     }
-    groups.set(key, {
-      key,
-      memberId: task.assigneeId ?? null,
-      memberName: task.assigneeName?.trim() || UNASSIGNED_MEMBER_NAME,
-      tasks: [task],
-    });
   }
 
   return [...groups.values()]
-    .map((group) => ({ ...group, tasks: sortTasksForLayout(group.tasks) }))
+    .map((group) => ({
+      ...group,
+      memberName: group.memberName || UNASSIGNED_MEMBER_NAME,
+      tasks: sortTasksForLayout(group.tasks),
+    }))
     .sort((left, right) => {
       if (left.key === UNASSIGNED_MEMBER_KEY) return 1;
       if (right.key === UNASSIGNED_MEMBER_KEY) return -1;
@@ -99,7 +115,10 @@ export function computeLayout(input: ComputeLayoutInput): GanttLayout {
   const config: GanttLayoutConfig = { ...DEFAULT_LAYOUT_CONFIG, ...input.config };
   const collapsed = new Set(input.collapsedMemberKeys ?? []);
   const days = eachDateKey(input.range);
-  const memberGroups = groupTasksByMember(input.tasks);
+  const memberGroups = groupTasksByMember(input.tasks, {
+    memberKeysOf: input.memberKeysOf,
+    memberNames: input.memberNames,
+  });
 
   const rows: GanttRow[] = [];
   const bars: GanttBar[] = [];
@@ -125,7 +144,7 @@ export function computeLayout(input: ComputeLayoutInput): GanttLayout {
       cursorY += config.taskRowHeight;
       rows.push({
         type: 'task',
-        key: `task:${task.sourceType}:${task.id}`,
+        key: `task:${group.key}:${task.sourceType}:${task.id}`,
         taskId: `${task.sourceType}:${task.id}`,
         memberKey: group.key,
         title: task.title,
@@ -147,7 +166,7 @@ export function computeLayout(input: ComputeLayoutInput): GanttLayout {
       const spanDays = dateDiffInDays(visibleStart, visibleDue) + 1;
 
       bars.push({
-        key: `bar:${task.sourceType}:${task.id}`,
+        key: `bar:${group.key}:${task.sourceType}:${task.id}`,
         taskId: `${task.sourceType}:${task.id}`,
         memberKey: group.key,
         title: task.title,

@@ -13,6 +13,7 @@ function task(partial: Partial<ScheduleTask> & Pick<ScheduleTask, 'id' | 'title'
     projectColor: '#3b82f6',
     assigneeId: '800100001',
     assigneeName: '张三',
+    assigneeIds: ['800100001'],
     startDate: '2026-10-01',
     dueDate: '2026-10-02',
     status: 'open',
@@ -141,5 +142,43 @@ describe('computeLayout', () => {
     expect(computeLayout({ tasks: [], range: RANGE, today: '2026-10-02' }).todayX).toBe(
       DEFAULT_LAYOUT_CONFIG.dayColumnWidth * 1.5
     );
+  });
+
+  it('多负责人任务在多个成员分组下各占一行', () => {
+    const layout = computeLayout({
+      tasks: [task({ id: '1', title: '联调', assigneeIds: ['800100001', '800100002'] })],
+      range: RANGE,
+      memberKeysOf: (item) => item.assigneeIds.map((staffId) => `staff:${staffId}`),
+      memberNames: new Map([
+        ['staff:800100001', '张三'],
+        ['staff:800100002', '李四'],
+      ]),
+    });
+
+    const memberRows = layout.rows.filter((row) => row.type === 'member');
+    const taskRows = layout.rows.filter((row) => row.type === 'task');
+    expect(memberRows).toHaveLength(2);
+    expect(taskRows).toHaveLength(2);
+    expect(layout.bars).toHaveLength(2);
+    expect(layout.bars.map((bar) => bar.memberKey)).toEqual([
+      'staff:800100002',
+      'staff:800100001',
+    ]);
+    expect(memberRows.map((row) => (row.type === 'member' ? row.memberName : ''))).toEqual([
+      '李四',
+      '张三',
+    ]);
+  });
+
+  it('成员键为空的任务不生成行（被成员过滤隐藏）', () => {
+    const layout = computeLayout({
+      tasks: [task({ id: '1', title: '无归属' })],
+      range: RANGE,
+      memberKeysOf: () => [],
+    });
+
+    expect(layout.rows).toHaveLength(0);
+    expect(layout.bars).toHaveLength(0);
+    expect(layout.totalHeight).toBe(0);
   });
 });

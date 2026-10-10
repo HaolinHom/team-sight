@@ -13,11 +13,17 @@ const props = withDefaults(
     collapsedMemberKeys?: string[];
     selectedTaskKey?: string | null;
     today?: string;
+    /** 任务归属成员键（多负责人任务可返回多个键 → 在多个成员分组下各占一行）。 */
+    memberKeysOf?: (task: ScheduleTask) => string[];
+    /** 成员键 -> 展示名。 */
+    memberNames?: Map<string, string>;
   }>(),
   {
     collapsedMemberKeys: () => [],
     selectedTaskKey: null,
     today: undefined,
+    memberKeysOf: undefined,
+    memberNames: undefined,
   }
 );
 
@@ -35,6 +41,8 @@ const layout = computed(() =>
     range: props.range,
     collapsedMemberKeys: props.collapsedMemberKeys,
     today: props.today ?? todayKey(),
+    memberKeysOf: props.memberKeysOf,
+    memberNames: props.memberNames,
   })
 );
 

@@ -186,6 +186,22 @@ describe('fetchScheduleTasks', () => {
     expect(result.tasks).toHaveLength(2);
     expect(result.errors).toHaveLength(2);
     expect(result.errors.every((error) => error.workspaceId === failing.id)).toBe(true);
+    expect(result.errors.every((error) => error.status === 0)).toBe(true);
     expect(result.tasks.some((task) => task.projectId === disabled.id)).toBe(false);
+  });
+
+  it('TAPD 错误响应保留状态码，便于界面区分凭据与权限问题', async () => {
+    const transport: TapdTransport = async (path) => {
+      if (path === '/workspaces/users') return ok([]);
+      return { status: 403, data: '', info: 'Personal token company does not match workspace' };
+    };
+
+    const result = await fetchScheduleTasks(
+      { projects: [PROJECT], range: RANGE, types: ['task'] },
+      transport
+    );
+
+    expect(result.tasks).toHaveLength(0);
+    expect(result.errors[0].status).toBe(403);
   });
 });

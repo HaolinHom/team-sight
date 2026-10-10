@@ -1,22 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import GanttBoard from '@/components/gantt/GanttBoard.vue';
-import { currentMonthRange, todayKey } from '@/gantt/dateUtils';
-import { fetchScheduleTasks, isTauriRuntime } from '@/services/tapd/client';
-import type { ProjectConfig, ScheduleTask } from '@/types/schedule';
+import { useSchedule } from '@/composables/useSchedule';
+import { useSettings } from '@/composables/useSettings';
+import { currentMonthRange, todayKey, type DateRange } from '@/gantt/dateUtils';
+import { isTauriRuntime } from '@/services/tapd/client';
+import { describeTapdError } from '@/services/credentials';
+import type { ScheduleTask } from '@/types/schedule';
+import { expandTasksByMember, memberKeyOf } from '@/utils/memberResolution';
 
 import { POC_COLLAPSED_MEMBERS, POC_TASKS } from './mockData';
-
-const PROJECT_PALETTE = [
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#8b5cf6',
-  '#ef4444',
-  '#14b8a6',
-  '#6366f1',
-];
 
 const CHECKLIST = [
   '成员标题行独立成行，且不显示任务条',
@@ -29,37 +23,62 @@ const CHECKLIST = [
   '项目颜色稳定，同一项目在不同成员下颜色一致',
 ];
 
-const range = ref(currentMonthRange());
+const store = useSettings();
+const schedule = useSchedule();
+
+const range = ref<DateRange>(currentMonthRange());
 const collapsedMemberKeys = ref<string[]>([...POC_COLLAPSED_MEMBERS]);
 const selectedTaskKey = ref<string | null>(null);
 const dataSource = ref<'mock' | 'live'>('mock');
-const liveTasks = ref<ScheduleTask[]>([]);
-const workspaceIdsInput = ref('63253157,62120799');
-const loading = ref(false);
-const message = ref('');
-const fetchErrors = ref<string[]>([]);
 
-const tasks = computed(() => (dataSource.value === 'mock' ? POC_TASKS : liveTasks.value));
+const tasks = computed(() => (dataSource.value === 'mock' ? POC_TASKS : schedule.liveTasks.value));
 
 const selectedTask = computed(() =>
   tasks.value.find((task) => `${task.sourceType}:${task.id}` === selectedTaskKey.value)
+);
+
+const mockMemberNames = computed(() => {
+  const expansion = expandTasksByMember(
+    POC_TASKS,
+    [...new Set(POC_TASKS.filter((task) => task.assigneeId).map((task) => task.assigneeId as string))]
+      .map((staffId) => ({
+        staffId,
+        name: POC_TASKS.find((task) => task.assigneeId === staffId)?.assigneeName ?? staffId,
+      }))
+  );
+  return expansion.namesByMember;
+});
+
+const boardMemberKeysOf = computed<((task: ScheduleTask) => string[]) | undefined>(() =>
+  dataSource.value === 'mock' ? undefined : schedule.memberKeysOf
+);
+
+const boardMemberNames = computed<Map<string, string> | undefined>(() =>
+  dataSource.value === 'mock' ? mockMemberNames.value : schedule.memberNames.value
+);
+
+const mockHiddenTaskCount = 0;
+const hiddenTaskCount = computed(() =>
+  dataSource.value === 'mock' ? mockHiddenTaskCount : schedule.hiddenTaskCount.value
 );
 
 const unscheduledCount = computed(
   () => tasks.value.filter((task) => !task.startDate || !task.dueDate).length
 );
 
-function monthRange(offsetMonths: number) {
+const enabledProjectCount = computed(() => store.enabledProjects.value.length);
+const canLoadLive = computed(() => isTauriRuntime() && enabledProjectCount.value > 0);
+
+function monthRange(offsetMonths: number): DateRange {
   const now = new Date();
   return currentMonthRange(new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1));
 }
 
 function shiftMonth(offset: number): void {
   const start = new Date(`${range.value.start}T00:00:00Z`);
-  const shifted = currentMonthRange(
+  range.value = currentMonthRange(
     new Date(start.getUTCFullYear(), start.getUTCMonth() + offset, 1)
   );
-  range.value = shifted;
 }
 
 function resetMonth(): void {
@@ -77,78 +96,57 @@ function selectTask(taskKey: string): void {
   selectedTaskKey.value = taskKey;
 }
 
-function parseWorkspaceIds(): string[] {
-  return workspaceIdsInput.value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function buildLiveProjects(): ProjectConfig[] {
-  return parseWorkspaceIds().map((id, index) => ({
-    id,
-    name: `项目 ${id}`,
-    enabled: true,
-    color: PROJECT_PALETTE[index % PROJECT_PALETTE.length],
-  }));
+function useMockData(): void {
+  dataSource.value = 'mock';
+  schedule.statusText.value = '';
 }
 
 async function loadLiveData(): Promise<void> {
   if (!isTauriRuntime()) {
-    message.value = '真实数据仅在 Tauri 客户端内可用，请使用 pnpm tauri:dev 启动。';
+    schedule.statusText.value =
+      '真实数据仅在 Tauri 客户端内可用，请使用 pnpm tauri:dev 启动。';
     return;
   }
-
-  const projects = buildLiveProjects();
-  if (projects.length === 0) {
-    message.value = '请先填写 workspace_id。';
+  if (enabledProjectCount.value === 0) {
+    schedule.statusText.value = '请先在设置页启用至少一个项目。';
     return;
   }
-
-  loading.value = true;
-  fetchErrors.value = [];
-  message.value = '正在拉取 TAPD 数据…';
-  try {
-    const result = await fetchScheduleTasks({
-      projects,
-      range: range.value,
-      types: ['task', 'bug'],
-    });
-    liveTasks.value = result.tasks;
-    fetchErrors.value = result.errors.map(
-      (error) => `${error.workspaceId} / ${error.type}：${error.message}`
-    );
-    dataSource.value = 'live';
-    message.value = `已加载 ${result.tasks.length} 条工作项（${range.value.start} ~ ${range.value.end}）`;
-  } catch (error) {
-    message.value = `加载失败：${error instanceof Error ? error.message : String(error)}`;
-  } finally {
-    loading.value = false;
-  }
+  dataSource.value = 'live';
+  await schedule.refresh(store.enabledProjects.value, range.value);
 }
 
-function useMockData(): void {
-  dataSource.value = 'mock';
-  message.value = '当前展示 PoC 固定数据。';
-  fetchErrors.value = [];
-}
+onMounted(async () => {
+  await store.load();
+  if (import.meta.env.VITE_POC_AUTOLOAD === 'live') await loadLiveData();
+});
+
+// 切换时间范围后，真实数据需要重新按窗口拉取；mock 数据只重算布局。
+watch(range, async () => {
+  if (dataSource.value === 'live') await schedule.refresh(store.enabledProjects.value, range.value);
+});
 
 const today = todayKey();
-
-// 阶段性验证钩子：VITE_POC_AUTOLOAD=live 时启动即拉取真实数据，
-// 便于在桌面端自动核对「前端 invoke → Rust → TAPD」链路。默认关闭。
-onMounted(() => {
-  if (import.meta.env.VITE_POC_AUTOLOAD === 'live') void loadLiveData();
+const memberFilterHint = computed(() => {
+  if (dataSource.value === 'mock') return '（固定数据不受成员过滤影响）';
+  const configured = store.settings.value.members.length;
+  return configured === 0
+    ? '（未配置展示成员，任务全部隐藏；请到设置页添加成员）'
+    : `（仅显示已配置的 ${configured} 名成员，隐藏 ${hiddenTaskCount.value} 条）`;
 });
+
+/** 供模板显示成员键 -> 用于折叠状态判断。 */
+function collapseKeyOf(task: ScheduleTask): string {
+  return task.assigneeId ? memberKeyOf(task.assigneeId) : 'unassigned';
+}
 </script>
 
 <template>
   <div class="poc">
     <header class="poc__header">
       <div>
-        <h1 class="poc__title">TeamSight · 阶段0 甘特图 PoC</h1>
+        <h1 class="poc__title">TeamSight · 数据接入验证</h1>
         <p class="poc__subtitle">
-          验证成员分组布局、折叠展开、滚动对齐与 TAPD 数据接入。完整看板功能在阶段2/3 实现。
+          阶段1 验证入口：读取设置中的项目与成员，核对部分失败提示与成员过滤。正式看板在阶段2 实现。
         </p>
       </div>
       <div class="poc__range">
@@ -162,37 +160,46 @@ onMounted(() => {
     <section class="poc__toolbar">
       <div class="poc__group">
         <span class="poc__group-label">数据源</span>
-        <button
-          type="button"
-          :class="{ 'is-active': dataSource === 'mock' }"
-          @click="useMockData"
-        >
+        <button type="button" :class="{ 'is-active': dataSource === 'mock' }" @click="useMockData">
           PoC 固定数据
         </button>
         <button
           type="button"
           :class="{ 'is-active': dataSource === 'live' }"
-          :disabled="loading"
+          :disabled="schedule.loading.value"
           @click="loadLiveData"
         >
           TAPD 真实数据
         </button>
-        <input
-          v-model="workspaceIdsInput"
-          class="poc__input"
-          aria-label="workspace_id 列表"
-          placeholder="workspace_id，逗号分隔"
-        />
+        <button
+          type="button"
+          :disabled="!canLoadLive || schedule.loading.value"
+          @click="schedule.refresh(store.enabledProjects.value, range)"
+        >
+          刷新
+        </button>
       </div>
       <div class="poc__group poc__group--meta">
+        <span>已启用项目 {{ enabledProjectCount }}</span>
         <span>任务行 {{ tasks.length }}</span>
         <span>缺失日期 {{ unscheduledCount }}</span>
-        <span v-if="message">{{ message }}</span>
+        <span v-if="schedule.lastLoadedAt.value">最近刷新 {{ schedule.lastLoadedAt.value }}</span>
       </div>
     </section>
 
-    <p v-if="fetchErrors.length" class="poc__error">
-      部分项目加载失败（其余项目数据已保留）：{{ fetchErrors.join('；') }}
+    <p v-if="schedule.statusText.value" class="poc__status">{{ schedule.statusText.value }}</p>
+    <p class="poc__hint">成员过滤{{ memberFilterHint }}</p>
+
+    <p v-if="schedule.errors.value.length" class="poc__error">
+      部分项目加载失败（其余项目数据已保留）：
+      {{
+        schedule.errors.value
+          .map(
+            (error) =>
+              `${error.type} @ ${error.workspaceId}：${describeTapdError(error.status, error.message, error.workspaceId)}`
+          )
+          .join('；')
+      }}
     </p>
 
     <section class="poc__board">
@@ -202,6 +209,8 @@ onMounted(() => {
         :collapsed-member-keys="collapsedMemberKeys"
         :selected-task-key="selectedTaskKey"
         :today="today"
+        :member-keys-of="boardMemberKeysOf"
+        :member-names="boardMemberNames"
         @toggle-member="toggleMember"
         @select-task="selectTask"
       />
@@ -217,11 +226,14 @@ onMounted(() => {
           <span>日期：{{ selectedTask.startDate ?? '无' }} ~ {{ selectedTask.dueDate ?? '无' }}</span>
           <a :href="selectedTask.tapdUrl" target="_blank" rel="noreferrer">打开 TAPD</a>
         </template>
-        <span v-else class="poc__muted">点击任务条或任务标题查看（详情面板在阶段3 实现）</span>
+        <span v-else class="poc__muted">
+          点击任务条或任务标题查看（详情面板在阶段3 实现）；
+          折叠键示例：{{ collapseKeyOf(POC_TASKS[0]) }}
+        </span>
       </div>
 
       <details class="poc__checklist">
-        <summary>阶段0 视觉验收清单</summary>
+        <summary>视觉效果验收清单</summary>
         <ul>
           <li v-for="item in CHECKLIST" :key="item">{{ item }}</li>
         </ul>
@@ -234,9 +246,9 @@ onMounted(() => {
 .poc {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   height: 100%;
-  padding: 14px 16px 16px;
+  padding: 12px 16px 16px;
 }
 
 .poc__header {
@@ -293,14 +305,6 @@ onMounted(() => {
   color: var(--ts-color-text-muted);
 }
 
-.poc__input {
-  width: 220px;
-  padding: 3px 6px;
-  border: 1px solid var(--ts-color-border-strong);
-  border-radius: 4px;
-  font-size: 12px;
-}
-
 button {
   padding: 3px 10px;
   border: 1px solid var(--ts-color-border-strong);
@@ -320,6 +324,12 @@ button.is-active {
 button:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.poc__status,
+.poc__hint {
+  margin: 0;
+  color: var(--ts-color-text-muted);
 }
 
 .poc__error {

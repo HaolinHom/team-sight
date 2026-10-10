@@ -117,6 +117,27 @@ describe('mapRow', () => {
     expect(mapped?.assigneeName).toBe('张三');
   });
 
+  it('保留全部负责人工号，供多成员拆行使用', () => {
+    const mapped = mapRow(
+      { id: '9004', name: '联调', owner: '张三_800100001;李四_800100002;' },
+      PROJECT,
+      'task'
+    );
+
+    expect(mapped?.assigneeIds).toEqual(['800100001', '800100002']);
+    expect(mapped?.assigneeId).toBe('800100001');
+  });
+
+  it('负责人重复或缺少工号时只保留有效工号', () => {
+    const mapped = mapRow(
+      { id: '9005', name: '联调', owner: '张三_800100001;张三_800100001;无工号的人;' },
+      PROJECT,
+      'task'
+    );
+
+    expect(mapped?.assigneeIds).toEqual(['800100001']);
+  });
+
   it('标题缺失时给出可辨识占位，不臆造业务标题', () => {
     const mapped = mapRow({ id: '9003' }, PROJECT, 'task');
     expect(mapped?.title).toBe('(无标题)');
@@ -143,6 +164,7 @@ describe('dedupeTasks', () => {
       projectColor: '#000',
       assigneeId: null,
       assigneeName: '',
+      assigneeIds: [],
       startDate: '2026-10-01',
       dueDate: '2026-10-02',
       status: 'open',

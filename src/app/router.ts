@@ -12,5 +12,10 @@ export const router = createRouter({
       name: 'poc-gantt',
       component: () => import('@/poc/PocGantt.vue'),
     },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/pages/SettingsPage.vue'),
+    },
   ],
 });
