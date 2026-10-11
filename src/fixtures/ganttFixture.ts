@@ -1,3 +1,5 @@
+import { addDays, currentMonthRange, dateDiffInDays } from '@/gantt/dateUtils';
+import { PROJECT_PALETTE } from '@/types/settings';
 import type { ProjectConfig, ScheduleTask } from '@/types/schedule';
 
 /**
@@ -212,3 +214,66 @@ export const GANTT_FIXTURE_TASKS: ScheduleTask[] = SEEDS.map((seed) => {
 
 /** 默认折叠成员（技术方案要求验收数据含一个折叠成员）。 */
 export const GANTT_FIXTURE_COLLAPSED_MEMBERS = ['staff:800100003'];
+
+const STRESS_MEMBER_NAMES = [
+  '成员一',
+  '成员二',
+  '成员三',
+  '成员四',
+  '成员五',
+  '成员六',
+  '成员七',
+  '成员八',
+];
+
+const STRESS_PROJECT_COUNT = 10;
+const STRESS_STATUSES = ['open', 'progressing', 'done'];
+
+/** 压测数据使用的项目清单（与 createStressFixtureTasks 的派生规则保持一致）。 */
+export function createStressFixtureProjects(): ProjectConfig[] {
+  return Array.from({ length: STRESS_PROJECT_COUNT }, (_, index) => ({
+    id: `9100000${index}`,
+    name: `压测项目 ${index + 1}`,
+    enabled: true,
+    color: PROJECT_PALETTE[index % PROJECT_PALETTE.length],
+  }));
+}
+
+/**
+ * 性能压测数据：约 2000 条任务、8 名成员、10 个项目，全部落在当前自然月内
+ * （保证默认视图即渲染全量，最能暴露渲染瓶颈）。数据完全由下标推导，可重复。
+ */
+export function createStressFixtureTasks(count = 2000): ScheduleTask[] {
+  const range = currentMonthRange();
+  const monthDays = dateDiffInDays(range.start, range.end) + 1;
+  const maxOffset = Math.max(1, monthDays - 5);
+
+  return Array.from({ length: count }, (_, index) => {
+    const staffId = `80030${String(index % STRESS_MEMBER_NAMES.length).padStart(4, '0')}`;
+    const memberName = STRESS_MEMBER_NAMES[index % STRESS_MEMBER_NAMES.length];
+    const projectIndex = index % STRESS_PROJECT_COUNT;
+    const projectId = `9100000${projectIndex}`;
+    const projectName = `压测项目 ${projectIndex + 1}`;
+    const projectColor = PROJECT_PALETTE[projectIndex % PROJECT_PALETTE.length];
+    const sourceType = index % 5 === 0 ? 'bug' : 'task';
+    const startDate = addDays(range.start, index % maxOffset);
+    const dueDate = addDays(startDate, index % 5);
+
+    return {
+      id: `stress-${index}`,
+      sourceType,
+      title: `压测任务 ${index + 1} · ${projectName}`,
+      projectId,
+      projectName,
+      projectColor,
+      assigneeId: staffId,
+      assigneeName: memberName,
+      assigneeIds: [staffId],
+      startDate,
+      dueDate,
+      status: STRESS_STATUSES[index % STRESS_STATUSES.length],
+      effort: String(1 + (index % 5)),
+      tapdUrl: `https://www.tapd.cn/tapd_fe/${projectId}/${sourceType}/detail/stress-${index}`,
+    };
+  });
+}

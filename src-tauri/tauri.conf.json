@@ -26,6 +26,10 @@
     }
   },
   "bundle": {
-    "active": false
+    "active": true,
+    "targets": ["app", "dmg"],
+    "category": "Productivity",
+    "shortDescription": "TAPD 跨项目团队排期看板",
+    "longDescription": "只读聚合多个 TAPD 项目的任务与缺陷，按团队成员分组展示日级排期。"
   }
 }

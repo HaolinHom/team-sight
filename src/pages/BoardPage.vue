@@ -11,6 +11,8 @@ import {
   GANTT_FIXTURE_COLLAPSED_MEMBERS,
   GANTT_FIXTURE_PROJECTS,
   GANTT_FIXTURE_TASKS,
+  createStressFixtureProjects,
+  createStressFixtureTasks,
 } from '@/fixtures/ganttFixture';
 import { resolveBoardState } from '@/gantt/boardState';
 import { currentMonthRange, todayKey, type DateRange } from '@/gantt/dateUtils';
@@ -26,8 +28,15 @@ import { isTauriRuntime } from '@/services/tapd/client';
 import type { MemberEntry } from '@/types/settings';
 import { createMemberResolution, membersFromTasks, selectMembersByKeys } from '@/utils/memberResolution';
 
-/** 视觉验收模式：使用固定数据，不请求 TAPD，也不要求凭据与配置。 */
-const FIXTURE_MODE = import.meta.env.VITE_BOARD_FIXTURE === '1';
+/**
+ * 固定数据模式：`1` 为视觉验收数据，`stress` 为性能压测数据（约 2000 条）。
+ * 两种模式都不请求 TAPD，也不要求凭据与配置。
+ */
+const FIXTURE_KIND = import.meta.env.VITE_BOARD_FIXTURE;
+const FIXTURE_MODE = FIXTURE_KIND === '1' || FIXTURE_KIND === 'stress';
+const FIXTURE_TASKS = FIXTURE_KIND === 'stress' ? createStressFixtureTasks() : GANTT_FIXTURE_TASKS;
+const FIXTURE_PROJECTS =
+  FIXTURE_KIND === 'stress' ? createStressFixtureProjects() : GANTT_FIXTURE_PROJECTS;
 const SETTINGS_LINK_STATES = new Set(['no-credential', 'no-projects', 'no-members']);
 
 const store = useSettings();
@@ -45,12 +54,10 @@ const externalLinkError = ref('');
 const range = computed<DateRange>(() => filters.value.range);
 
 /** 数据源：fixture 用固定验收数据，真实模式用阶段1 拉取结果。 */
-const rawTasks = computed(() => (FIXTURE_MODE ? GANTT_FIXTURE_TASKS : schedule.liveTasks.value));
-const projectSource = computed(() =>
-  FIXTURE_MODE ? GANTT_FIXTURE_PROJECTS : store.enabledProjects.value
-);
+const rawTasks = computed(() => (FIXTURE_MODE ? FIXTURE_TASKS : schedule.liveTasks.value));
+const projectSource = computed(() => (FIXTURE_MODE ? FIXTURE_PROJECTS : store.enabledProjects.value));
 const memberSource = computed<MemberEntry[]>(() =>
-  FIXTURE_MODE ? membersFromTasks(GANTT_FIXTURE_TASKS) : store.settings.value.members
+  FIXTURE_MODE ? membersFromTasks(FIXTURE_TASKS) : store.settings.value.members
 );
 
 const statusOptions = computed(() => collectStatusOptions(rawTasks.value));
@@ -96,12 +103,18 @@ const unscheduledCount = computed(
   () => tasks.value.filter((task) => !task.startDate || !task.dueDate).length
 );
 
-const errorMessages = computed(() =>
-  schedule.errors.value.map(
-    (error) =>
-      `${error.type} @ ${error.workspaceId}：${describeTapdError(error.status, error.message, error.workspaceId)}`
-  )
-);
+/** 同一原因（如凭据失效）只提示一次，避免按项目重复刷屏。 */
+const errorMessages = computed(() => {
+  const seen = new Set<string>();
+  const messages: string[] = [];
+  for (const error of schedule.errors.value) {
+    const text = describeTapdError(error.status, error.message, error.workspaceId);
+    if (seen.has(text)) continue;
+    seen.add(text);
+    messages.push(`${error.type} @ ${error.workspaceId}：${text}`);
+  }
+  return messages;
+});
 
 function toggleMember(memberKey: string): void {
   const next = new Set(collapsedMemberKeys.value);
@@ -185,6 +198,10 @@ const today = todayKey();
 
     <p v-if="errorMessages.length" class="board__error">
       部分项目加载失败（其余项目数据已保留）：{{ errorMessages.join('；') }}
+    </p>
+
+    <p v-if="credentials.loadError.value" class="board__error">
+      读取凭据失败：{{ credentials.loadError.value }}
     </p>
 
     <section class="board__canvas">
