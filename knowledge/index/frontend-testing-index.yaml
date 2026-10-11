@@ -1,0 +1,12 @@
+schemaVersion: "knowledge-index/v1"
+
+title: "前端工程与测试"
+description: "前端工程化与测试接入的已验证做法（Vue 3 + Vitest + Tauri 模拟）。"
+
+items:
+  - id: frontend-testing-notes
+    title: "Vue 3 + Vitest 组件测试接入"
+    path: "knowledge/frontend-testing-notes.md"
+    summary: "按文件启用 jsdom（// @vitest-environment jsdom）；挂载页面的 RouterLink stub、Tauri 运行时补丁、await flushPromises；vi.mock 命令层与 importOriginal 部分替换；模块作用域读 import.meta.env 时需先 stubEnv 再动态 import；事件上抛型组件要 setProps 模拟父级更新。"
+    tags: ["frontend", "testing", "vitest", "vue"]
+    verifiedAt: "2026-10-11"
