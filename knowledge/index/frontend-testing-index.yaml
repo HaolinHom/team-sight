@@ -10,3 +10,10 @@ items:
     summary: "按文件启用 jsdom（// @vitest-environment jsdom）；挂载页面的 RouterLink stub、Tauri 运行时补丁、await flushPromises；vi.mock 命令层与 importOriginal 部分替换；模块作用域读 import.meta.env 时需先 stubEnv 再动态 import；事件上抛型组件要 setProps 模拟父级更新。"
     tags: ["frontend", "testing", "vitest", "vue"]
     verifiedAt: "2026-10-11"
+
+  - id: frontend-reliability-notes
+    title: "前端异步数据与配置一致性"
+    path: "knowledge/frontend-reliability-notes.md"
+    summary: "刷新仅允许最新请求提交，记录数据时间范围并标注旧数据；聚合区分complete/partial/failed，分页触顶保留任务并产生warnings；配置串行保存、成功后提交状态、失败提示且不阻断后续写入；原生checkbox/color事件需恢复已确认值。"
+    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing"]
+    verifiedAt: "2026-10-12"
