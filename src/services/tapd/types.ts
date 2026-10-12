@@ -20,4 +20,6 @@ export interface WorkspaceFetchError {
 export interface ScheduleFetchResult {
   tasks: import('@/types/schedule').ScheduleTask[];
   errors: WorkspaceFetchError[];
+  warnings: WorkspaceFetchError[];
+  status: 'complete' | 'partial' | 'failed';
 }

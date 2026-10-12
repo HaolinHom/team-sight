@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   PAGE_SIZE,
   TapdApiError,
+  TapdTruncationError,
   buildWindowQuery,
   fetchScheduleTasks,
   fetchWorkspaceItems,
@@ -203,5 +204,62 @@ describe('fetchScheduleTasks', () => {
 
     expect(result.tasks).toHaveLength(0);
     expect(result.errors[0].status).toBe(403);
+  });
+});
+
+function limitTransport(count: number | null): TapdTransport {
+  return async (path, params) => {
+    if (path === '/workspaces/users') return ok([]);
+    if (path.endsWith('/count')) return count === null ? { status: 403, data: '', info: 'count不可用' } : ok({ count });
+    return ok(taskRows(PAGE_SIZE, (Number(params.page) - 1) * PAGE_SIZE));
+  };
+}
+
+describe('分页完整性', () => {
+  it.each([10001, null])('超过安全上限或count不可用（%s）明确报截断并保留任务', async (count) => {
+    const result = await fetchScheduleTasks(
+      { projects: [PROJECT], range: RANGE, types: ['task'] }, limitTransport(count)
+    );
+    expect(result.tasks).toHaveLength(10000);
+    expect(result.status).toBe('partial');
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0].message).toContain('安全上限');
+  });
+
+  it('单独拉取触顶时抛出携带已拉取任务的错误', async () => {
+    const error = await fetchWorkspaceItems(
+      { workspaceId: PROJECT.id, type: 'task', range: RANGE, project: PROJECT }, limitTransport(10001)
+    ).catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(TapdTruncationError);
+    expect((error as TapdTruncationError).tasks).toHaveLength(10000);
+  });
+
+  it('count确认刚好10000条时不误报截断', async () => {
+    const result = await fetchScheduleTasks(
+      { projects: [PROJECT], range: RANGE, types: ['task'] }, limitTransport(10000)
+    );
+    expect(result.tasks).toHaveLength(10000);
+    expect(result.status).toBe('complete');
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('全部数据源失败时返回failed', async () => {
+    const result = await fetchScheduleTasks(
+      { projects: [PROJECT], range: RANGE, types: ['task', 'bug'] },
+      async () => ({ status: 403, data: '', info: '无权限' })
+    );
+    expect(result.status).toBe('failed');
+    expect(result.errors).toHaveLength(2);
+  });
+
+  it('一个数据源成功但没有任务时仍是部分成功', async () => {
+    const result = await fetchScheduleTasks(
+      { projects: [PROJECT], range: RANGE, types: ['task', 'bug'] },
+      async (path) => path.startsWith('/bugs') ? { status: 403, data: '', info: '无权限' } : ok([])
+    );
+    expect(result.tasks).toEqual([]);
+    expect(result.status).toBe('partial');
+    expect(result.errors).toHaveLength(1);
   });
 });

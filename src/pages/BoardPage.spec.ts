@@ -97,7 +97,7 @@ beforeEach(() => {
     }
     return undefined;
   });
-  fetchScheduleTasksMock.mockResolvedValue({ tasks: TASKS, errors: [] });
+  fetchScheduleTasksMock.mockResolvedValue({ tasks: TASKS, errors: [], warnings: [], status: 'complete' });
 });
 
 afterEach(() => {
@@ -182,6 +182,8 @@ describe('BoardPage 详情与链接', () => {
 describe('BoardPage 异常状态', () => {
   it('部分项目失败时保留成功数据并给出可执行提示', async () => {
     fetchScheduleTasksMock.mockResolvedValueOnce({
+      warnings: [],
+      status: 'partial',
       tasks: TASKS,
       errors: [{ workspaceId: '62120799', type: 'bug', status: 403, message: 'no permission' }],
     });
@@ -213,5 +215,61 @@ describe('BoardPage 异常状态', () => {
     expect(wrapper.text()).toContain('读取凭据失败');
     expect(wrapper.text()).toContain('尚未配置 TAPD 令牌');
     expect(fetchScheduleTasksMock).not.toHaveBeenCalled();
+  });
+});
+
+const failedResult = {
+  tasks: [], warnings: [], status: 'failed',
+  errors: [{ workspaceId: PROJECT_ID, type: 'task', status: 403, message: '无权限' }],
+};
+
+describe('看板数据完整性与旧数据', () => {
+  it('全部数据源失败时不显示正常空状态或成功刷新时间', async () => {
+    fetchScheduleTasksMock.mockResolvedValueOnce(failedResult);
+    const wrapper = await mountBoard();
+    expect(wrapper.text()).toContain('全部数据源加载失败');
+    expect(wrapper.text()).not.toContain('部分数据源加载失败');
+    expect(wrapper.text()).not.toContain('当前时间范围内没有可展示的任务');
+    expect(wrapper.text()).not.toContain('最后成功刷新');
+    wrapper.unmount();
+  });
+
+  it('同范围刷新失败时保留旧任务并标注旧数据', async () => {
+    const wrapper = await mountBoard();
+    fetchScheduleTasksMock.mockResolvedValueOnce(failedResult);
+    await wrapper.get('.board__toolbar button').trigger('click');
+    await flushPromises();
+    expect(wrapper.findAll('.gantt__label-row--task')).toHaveLength(TASKS.length);
+    expect(wrapper.text()).toContain('上次成功加载的旧数据');
+    expect(wrapper.text()).toContain('全部数据源加载失败');
+    wrapper.unmount();
+  });
+
+  it('切换月份加载期间及失败后不展示其他月份的旧任务', async () => {
+    const wrapper = await mountBoard();
+    let finish!: (value: typeof failedResult) => void;
+    fetchScheduleTasksMock.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    await wrapper.findAll('.filters__range button')[2].trigger('click');
+    expect(wrapper.findAll('.gantt__label-row--task')).toHaveLength(0);
+    expect(wrapper.text()).toContain('已隐藏旧任务');
+    finish(failedResult);
+    await flushPromises();
+    expect(wrapper.findAll('.gantt__label-row--task')).toHaveLength(0);
+    expect(wrapper.text()).toContain('全部数据源加载失败');
+    expect(wrapper.text()).toContain('已隐藏旧任务');
+    wrapper.unmount();
+  });
+
+  it('分页截断显示不完整提示并保留已拉取任务', async () => {
+    fetchScheduleTasksMock.mockResolvedValueOnce({
+      tasks: TASKS, errors: [], status: 'partial',
+      warnings: [{ workspaceId: PROJECT_ID, type: 'task', status: 0, message: '已达到50页安全上限' }],
+    });
+    const wrapper = await mountBoard();
+    expect(wrapper.findAll('.gantt__label-row--task')).toHaveLength(TASKS.length);
+    expect(wrapper.text()).toContain('数据不完整');
+    expect(wrapper.text()).toContain('安全上限');
+    expect(wrapper.text()).not.toContain('全部数据源加载失败');
+    wrapper.unmount();
   });
 });

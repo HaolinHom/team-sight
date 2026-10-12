@@ -27,6 +27,14 @@ export class TapdApiError extends Error {
   }
 }
 
+/** 保留已拉取的数据，同时让调用方知道安全上限导致结果可能不完整。 */
+export class TapdTruncationError extends Error {
+  constructor(readonly tasks: ScheduleTask[]) {
+    super(`已达到 ${MAX_PAGES} 页安全上限，数据可能不完整，请缩小时间范围`);
+    this.name = 'TapdTruncationError';
+  }
+}
+
 export interface TapdRequestOptions {
   workspaceId: string;
   type: WorkItemType;
@@ -161,11 +169,11 @@ export async function fetchWorkspaceItems(
       const mapped = mapRow(row, project, type, members);
       if (mapped) collected.push(mapped);
     }
-    if (rows.length < PAGE_SIZE) break;
-    if (collected.length >= expected) break;
+    if (rows.length < PAGE_SIZE) return collected;
+    if (page * PAGE_SIZE >= expected) return collected;
   }
 
-  return collected;
+  throw new TapdTruncationError(collected);
 }
 
 /** 项目成员表：工号 -> 姓名，用于把负责人字段归一为展示名。 */
@@ -241,6 +249,7 @@ export async function fetchScheduleTasks(
   );
 
   const errors: WorkspaceFetchError[] = [];
+  const warnings: WorkspaceFetchError[] = [];
   const results = await runWithConcurrency(jobs, MAX_CONCURRENCY, async (job) => {
     try {
       return await fetchWorkspaceItems(
@@ -254,6 +263,15 @@ export async function fetchScheduleTasks(
         transport
       );
     } catch (error) {
+      if (error instanceof TapdTruncationError) {
+        warnings.push({
+          workspaceId: job.project.id,
+          type: job.type,
+          status: 0,
+          message: error.message,
+        });
+        return error.tasks;
+      }
       errors.push({
         workspaceId: job.project.id,
         type: job.type,
@@ -264,5 +282,8 @@ export async function fetchScheduleTasks(
     }
   });
 
-  return { tasks: dedupeTasks(results.flat()), errors };
+  const status = jobs.length > 0 && errors.length === jobs.length
+    ? 'failed'
+    : errors.length > 0 || warnings.length > 0 ? 'partial' : 'complete';
+  return { tasks: dedupeTasks(results.flat()), errors, warnings, status };
 }

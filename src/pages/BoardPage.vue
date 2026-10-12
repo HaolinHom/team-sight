@@ -54,7 +54,13 @@ const externalLinkError = ref('');
 const range = computed<DateRange>(() => filters.value.range);
 
 /** 数据源：fixture 用固定验收数据，真实模式用阶段1 拉取结果。 */
-const rawTasks = computed(() => (FIXTURE_MODE ? FIXTURE_TASKS : schedule.liveTasks.value));
+const dataMatchesRange = computed(() =>
+  schedule.loadedRange.value?.start === range.value.start &&
+  schedule.loadedRange.value?.end === range.value.end
+);
+const rawTasks = computed(() =>
+  FIXTURE_MODE ? FIXTURE_TASKS : dataMatchesRange.value ? schedule.liveTasks.value : []
+);
 const projectSource = computed(() => (FIXTURE_MODE ? FIXTURE_PROJECTS : store.enabledProjects.value));
 const memberSource = computed<MemberEntry[]>(() =>
   FIXTURE_MODE ? membersFromTasks(FIXTURE_TASKS) : store.settings.value.members
@@ -93,6 +99,11 @@ const boardState = computed(() =>
     taskCount: tasks.value.length,
     loadedTaskCount: rawTasks.value.length,
   })
+);
+
+const showingPreviousData = computed(() =>
+  !FIXTURE_MODE && schedule.lastLoadedAt.value !== null &&
+  (schedule.loading.value || schedule.loadStatus.value === 'failed')
 );
 
 const selectedTask = computed(() =>
@@ -184,11 +195,15 @@ const today = todayKey();
           未命中展示成员 {{ resolution.hiddenTaskCount }} 条
         </span>
         <span v-if="unscheduledCount">缺失日期 {{ unscheduledCount }}</span>
-        <span v-if="schedule.lastLoadedAt.value">最后刷新 {{ schedule.lastLoadedAt.value }}</span>
+        <span v-if="schedule.lastLoadedAt.value">最后成功刷新 {{ schedule.lastLoadedAt.value }}</span>
       </div>
     </header>
 
-    <p v-if="boardState.message" class="board__state" :class="`board__state--${boardState.kind}`">
+    <p
+      v-if="boardState.message && (schedule.loading.value || schedule.loadStatus.value !== 'failed')"
+      class="board__state"
+      :class="`board__state--${boardState.kind}`"
+    >
       {{ boardState.message }}
       <template v-if="boardState.hint">{{ boardState.hint }}</template>
       <RouterLink v-if="SETTINGS_LINK_STATES.has(boardState.kind)" to="/settings">
@@ -197,7 +212,16 @@ const today = todayKey();
     </p>
 
     <p v-if="errorMessages.length" class="board__error">
-      部分项目加载失败（其余项目数据已保留）：{{ errorMessages.join('；') }}
+      {{ schedule.loadStatus.value === 'failed' ? '全部数据源加载失败' : '部分数据源加载失败（本轮成功数据已保留）' }}：{{ errorMessages.join('；') }}
+    </p>
+
+    <p v-if="schedule.warnings.value.length" class="board__error">
+      数据不完整：{{ schedule.warnings.value.map((item) => `${item.type} @ ${item.workspaceId}：${item.message}`).join('；') }}
+    </p>
+
+    <p v-if="showingPreviousData" class="board__state">
+      {{ dataMatchesRange ? '当前显示上次成功加载的旧数据' : '上次成功加载的数据与当前时间范围不同，已隐藏旧任务' }}
+      （{{ schedule.loadedRange.value?.start }} ~ {{ schedule.loadedRange.value?.end }}）。
     </p>
 
     <p v-if="credentials.loadError.value" class="board__error">

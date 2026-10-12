@@ -6,6 +6,7 @@ import { useSettings } from '@/composables/useSettings';
 import { fetchWorkspaceUsers } from '@/services/tapd/client';
 import { fetchUserProjects, isScheduleProject, type TapdProjectSummary } from '@/services/tapd/projects';
 import { PROJECT_PALETTE, type MemberEntry } from '@/types/settings';
+import type { ProjectConfig } from '@/types/schedule';
 
 const credentials = useCredentials();
 const store = useSettings();
@@ -83,6 +84,20 @@ async function loadProjects(): Promise<void> {
 
 async function addProject(project: TapdProjectSummary): Promise<void> {
   await store.addProject({ id: project.id, name: project.name });
+}
+
+function updateProjectEnabled(project: ProjectConfig, event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const enabled = input.checked;
+  input.checked = project.enabled;
+  void store.updateProject(project.id, { enabled });
+}
+
+function updateProjectColor(project: ProjectConfig, event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const color = input.value;
+  input.value = project.color;
+  void store.updateProject(project.id, { color });
 }
 
 async function loadMemberCandidates(): Promise<void> {
@@ -196,7 +211,7 @@ async function addMember(member: MemberEntry): Promise<void> {
                 type="checkbox"
                 :checked="project.enabled"
                 :aria-label="`启用 ${project.name}`"
-                @change="store.updateProject(project.id, { enabled: !project.enabled })"
+                @change="updateProjectEnabled(project, $event)"
               />
             </td>
             <td>{{ project.name }}</td>
@@ -206,11 +221,7 @@ async function addMember(member: MemberEntry): Promise<void> {
                 type="color"
                 :value="project.color"
                 :aria-label="`${project.name} 的颜色`"
-                @change="
-                  store.updateProject(project.id, {
-                    color: ($event.target as HTMLInputElement).value,
-                  })
-                "
+                @change="updateProjectColor(project, $event)"
               />
             </td>
             <td>
@@ -281,6 +292,7 @@ async function addMember(member: MemberEntry): Promise<void> {
       <p v-else class="message">尚未配置成员，看板将不显示任何任务。</p>
     </section>
 
+    <p v-if="store.saveError.value" class="message" role="alert">{{ store.saveError.value }}</p>
     <p v-if="store.warning.value" class="message">{{ store.warning.value }}</p>
     <p class="card__meta">
       调色板：<span v-for="color in PROJECT_PALETTE" :key="color" class="swatch" :style="{ background: color }" />
