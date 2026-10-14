@@ -263,3 +263,5 @@ describe('分页完整性', () => {
     expect(result.errors).toHaveLength(1);
   });
 });
+
+it('取消重试等待后不再发起请求',async()=>{const controller=new AbortController();const mock=vi.fn<TapdTransport>().mockRejectedValue(new Error('network'));const {requestWithRetry}=await import('./client');const request=requestWithRetry(mock,'/tasks',{},controller.signal);await Promise.resolve();await Promise.resolve();const failure=expect(request).rejects.toMatchObject({name:'AbortError'});controller.abort();await failure;expect(mock).toHaveBeenCalledOnce();});

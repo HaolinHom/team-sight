@@ -10,6 +10,7 @@ import {
 } from '@/services/credentials';
 
 const status = ref<CredentialStatus>({ configured: false, source: 'none', maskedHint: null });
+const credentialRevision = ref(0);
 const busy = ref(false);
 const message = ref('');
 /** 读取凭据失败的原因（例如凭据文件损坏），供界面显式提示。 */
@@ -18,7 +19,9 @@ const loadError = ref('');
 export function useCredentials() {
   async function refresh(): Promise<void> {
     try {
-      status.value = await loadCredentialStatus();
+      const next = await loadCredentialStatus();
+      if (JSON.stringify(next) !== JSON.stringify(status.value)) credentialRevision.value++;
+      status.value = next;
       loadError.value = '';
     } catch (error) {
       // 读取失败不能当作「未配置」静默处理，也不能让异常冒到调用方形成未处理拒绝。
@@ -31,6 +34,7 @@ export function useCredentials() {
     busy.value = true;
     try {
       await saveCredential(token);
+      credentialRevision.value++;
       await refresh();
       message.value = '令牌已保存';
       return true;
@@ -46,6 +50,7 @@ export function useCredentials() {
     busy.value = true;
     try {
       await clearCredential();
+      credentialRevision.value++;
       await refresh();
       message.value = '令牌已清除';
     } catch (error) {
@@ -69,6 +74,7 @@ export function useCredentials() {
 
   return {
     status,
+    credentialRevision,
     busy,
     message,
     loadError,

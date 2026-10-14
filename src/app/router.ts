@@ -13,6 +13,11 @@ export const router = createRouter({
       component: () => import('@/pages/BoardPage.vue'),
     },
     {
+      path: '/hours',
+      name: 'hours',
+      component: () => import('@/pages/HoursPage.vue'),
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/pages/SettingsPage.vue'),

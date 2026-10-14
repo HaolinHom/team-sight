@@ -9,6 +9,8 @@ import {
   type MemberEntry,
 } from '@/types/settings';
 import type { ProjectConfig } from '@/types/schedule';
+import type { HoursSettings } from '@/types/hours';
+import { validateHoursSettings } from '@/hours/settings';
 
 /**
  * 配置状态在模块级共享，保证设置页与看板页看到同一份数据。
@@ -104,6 +106,16 @@ async function removeMember(staffId: string): Promise<void> {
   }));
 }
 
+async function updateHours(hours: HoursSettings): Promise<boolean> {
+  const error = validateHoursSettings(hours);
+  if (error) {
+    saveError.value = error;
+    return false;
+  }
+  const savedHours = JSON.parse(JSON.stringify(hours)) as HoursSettings;
+  return persist((current) => ({ ...current, hours: savedHours }));
+}
+
 export function useSettings() {
   const enabledProjects = computed(() => settings.value.projects.filter((item) => item.enabled));
 
@@ -119,5 +131,6 @@ export function useSettings() {
     removeProject,
     addMembers,
     removeMember,
+    updateHours,
   };
 }

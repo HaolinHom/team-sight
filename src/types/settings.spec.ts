@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHoursSettings } from '@/hours/settings';
 
 import {
   PROJECT_PALETTE,
@@ -16,6 +17,7 @@ describe('createEmptySettings', () => {
       schemaVersion: SETTINGS_SCHEMA_VERSION,
       projects: [],
       members: [],
+      hours: createHoursSettings(),
       updatedAt: '2026-10-10T00:00:00.000Z',
     });
   });

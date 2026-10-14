@@ -1,3 +1,4 @@
+import { requestQueue } from './requestQueue';
 import type { DateRange } from '@/gantt/dateUtils';
 import type { MemberDirectory, ProjectConfig, ScheduleTask, WorkItemType } from '@/types/schedule';
 import { dedupeTasks, fieldsFor, mapRow, mapWorkspaceUsers } from './mapper';
@@ -43,7 +44,8 @@ export interface TapdRequestOptions {
 
 export type TapdTransport = (
   path: string,
-  params: Record<string, string>
+  params: Record<string, string>,
+  signal?: AbortSignal
 ) => Promise<TapdEnvelope<unknown>>;
 
 export function isTauriRuntime(): boolean {
@@ -54,42 +56,50 @@ export function isTauriRuntime(): boolean {
  * 默认传输层：通过 Tauri 命令发请求。
  * 令牌只在 Rust 进程内使用，不进入前端打包产物。
  */
-export const tauriTransport: TapdTransport = async (path, params) => {
+export const tauriTransport: TapdTransport = async (path, params, signal) => {
   if (!isTauriRuntime()) {
     throw new TapdApiError('当前不在 Tauri 运行环境中，无法访问 TAPD 接口', 0);
   }
-  const { invoke } = await import('@tauri-apps/api/core');
-  const body = await invoke<string>('tapd_get', {
-    path,
-    params: Object.entries(params),
-  });
-  return JSON.parse(body) as TapdEnvelope<unknown>;
+  return requestQueue.run(async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    signal?.throwIfAborted();
+    const body = await invoke<string>('tapd_get', { path, params: Object.entries(params) });
+    signal?.throwIfAborted();
+    return JSON.parse(body) as TapdEnvelope<unknown>;
+  }, signal);
 };
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(signal.reason); return; }
+    const abort = () => { clearTimeout(timer); reject(signal?.reason); };
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve(); }, ms);
+    signal?.addEventListener('abort', abort, { once: true });
   });
 }
 
-async function requestWithRetry(
+export async function requestWithRetry(
   transport: TapdTransport,
   path: string,
-  params: Record<string, string>
+  params: Record<string, string>,
+  signal?: AbortSignal
 ): Promise<TapdEnvelope<unknown>> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      const envelope = await transport(path, params);
+      signal?.throwIfAborted();
+      const envelope = await transport(path, params, signal);
+      signal?.throwIfAborted();
       if (envelope.status !== 1) {
         throw new TapdApiError(`TAPD 返回错误：${envelope.info || '未知错误'}`, envelope.status);
       }
       return envelope;
     } catch (error) {
+      signal?.throwIfAborted();
       lastError = error;
       const retryable = !(error instanceof TapdApiError) || error.status >= 500;
       if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
-      await sleep(RETRY_DELAYS_MS[attempt]);
+      await sleep(RETRY_DELAYS_MS[attempt], signal);
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
@@ -194,7 +204,7 @@ export async function fetchWorkspaceUsers(
   return mapWorkspaceUsers(rows);
 }
 
-async function runWithConcurrency<T, R>(
+export async function runWithConcurrency<T, R>(
   items: T[],
   limit: number,
   worker: (item: T) => Promise<R>

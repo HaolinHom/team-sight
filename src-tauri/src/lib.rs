@@ -185,13 +185,17 @@ fn tapd_request(token: &str, path: &str, params: &[(String, String)]) -> Result<
 }
 
 #[tauri::command]
-fn tapd_get(
+async fn tapd_get(
     app: tauri::AppHandle,
     path: String,
     params: Vec<(String, String)>,
 ) -> Result<String, String> {
-    let (token, _source) = resolve_token(&config_dir(&app)?)?;
-    tapd_request(&token, &path, &params)
+    tauri::async_runtime::spawn_blocking(move || {
+        let (token, _source) = resolve_token(&config_dir(&app)?)?;
+        tapd_request(&token, &path, &params)
+    })
+    .await
+    .map_err(|error| format!("后台请求执行失败：{error}"))?
 }
 
 #[tauri::command]

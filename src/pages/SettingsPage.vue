@@ -7,6 +7,7 @@ import { fetchWorkspaceUsers } from '@/services/tapd/client';
 import { fetchUserProjects, isScheduleProject, type TapdProjectSummary } from '@/services/tapd/projects';
 import { PROJECT_PALETTE, type MemberEntry } from '@/types/settings';
 import type { ProjectConfig } from '@/types/schedule';
+import HoursSettingsCard from '@/components/hours/HoursSettingsCard.vue';
 
 const credentials = useCredentials();
 const store = useSettings();
@@ -291,6 +292,8 @@ async function addMember(member: MemberEntry): Promise<void> {
       </ul>
       <p v-else class="message">尚未配置成员，看板将不显示任何任务。</p>
     </section>
+
+    <HoursSettingsCard />
 
     <p v-if="store.saveError.value" class="message" role="alert">{{ store.saveError.value }}</p>
     <p v-if="store.warning.value" class="message">{{ store.warning.value }}</p>

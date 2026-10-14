@@ -1,7 +1,9 @@
 import type { ProjectConfig } from './schedule';
+import type { HoursSettings } from './hours';
+import { createHoursSettings, normalizeHoursSettings } from '@/hours/settings';
 
 /** 配置 schema 版本，用于后续迁移判断。 */
-export const SETTINGS_SCHEMA_VERSION = 1;
+export const SETTINGS_SCHEMA_VERSION = 2;
 
 /** 展示成员：工号是稳定标识，姓名为展示名。 */
 export interface MemberEntry {
@@ -13,6 +15,7 @@ export interface AppSettings {
   schemaVersion: number;
   projects: ProjectConfig[];
   members: MemberEntry[];
+  hours: HoursSettings;
   updatedAt: string;
 }
 
@@ -40,6 +43,7 @@ export function createEmptySettings(now: Date = new Date()): AppSettings {
     schemaVersion: SETTINGS_SCHEMA_VERSION,
     projects: [],
     members: [],
+    hours: createHoursSettings(),
     updatedAt: now.toISOString(),
   };
 }
@@ -123,6 +127,7 @@ export function normalizeSettings(
       schemaVersion: SETTINGS_SCHEMA_VERSION,
       projects,
       members,
+      hours: normalizeHoursSettings(record.hours),
       updatedAt: asString(record.updatedAt) || now.toISOString(),
     },
     warning,
