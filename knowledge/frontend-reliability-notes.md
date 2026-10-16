@@ -17,4 +17,26 @@ src/composables/useSchedule.spec.ts、src/composables/useSettings.spec.ts、src/
 
 ## 验证边界
 
-上述结论确认当前源码和模拟回归行为；本轮未执行真实TAPD或桌面端端到端验证。
+上述结论确认当前源码和模拟回归行为；2026-10-12 的验证未执行真实TAPD或桌面端端到端验证；后续补充的验证范围见各节。
+
+## Worker 计算与短期查询缓存
+
+> 验证日期：2026-10-14；2026-10-16 提升并核对当前实现。
+
+- 工时 Worker 为独立 module bundle；快照通过 structured clone 传入一次，规则变化复用 Worker 中的快照重算。结果通过 Vue shallowRef 提交，快照身份及规则版本参与过期校验。仅将快照身份存在非响应式变量中，可能使 computed 因短路而未跟踪结果依赖。
+- Worker error／messageerror 先解除 pending，再终止 Worker 并回报真实错误；否则取消操作产生的 AbortError 会掩盖原失败。
+- 短期缓存只保留完整查询及每个响应的原始获取时间，聚合刷新时间取最早值，不能使用本次聚合开始时间冒充缓存数据时间。凭据、项目、成员上下文进入缓存键，手动刷新强制失效。
+- 当前缓存 TTL 为 1 分钟；最多 512 项／40000 行，单响应超过 2000 行不缓存。它与路由页面保活是不同层次：缓存过期本身不触发保活页面重新加载。
+
+证据：src/hours/workerClient.ts、src/hours/hours.worker.ts、src/pages/HoursPage.vue、src/services/tapd/hoursCache.ts、src/services/tapd/hours.ts；artifacts/report/20261014_1400_hours-performance_测试报告.md。生产 Worker 执行及真实 TAPD 缓存已验证，桌面精确输入延迟未测量。
+
+## 路由保活与异步生命周期
+
+> 验证日期：2026-10-14；2026-10-16 提升并核对当前实现。
+
+- RouterView 插槽内的 KeepAlive 按组件名称仅缓存 BoardPage、HoursPage，稳定 route.name 作为键；设置页正常卸载。
+- 停用不等于卸载，页面 watch 仍会响应共享配置变化；通过激活状态门控配置驱动加载与规则重算，隐藏期间的多次变更在返回时按最新配置合并处理。
+- 已经启动的加载与 Worker 可在停用期间完成；查询键、计算键阻止与当前来源不匹配的旧响应成为有效展示。首次加载完成时即使隐藏，配置未变化也可开始后台计算。
+- 激活后 nextTick 恢复滚动并重新测量工时虚拟矩阵；停用断开 ResizeObserver，真正卸载才取消请求、终止 Worker，并清理定时器与监听器。
+
+证据：src/app/App.vue、src/pages/BoardPage.vue、src/pages/HoursPage.vue；src/app/App.spec.ts 使用真实 memory Router 的回归，以及 src/pages/BoardPage.spec.ts；artifacts/report/20261014_1442_route-keepalive_测试报告.md 包含前端测试、构建与 macOS 桌面切页验收。

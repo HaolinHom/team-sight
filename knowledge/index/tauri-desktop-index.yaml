@@ -5,8 +5,8 @@ description: "桌面端（Tauri 2）能力的接入方式、能力作用域与�
 
 items:
   - id: tauri-desktop-external-link
-    title: "Tauri 2 打开外部链接（opener 插件与能力作用域）"
+    title: "Tauri 2 外部链接与后台命令"
     path: "knowledge/tauri-desktop-notes.md"
-    summary: "webview 不处理 target=_blank 且默认无外部打开权限（点击静默失效）；需 tauri-plugin-opener + opener:allow-open-url 作用域（glob 匹配，* 可跨 /）；gen/schemas/capabilities.json 可自查能力是否被接受；打开失败必须显式回显。"
-    tags: ["tauri", "desktop", "capability", "external-link"]
-    verifiedAt: "2026-10-10"
+    summary: "webview 不处理 target=_blank 且默认无外部打开权限（点击静默失效）；需 tauri-plugin-opener + opener:allow-open-url 作用域（glob 匹配，* 可跨 /）；gen/schemas/capabilities.json 可自查能力是否被接受；打开失败必须显式回显；同步 command 内阻塞HTTP可能卡主线程，tapd_get采用async与spawn_blocking，请求队列并发3，活动HTTP不能立即取消。"
+    tags: ["tauri", "desktop", "capability", "external-link", "async", "performance"]
+    verifiedAt: "2026-10-16"

@@ -17,3 +17,10 @@ items:
     summary: "任务与缺陷的标题/负责人字段名不同；分页上限 200；时间查询只支持闭区间（开区间被静默忽略）且范围查询天然排除缺日期任务；缺日期任务需用 due=null/begin=null 空值过滤；owner 不支持多值；状态取值必须动态获取；工时字段 effort 保留原值不补 0；详情页链接形态为 tapd_fe/<workspace_id>/<task|bug>/detail/<id>。"
     tags: ["tapd", "api", "query", "pagination", "null-filter", "effort", "status"]
     verifiedAt: "2026-10-10"
+
+  - id: tapd-api-timesheets
+    title: "TAPD 工时查询与每日统计"
+    path: "knowledge/tapd-api-timesheets.md"
+    summary: "timesheets/count、花费日期闭区间、填报人目录匹配；每日实际与任务累计独立查询，按项目和记录ID去重，删除与异常记录处理；分页完整性及完整区间预测，真样本与单位边界。"
+    tags: ["tapd", "timesheet", "hours", "pagination", "identity", "completeness"]
+    verifiedAt: "2026-10-16"

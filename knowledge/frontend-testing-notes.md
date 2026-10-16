@@ -49,3 +49,12 @@ vi.mock('@/services/tapd/client', async (importOriginal) => ({
 页面级（BoardPage）：默认时间范围为当前自然月、筛选后列表更新、点击任务显示详情与正确外链、筛选为空显示空状态、部分数据源失败仍保留成功数据并提示、整体失败显示错误、凭据读取失败提示。
 
 组件级（GanttBoard）：成员标题行不显示任务条、任务独占一行、折叠隐藏任务行、展开恢复且后续成员行位移等于折叠行数 × 行高。
+
+## 路由保活测试与共享状态清理
+
+> 验证日期：2026-10-14；2026-10-16 经用户授权提升。
+
+- 验证 KeepAlive 生命周期时使用真实 memory Router 挂载应用，执行路由切换，检查请求次数、页面状态、隐藏期间工作及卸载清理；普通页面单测仍可使用 RouterLink stub。
+- 组件测试若共享模块状态，必须在用例结束时卸载页面。遗留 watch 会响应后续用例的状态变化，消耗单次 mock 响应，导致用例互相干扰。
+
+证据：src/app/App.spec.ts、src/pages/BoardPage.spec.ts；artifacts/report/20261014_1442_route-keepalive_测试报告.md。
