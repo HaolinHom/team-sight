@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { currentMonthRange, eachDateKey, type DateRange } from '@/gantt/dateUtils';
 import { validateRange } from '@/gantt/filters';
 import { useHours, hoursQueryKey } from '@/composables/useHours';
@@ -15,6 +15,9 @@ import { matrixWindow, MATRIX_COLUMN_WIDTH, MATRIX_ROW_HEIGHT } from '@/hours/ma
 import { createHoursCalculator } from '@/hours/workerClient';
 import type { DailyHours, MemberHours } from '@/types/hours';
 
+defineOptions({ name: 'HoursPage' });
+const active = ref(true);
+const requestedKey = ref('');
 const store = useSettings();
 const credentials = useCredentials();
 const hours = useHours();
@@ -45,12 +48,19 @@ const calculationKey = computed(() => JSON.stringify({ settings: settings.value,
 const calculatedSnapshot = shallowRef<typeof snapshot.value>(null);
 const calculatedKey = ref('');
 const rows = computed(() => snapshot.value && calculatedSnapshot.value === snapshot.value && calculatedKey.value === calculationKey.value ? calculatedRows.value : []);
-watch([snapshot, calculationKey], async () => {
+let allowedCalculationKey = calculationKey.value;
+let runningSnapshot: typeof snapshot.value = null;
+let runningKey = '';
+watch([snapshot, calculationKey, active], async () => {
+  if (active.value) allowedCalculationKey = calculationKey.value;
+  if (!active.value && (!snapshot.value || allowedCalculationKey !== calculationKey.value)) return;
+  if (snapshot.value && ((calculatedSnapshot.value === snapshot.value && calculatedKey.value === calculationKey.value) || (calculating.value && runningSnapshot === snapshot.value && runningKey === calculationKey.value))) return;
   const id = ++calculationId;
   if (!snapshot.value) calculator.cancel();
   if (!snapshot.value) { calculating.value = false; calculatedRows.value = []; return; }
   calculating.value = true; calculationError.value = '';
   const source = snapshot.value, key = calculationKey.value;
+  runningSnapshot = source; runningKey = key;
   try {
     const result = await calculator.calculate({ snapshot: source, members: members.value, settings: settings.value, range: range.value, today: today.value });
     if (id !== calculationId) return;
@@ -65,7 +75,7 @@ const visibleRows = computed(() => memberRows.value.filter(row => {
     case 'historical': return row.historicalShortDays > 0;
     case 'forecast': return row.forecastShortDays > 0;
     case 'over': return row.days.some(day => day.state === 'over');
-    case 'unknown': return row.days.some(day => day.state === 'unknown') || row.pending.some(item => !item.overdue);
+    case 'unknown': return row.days.some(day => day.reasons.length > 0) || row.pending.some(item => !item.overdue);
     default: return true;
   }
 }));
@@ -80,7 +90,7 @@ function measureMatrix(): void {
 function matrixScroll(): void { if (!scrollFrame) scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; measureMatrix(); }); }
 watch(matrixElement, element => {
   resizeObserver?.disconnect();
-  if (element) { measureMatrix(); if (typeof ResizeObserver !== 'undefined') { resizeObserver = new ResizeObserver(measureMatrix); resizeObserver.observe(element); } }
+  if (element && active.value) { measureMatrix(); if (typeof ResizeObserver !== 'undefined') { resizeObserver = new ResizeObserver(measureMatrix); resizeObserver.observe(element); } }
 });
 const dates = computed(() => eachDateKey(range.value));
 const windowBounds = computed(() => matrixWindow(visibleRows.value.length, dates.value.length, viewport.value.top, viewport.value.left, viewport.value.height, viewport.value.width));
@@ -94,7 +104,7 @@ const detailLimit = ref(50);
 watch([selectedStaff, selectedDate, detailProject], () => { detailLimit.value = 50; });
 const summary = computed(() => {
   const days = memberRows.value.flatMap(row => row.days);
-  return { historicalPeople: memberRows.value.filter(row => row.historicalShortDays).length, historical: days.filter(day => day.basis === 'actual' && day.state === 'short').length, forecastPeople: memberRows.value.filter(row => row.forecastShortDays).length, forecast: days.filter(day => day.basis === 'forecast' && day.state === 'short').length, over: days.filter(day => day.state === 'over').length, unknown: days.filter(day => day.state === 'unknown').length };
+  return { historicalPeople: memberRows.value.filter(row => row.historicalShortDays).length, historical: days.filter(day => day.basis === 'actual' && day.state === 'short').length, forecastPeople: memberRows.value.filter(row => row.forecastShortDays).length, forecast: days.filter(day => day.basis === 'forecast' && day.state === 'short').length, over: days.filter(day => day.state === 'over').length, unknown: days.filter(day => day.reasons.length > 0).length };
 });
 const selectedRow = computed(() => rows.value.find(row => row.member.staffId === selectedStaff.value));
 const selectedDay = computed(() => selectedRow.value?.days.find(day => day.date === selectedDate.value));
@@ -114,10 +124,20 @@ const emptyMessage = computed(() => {
   if (hours.loading.value && !snapshot.value) return '正在加载成员工作项及工时记录…';
   return !snapshot.value ? '尚无当前范围的有效工时数据。' : '';
 });
+// 配色仅反映已知工时与日期，完整性和超额仍由原业务状态表达。
+function cellTone(day: DailyHours): string {
+  if (day.target === 0) return 'nonworking';
+  if (day.total + 1e-9 >= day.target) return 'enough';
+  return day.date < today.value ? 'historical-short' : 'forecast-short';
+}
+function daySummary(day: DailyHours): string {
+  return day.state === 'exempt' && day.total === 0 ? stateLabel(day) : (day.basis === 'actual' ? '实际 ' : '预计 ') + formatHours(day.total) + 'h';
+}
 function stateLabel(day: DailyHours): string {
-  if (day.state === 'exempt') return '非工作日／豁免';
+  if (day.state === 'exempt') return '非工作日';
   if (day.state === 'unknown') return '待确认';
   if (day.state === 'short') return '缺 ' + formatHours(day.deficit) + 'h';
+  if (day.basis === 'forecast' && day.actual >= day.target) return '实际已达标';
   if (day.state === 'over') return '排期超额 +' + formatHours(day.total - day.target) + 'h';
   return day.basis === 'actual' ? '达标' : '预计充足';
 }
@@ -143,12 +163,35 @@ async function openLink(url: string): Promise<void> {
   linkError.value = '';
   try { await openExternalUrl(url); } catch(error) { linkError.value = '打开 TAPD 失败：' + String(error); }
 }
-async function refresh(force = false): Promise<void> { if (canLoad.value) await hours.refresh(query.value, force); }
-function updateToday(): void { today.value = shanghaiToday(); }
-watch([ready, queryKey, canLoad], () => {
-  selectedStaff.value = '';
-  if (!ready.value) return;
-  if (canLoad.value) void refresh(); else hours.invalidate();
+async function refresh(force = false): Promise<void> {
+  if (!canLoad.value) return;
+  requestedKey.value = queryKey.value;
+  await hours.refresh(query.value, force);
+}
+function updateToday(): void { if (active.value) today.value = shanghaiToday(); }
+watch([ready, queryKey, canLoad, active], () => {
+  if (!ready.value || !active.value) return;
+  if (!canLoad.value) { hours.invalidate(); return; }
+  if (requestedKey.value !== queryKey.value) {
+    selectedStaff.value = '';
+    void refresh();
+  }
+});
+let savedScroll = { top: 0, left: 0 };
+onDeactivated(() => {
+  active.value = false;
+  savedScroll = { top: matrixElement.value?.scrollTop ?? viewport.value.top, left: matrixElement.value?.scrollLeft ?? viewport.value.left };
+  resizeObserver?.disconnect();
+  cancelAnimationFrame(scrollFrame); scrollFrame = 0;
+});
+onActivated(async () => {
+  active.value = true; updateToday();
+  await nextTick();
+  const element = matrixElement.value;
+  if (element) {
+    element.scrollTop = savedScroll.top; element.scrollLeft = savedScroll.left;
+    resizeObserver?.observe(element); measureMatrix();
+  }
 });
 onMounted(async () => {
   timer = setInterval(updateToday, 60000);
@@ -198,7 +241,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
             <tr v-if="windowBounds.top" aria-hidden="true"><td class="spacer" :colspan="spacerColumns" :style="{ height: windowBounds.top + 'px' }"></td></tr>
             <tr v-for="(row, rowIndex) in renderedRows" :key="row.member.staffId" class="data-row" :aria-rowindex="windowBounds.rowStart + rowIndex + 2" :style="windowBounds.virtual ? { height: MATRIX_ROW_HEIGHT + 'px' } : undefined">
               <th class="member-column"><strong>{{ row.member.name }}</strong><span>历史不足 {{ row.historicalShortDays }} 天<br />预计不足 {{ row.forecastShortDays }} 天</span><button v-if="row.pending.length" type="button" class="pending-button" @click="select(row.member.staffId, '', $event)">逾期待安排 {{ row.pending.filter(item => item.overdue).length }} 项<br />待确认／待安排 {{ row.pending.filter(item => !item.overdue).length }} 项<br />已知剩余 {{ pendingSummaries.get(row.member.staffId)?.remaining }}h</button></th>
-              <td v-if="windowBounds.left" class="spacer" aria-hidden="true" :style="{ width: windowBounds.left + 'px' }"></td><td v-for="day in row.days.slice(windowBounds.columnStart, windowBounds.columnEnd)" :key="day.date"><button type="button" class="day-cell" :class="['state-' + day.state, { selected: selectedStaff === row.member.staffId && selectedDate === day.date }]" :data-state="day.state" :aria-label="row.member.name + ' ' + day.date + ' ' + (day.basis === 'actual' ? '实际 ' : '预计 ') + formatHours(day.total) + 'h ' + stateLabel(day)" @click="select(row.member.staffId, day.date, $event)"><strong>{{ day.basis === 'actual' ? '实际' : '预计' }} {{ formatHours(day.total) }}h</strong><span>{{ stateLabel(day) }}</span><small v-if="day.date === today || day.state === 'exempt'">已填报 {{ formatHours(day.actual) }}h</small></button></td>
+              <td v-if="windowBounds.left" class="spacer" aria-hidden="true" :style="{ width: windowBounds.left + 'px' }"></td><td v-for="day in row.days.slice(windowBounds.columnStart, windowBounds.columnEnd)" :key="day.date"><button type="button" class="day-cell" :class="['tone-' + cellTone(day), { selected: selectedStaff === row.member.staffId && selectedDate === day.date }]" :data-state="day.state" :aria-label="row.member.name + ' ' + day.date + ' ' + daySummary(day) + (day.state === 'exempt' && day.total === 0 ? '' : ' ' + stateLabel(day)) + (day.reasons.length ? ' 当日数据待确认 ' + day.reasons.length + '个原因' : '')" @click="select(row.member.staffId, day.date, $event)"><strong>{{ daySummary(day) }}</strong><span v-if="day.state !== 'exempt' || day.total > 0">{{ stateLabel(day) }}</span><small v-if="day.reasons.length" class="data-warning">当日数据待确认 · {{ day.reasons.length }}个原因</small><small v-if="day.date === today && (day.state !== 'exempt' || day.total > 0)">已填报 {{ formatHours(day.actual) }}h</small></button></td>
               <td v-if="windowBounds.right" class="spacer" aria-hidden="true" :style="{ width: windowBounds.right + 'px' }"></td>
             </tr>
             <tr v-if="windowBounds.bottom" aria-hidden="true"><td class="spacer" :colspan="spacerColumns" :style="{ height: windowBounds.bottom + 'px' }"></td></tr>
@@ -208,7 +251,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
       </section>
       <aside v-if="selectedRow" ref="detailsElement" class="details" tabindex="-1" aria-label="工时明细">
         <header><h2>{{ selectedRow.member.name }} · {{ selectedDate || '待安排任务' }}</h2><button type="button" aria-label="关闭工时明细" @click="closeDetails">关闭</button></header>
-        <template v-if="selectedDay"><p class="detail-total">{{ selectedDay.basis === 'actual' ? '实际' : '预计' }} {{ formatHours(selectedDay.total) }}h · {{ stateLabel(selectedDay) }}</p><p>实际 {{ formatHours(selectedDay.actual) }}h ＋ 剩余分配 {{ formatHours(selectedDay.allocated) }}h<br />当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.basis === 'forecast'" class="notice">预计充足不代表实际已达标；剩余量由当前排期推算。</p><ul v-if="selectedDay.reasons.length" class="error"><li v-for="reason in selectedDay.reasons" :key="reason">{{ reason }}</li></ul></template>
+        <template v-if="selectedDay"><p class="detail-total">{{ daySummary(selectedDay) }}{{ selectedDay.state === 'exempt' && selectedDay.total === 0 ? '' : ' · ' + stateLabel(selectedDay) }}</p><p v-if="selectedDay.state === 'exempt'">非工作日不受每日规定工时约束，不判断不足或超额。<br />实际 {{ formatHours(selectedDay.actual) }}h ＋ 加班分配 {{ formatHours(selectedDay.allocated) }}h</p><p v-else>实际 {{ formatHours(selectedDay.actual) }}h ＋ 剩余分配 {{ formatHours(selectedDay.allocated) }}h<br />当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.basis === 'forecast' && selectedDay.state !== 'exempt'" class="notice">当前预计值由已填报工时与可计算的剩余排期组成，不代表实际已达标。</p><p v-if="selectedDay.reasons.length" class="notice">当日数据待确认 · {{ selectedDay.reasons.length }}个原因。{{ selectedDay.state === 'exempt' ? '仅影响工时数据完整性，非工作日不判断不足或超额。' : selectedDay.actual >= selectedDay.target && selectedDay.target > 0 ? '已记录的实际工时已达到目标。' : selectedDay.total >= selectedDay.target && selectedDay.target > 0 ? '当前已知工时达到目标，预计分配仍可能随数据补全调整。' : '当前已知工时未达到目标，数据补全前不能确定不足。' }}</p><ul v-if="selectedDay.reasons.length" class="error"><li v-for="reason in selectedDay.reasons" :key="reason">{{ reason }}</li></ul></template>
         <label>明细项目 <select v-model="detailProject" aria-label="明细项目筛选"><option value="">全部项目</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
         <p class="meta">项目筛选仅影响明细，全天汇总保持不变。</p>
         <template v-if="selectedDay"><article v-for="item in contributions.slice(0, detailLimit)" :key="item.taskKey"><span class="meta">{{ projectName(item.projectId) }} · {{ taskMap.get(item.taskKey)?.status || '历史填报' }}</span><h3>{{ contributionTitle(item.taskKey) }}</h3><p>实际 {{ formatHours(item.actual) }}h · 当天分配 {{ formatHours(item.allocated) }}h</p><p class="meta">{{ item.explanation }}</p><a :href="contributionUrl(item.taskKey)" @click.prevent="openLink(contributionUrl(item.taskKey))">打开 TAPD</a></article><p v-if="!contributions.length" class="meta">当天没有对应项目的有效工时贡献。</p></template>
@@ -217,7 +260,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
         <p v-if="linkError" role="alert" class="error">{{ linkError }}</p>
       </aside>
     </div>
-    <p class="legend">不足 · 达标／预计充足 · 排期超额 · 非工作日／豁免 · 数据待确认。工时按已配置成员展示，多人任务按全部负责人份额计算。</p>
+    <p class="legend">绿色：达到目标；红色：历史不足；橙色：今天／未来预计不足；灰色：非工作日。数据待确认单独提示。工时按已配置成员展示，多人任务按全部负责人份额计算。</p>
   </div>
 </template>
 
@@ -242,7 +285,11 @@ th strong, th span { display: block; } th span { color: var(--ts-color-text-mute
 thead .member-column { z-index: 3; } .today-column { box-shadow: inset 0 -3px #2563eb; }
 .day-cell { width: 100%; min-width: 130px; min-height: 78px; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; text-align: left; border-color: transparent; padding: 9px; }
 .day-cell strong { font-size: 13px; }.day-cell small { color: inherit; }
-.state-short { background: #fff1f2; color: #9f1239; } .state-enough { background: #ecfdf5; color: #065f46; } .state-over { background: #fffbeb; color: #92400e; } .state-exempt, .state-unknown { background: #f1f5f9; color: #475569; }
+.tone-historical-short { background: #fff1f2; color: #9f1239; }
+.tone-enough { background: #ecfdf5; color: #065f46; }
+.tone-forecast-short { background: #fff7ed; color: #9a3412; }
+.tone-nonworking { background: #f1f5f9; color: #475569; }
+.data-warning { color: #92400e; }
 .day-cell.selected { outline: 2px solid #2563eb; outline-offset: -2px; } .pending-button { margin-top: 8px; color: #92400e; text-align: left; font-size: 11px; }
 .details { flex: 0 0 330px; max-width: 40vw; overflow: auto; padding: 14px; border: 1px solid var(--ts-color-border); border-radius: var(--ts-radius); background: var(--ts-color-surface); }
 .details > * { margin-bottom: 12px; }.details article { border-top: 1px solid var(--ts-color-border); padding: 12px 0; }.details article p { margin: 6px 0; }.detail-total { font-weight: 600; font-size: 16px; }

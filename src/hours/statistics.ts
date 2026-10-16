@@ -17,7 +17,7 @@ export function formatHours(value: number): string {
   return String(Math.floor((value + EPSILON) * 100) / 100);
 }
 
-interface Allocation { task: ScheduleTask; key: string; remaining: number; dates: string[]; explanation: string }
+interface Allocation { task: ScheduleTask; key: string; remaining: number; dates: string[]; overtimeDates: string[]; explanation: string }
 
 export function calculateHours(input: {
   snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string;
@@ -61,12 +61,16 @@ export function calculateHours(input: {
     const contributionMaps = new Map<string, Map<string, DailyContribution>>();
     const targetCache = new Map<string, number>();
     const eligibleCache = new Map<string, string[]>();
+    const workingFor = (date: string): boolean => {
+      let working = overrides.get(date) ?? weekdays.get(date);
+      if (working === undefined) { working = dailyTarget(date, '', { ...settings, calendarOverrides: [], exemptions: [] }) > 0; weekdays.set(date, working); }
+      return working;
+    };
+    const overtimeDates = new Set<string>();
     const targetFor = (date: string): number => {
       let target = targetCache.get(date);
       if (target === undefined) {
-        let working = overrides.get(date) ?? weekdays.get(date);
-        if (working === undefined) { working = dailyTarget(date, '', { ...settings, calendarOverrides: [], exemptions: [] }) > 0; weekdays.set(date, working); }
-        target = working && !exemptions.has(member.staffId + ':' + date) ? settings.dailyRequiredHours : 0;
+        target = workingFor(date) && !exemptions.has(member.staffId + ':' + date) ? settings.dailyRequiredHours : 0;
         targetCache.set(date, target);
       }
       return target;
@@ -102,8 +106,17 @@ export function calculateHours(input: {
     const pending: MemberHours['pending'] = [];
     const allocations: Allocation[] = [];
     const unknownTasks: ScheduleTask[] = [];
+    const taskOvertimeDates = new Map<string, Set<string>>();
     for (const task of tasksByMember.get(member.staffId) ?? []) {
       const key = hoursTaskKey(task);
+      // 截止日在非工作日时，末尾连续的休息日可承接工作日余量；中间周末不自动加班。
+      const validInterval = !!task.startDate && !!task.dueDate && isValidDateKey(task.startDate) && isValidDateKey(task.dueDate) && task.startDate <= task.dueDate && dateDiffInDays(task.startDate, task.dueDate) <= 366;
+      const taskDates = validInterval ? eachDateKey({ start: task.startDate!, end: task.dueDate! }) : [];
+      const trailingRestDates: string[] = [];
+      for (let index = taskDates.length - 1; index >= 0 && !workingFor(taskDates[index]); index--) trailingRestDates.unshift(taskDates[index]);
+      const overtimeEligible = trailingRestDates.filter(date => date >= today && !exemptions.has(member.staffId + ':' + date));
+      taskOvertimeDates.set(key, new Set(overtimeEligible));
+      for (const date of overtimeEligible) overtimeDates.add(date);
       if (taskIssues.has(key)) {
         const overdue = !!task.dueDate && task.dueDate < today;
         pending.push({ task, hours: null, reason: '累计花费或负责人不完整，剩余量待确认', overdue });
@@ -127,22 +140,22 @@ export function calculateHours(input: {
         eligible = eligibleCache.get(interval) ?? eachDateKey({ start, end: task.dueDate }).filter(date => targetFor(date) > 0);
         eligibleCache.set(interval, eligible);
       }
-      if (!reason && eligible.length === 0) reason = '排期内没有可分配工作日';
+      if (!reason && eligible.length === 0 && overtimeEligible.length === 0) reason = '排期内没有可分配日期';
       if (reason) {
         pending.push({ task, hours: ownRemaining, reason, overdue });
         if (!overdue) unknownTasks.push(task);
         continue;
       }
       const explanation = task.assigneeIds.length > 1 ? '按负责人均分份额扣减本人花费，再按剩余份额比例分配任务总剩余量' : '预估减截至今天累计花费；按截止日期优先补齐每日规定工时';
-      allocations.push({ task, key, remaining: ownRemaining!, dates: eligible, explanation });
+      allocations.push({ task, key, remaining: ownRemaining!, dates: eligible, overtimeDates: overtimeEligible, explanation });
     }
     const ordered = allocations.sort((a, b) => a.task.dueDate!.localeCompare(b.task.dueDate!) || a.task.startDate!.localeCompare(b.task.startDate!) || a.key.localeCompare(b.key));
     // 先预留只剩一个有效工作日的任务，跨日任务不得挤占这部分容量。
-    for (const item of ordered.filter(item => item.dates.length === 1)) {
+    for (const item of ordered.filter(item => item.dates.length === 1 && item.overtimeDates.length === 0)) {
       contribute(item.dates[0], item.key, item.task.projectId, 0, item.remaining, item.explanation);
       item.remaining = 0;
     }
-    const active = ordered.filter(item => item.remaining > EPSILON);
+    const active = ordered.filter(item => item.remaining > EPSILON && item.dates.length > 0);
     const allocationDates = [...new Set(active.flatMap(item => item.dates))].sort();
     for (const date of allocationDates) {
       const day = getDay(date);
@@ -151,7 +164,7 @@ export function calculateHours(input: {
         const item = active[index];
         const last = item.dates[item.dates.length - 1];
         if (item.dates[0] > date || last < date || targetFor(date) === 0) { index++; continue; }
-        const amount = date === last ? item.remaining : Math.min(item.remaining, available);
+        const amount = date === last && item.overtimeDates.length === 0 ? item.remaining : Math.min(item.remaining, available);
         if (amount > EPSILON) {
           contribute(date, item.key, item.task.projectId, 0, amount, item.explanation);
           item.remaining = Math.max(item.remaining - amount, 0);
@@ -160,18 +173,35 @@ export function calculateHours(input: {
         if (item.remaining <= EPSILON) active.splice(index, 1); else index++;
       }
     }
+    // 工作日分配结束后，将余量均分至截止前末尾连续的非工作日，无每日容量上限。
+    for (const item of ordered) {
+      if (item.remaining <= EPSILON || item.overtimeDates.length === 0) continue;
+      const amountPerDate = item.remaining / item.overtimeDates.length;
+      for (let index = 0; index < item.overtimeDates.length; index++) {
+        const amount = index === item.overtimeDates.length - 1 ? item.remaining - amountPerDate * index : amountPerDate;
+        contribute(item.overtimeDates[index], item.key, item.task.projectId, 0, amount, item.explanation + '；截止日在非工作日，工作日分配后余量按末尾可安排的非工作日均分，不受每日规定工时限制');
+      }
+      item.remaining = 0;
+    }
+    const pendingReasons = new Map(pending.map(item => [hoursTaskKey(item.task), item.reason]));
     const days = dates.map(date => {
       const day = getDay(date);
       day.total = day.actual + (day.basis === 'forecast' ? day.allocated : 0);
       day.deficit = Math.max(day.target - day.total, 0);
-      day.reasons = snapshot.issues.filter(issue => (!issue.staffId || issue.staffId === member.staffId) && (!issue.date || issue.date === date) && !issue.taskKey && (issue.affects === 'both' || issue.affects === 'actual' && date <= today || issue.affects === 'forecast' && date >= today)).map(issue => issue.message);
-      if (date >= today) {
+      day.reasons = snapshot.issues.filter(issue => (!issue.staffId || issue.staffId === member.staffId) && (!issue.date || issue.date === date) && !issue.taskKey && ((issue.affects === 'actual' || issue.affects === 'both') && date <= today || (issue.affects === 'forecast' || issue.affects === 'both') && date >= today && (day.target > 0 || overtimeDates.has(date)))).map(issue => issue.message);
+      if (date >= today && (day.target > 0 || overtimeDates.has(date))) {
         for (const task of unknownTasks) {
-          if (!task.startDate || !task.dueDate || !isValidDateKey(task.startDate) || !isValidDateKey(task.dueDate) || task.startDate > task.dueDate || task.startDate <= date && task.dueDate >= date) day.reasons.push('任务「' + task.title + '」无法完整计算剩余排期');
+          if (day.target === 0 && !taskOvertimeDates.get(hoursTaskKey(task))?.has(date)) continue;
+          // 无有效完整区间的任务仅列入待安排，不能推断其影响所有未来日期。
+          if (task.startDate && task.dueDate && isValidDateKey(task.startDate) && isValidDateKey(task.dueDate) && task.startDate <= task.dueDate && task.startDate <= date && task.dueDate >= date) {
+            const reason = pendingReasons.get(hoursTaskKey(task));
+            day.reasons.push('任务「' + task.title + '」：' + (reason || '无法完整计算剩余排期'));
+          }
         }
       }
       day.reasons = [...new Set(day.reasons)];
-      day.state = day.target === 0 ? 'exempt' : day.reasons.length ? 'unknown' : day.total + EPSILON < day.target ? 'short' : day.basis === 'forecast' && day.total > day.target + EPSILON ? 'over' : 'enough';
+      // 已知工时达到目标时保留工时结论；完整性由 reasons 独立表达。
+      day.state = day.target === 0 ? 'exempt' : day.total + EPSILON < day.target ? (day.reasons.length ? 'unknown' : 'short') : day.basis === 'forecast' && day.total > day.target + EPSILON ? 'over' : 'enough';
       return day;
     });
     return { member, days, pending, historicalShortDays: days.filter(day => day.state === 'short' && day.basis === 'actual').length, forecastShortDays: days.filter(day => day.state === 'short' && day.basis === 'forecast').length };

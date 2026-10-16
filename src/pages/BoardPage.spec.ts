@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { currentMonthRange } from '@/gantt/dateUtils';
 import type { ScheduleTask } from '@/types/schedule';
+
+enableAutoUnmount(afterEach);
 
 const invokeMock = vi.hoisted(() => vi.fn());
 const fetchScheduleTasksMock = vi.hoisted(() => vi.fn());

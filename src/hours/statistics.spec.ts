@@ -85,7 +85,7 @@ describe('日历与完整性',()=>{
   expect(calculate([], [record('actual','X','100','2026-10-12',2)],{settings})[0].days[0].actual).toBe(2);
  });
  it.each([task('missing','2026-10-12','2026-10-14',undefined),task('date',null,null,'8'),task('reverse','2026-10-14','2026-10-12','8')])('无效任务列为待确认，不伪造预计不足：$id',invalid=>{
-  const row=calculate([invalid])[0]; expect(row.pending).toHaveLength(1);expect(row.days.some(day=>day.state==='unknown')).toBe(true);
+  const row=calculate([invalid])[0]; expect(row.pending).toHaveLength(1);expect(row.days.some(day=>day.state==='unknown')).toBe(invalid.id === 'missing');
  });
  it('历史接口不完整不能将未知数据当成零',()=>{
   const row=calculate([],[],{today:'2026-10-13',snapshot:{tasks:[],records:[],status:'partial',issues:[{projectId:'p',affects:'actual',message:'未拉全'}]}})[0];
@@ -100,3 +100,127 @@ describe('日历与完整性',()=>{
 });
 
 it('逾期累计失败的剩余量也必须待确认',()=>{ const t=task('X','2026-10-09','2026-10-09','8');const row=calculate([],[],{snapshot:{tasks:[t],records:[],status:'partial',issues:[{projectId:'p',taskKey:'p:task:X',affects:'forecast',message:'累计失败'}]}})[0];expect(row.pending[0]).toMatchObject({hours:null,overdue:true}); });
+
+describe('达标结论与完整性独立', () => {
+ const issue = { projectId: 'p', affects: 'both' as const, message: '部分记录未完整' };
+ it('实际达到目标仍达标，并保留待确认原因', () => {
+  const records = [record('r', 'X', '100', '2026-10-12', 8)];
+  const day = calculate([], [], { today: '2026-10-13', snapshot: { tasks: [], records, status: 'partial', issues: [issue] } })[0].days[0];
+  expect(day).toMatchObject({ actual: 8, total: 8, state: 'enough', reasons: [issue.message] });
+ });
+ it('实际2h加分配6h达到目标仍预计充足', () => {
+  const tasks = [task('X', '2026-10-12', '2026-10-12', '8')];
+  const records = [record('r', 'X', '100', '2026-10-12', 2)];
+  const day = calculate([], [], { snapshot: { tasks, records, status: 'partial', issues: [issue] } })[0].days[0];
+  expect(day).toMatchObject({ actual: 2, allocated: 6, total: 8, state: 'enough', reasons: [issue.message] });
+ });
+ it('未知任务不覆盖已知8h排期的充足结论', () => {
+  const row = calculate([task('X','2026-10-12','2026-10-12','8'), task('missing','2026-10-12','2026-10-14',undefined)])[0];
+  expect(row.days[0].state).toBe('enough'); expect(row.days[0].reasons).toHaveLength(1);
+  expect(row.days[1].state).toBe('unknown'); expect(row.forecastShortDays).toBe(0);
+ });
+ it('已知超额保留超额提示，未知不足不计入不足天数', () => {
+  const day = calculate([], [], { snapshot: { tasks: [task('X','2026-10-12','2026-10-12','10')], records: [], status: 'partial', issues: [issue] } })[0].days[0];
+  expect(day.state).toBe('over'); expect(day.reasons).toEqual([issue.message]);
+ });
+});
+
+describe('休息日完整性范围', () => {
+ const range = { start: '2026-10-24', end: '2026-10-26' };
+ it('缺预估及缺日期任务不污染周末，工作日仍待确认', () => {
+  const row = calculate([task('missing','2026-10-24','2026-10-26',undefined)], [], { today: '2026-10-23', range })[0];
+  expect(row.days.slice(0,2).map(day => ({ state: day.state, reasons: day.reasons }))).toEqual([{ state: 'exempt', reasons: [] },{ state: 'exempt', reasons: [] }]);
+  expect(row.days[2].state).toBe('unknown'); expect(row.pending).toHaveLength(1);
+ });
+ it('未来休息日忽略接口异常，调休工作日恢复待确认', () => {
+  const snapshot: HoursSnapshot = { tasks: [], records: [], status: 'partial', issues: [{ projectId:'p', affects:'both', message:'接口未完整' }] };
+  const settings = createHoursSettings(); settings.calendarOverrides=[{ date:'2026-10-24', working:true, note:'调休' }];
+  const row = calculate([], [], { today:'2026-10-23', range, snapshot, settings })[0];
+  expect(row.days[0].state).toBe('unknown'); expect(row.days[1].reasons).toEqual([]);
+ });
+ it('成员豁免日排除预测异常，有效实际仍保留', () => {
+  const settings = createHoursSettings(); settings.exemptions=[{ staffId:'100', date:'2026-10-12', note:'请假' }];
+  const row = calculate([task('missing',null,null,undefined)], [record('r','X','100','2026-10-12',2)], { settings })[0];
+  expect(row.days[0]).toMatchObject({ state:'exempt', actual:2, allocated:0, reasons:[] });
+ });
+ it('过去或今天休息日仍保留实际记录不完整提示', () => {
+  const snapshot: HoursSnapshot = { tasks: [], records:[record('r','X','100','2026-10-24',2)], status:'partial', issues:[{ projectId:'p', affects:'actual', message:'记录未完整' },{ projectId:'p', affects:'forecast', message:'排期未完整' }] };
+  const row = calculate([],[],{ today:'2026-10-25',range,snapshot })[0];
+  expect(row.days[0]).toMatchObject({ state:'exempt',actual:2,reasons:['记录未完整'] });
+  expect(row.days[1].reasons).toEqual(['记录未完整']);
+ });
+});
+
+describe('异常仅影响可定位的日期',()=>{
+ it('四项无法定位日期的任务只列待安排，不扩散到后续0h日期',()=>{
+  const tasks=[task('valid','2026-10-12','2026-10-12','4.5'),task('missing-start',null,'2026-10-14','8'),task('missing-end','2026-10-12',null,'8'),task('missing-both',null,null,'8'),task('reverse','2026-10-14','2026-10-12','8')];
+  const row=calculate(tasks)[0];expect(row.pending).toHaveLength(4);expect(row.days.map(day=>day.total)).toEqual([4.5,0,0]);expect(row.days.map(day=>day.reasons)).toEqual([[],[],[]]);expect(row.days.map(day=>day.state)).toEqual(['short','short','short']);
+ });
+ it('四项有完整排期但缺预估的任务只影响自身区间，0h也可能待确认',()=>{
+  const tasks=Array.from({length:4},(_,i)=>task('unknown'+i,'2026-10-12','2026-10-13',undefined));
+  const row=calculate(tasks)[0];expect(row.days.map(day=>day.reasons.length)).toEqual([4,4,0]);expect(row.days.map(day=>day.state)).toEqual(['unknown','unknown','short']);expect(row.days[0].reasons[0]).toContain('缺少有效预估工时');
+ });
+ it('接口失败仍影响相应日期，不能因已知0h而误判确定不足',()=>{
+  const snapshot:HoursSnapshot={tasks:[],records:[],status:'partial',issues:[{projectId:'p',staffId:'100',date:'2026-10-13',affects:'forecast',message:'接口读取失败'}]};
+  const row=calculate([],[],{snapshot})[0];expect(row.days.map(day=>day.state)).toEqual(['short','unknown','short']);
+ });
+});
+
+describe('非工作日按需加班',()=>{
+ const range={start:'2026-10-23',end:'2026-10-26'};
+ it('单日周末18h全量分配，不限制8h且不判断不足或超额',()=>{
+  const row=calculate([task('overtime','2026-10-24','2026-10-24','18')],[],{today:'2026-10-23',range})[0];
+  expect(row.days[1]).toMatchObject({allocated:18,total:18,target:0,deficit:0,state:'exempt'});expect(row.pending).toHaveLength(0);
+ });
+ it('纯周末多日均分，与规定工时及展示范围无关',()=>{
+  const tasks=[task('overtime','2026-10-24','2026-10-25','20')];
+  const settings={...createHoursSettings(),dailyRequiredHours:7.5};
+  const row=calculate(tasks,[],{today:'2026-10-23',range,settings})[0];expect(row.days.slice(1,3).map(day=>day.total)).toEqual([10,10]);
+  expect(calculate(tasks,[],{today:'2026-10-23',range:{start:'2026-10-25',end:'2026-10-25'},settings})[0].days[0]).toEqual(row.days[2]);
+ });
+ it('截止周末时工作日先8h，余量在周末均分',()=>{
+  const row=calculate([task('cross','2026-10-23','2026-10-25','12')],[],{today:'2026-10-23',range})[0];expect(row.days.map(day=>day.allocated)).toEqual([8,2,2,0]);
+ });
+ it('今天周末实际加剩余不重复，已结束任务只计实际',()=>{
+  const row=calculate([task('live','2026-10-24','2026-10-24','12'),task('done','2026-10-24','2026-10-24','10',{status:'done'})],[record('r','live','100','2026-10-24',2),record('done','done','100','2026-10-24',3)],{today:'2026-10-24',range})[0];
+  expect(row.days[1]).toMatchObject({actual:5,allocated:10,total:15,target:0,state:'exempt'});
+ });
+ it('节假日可加班，个人请假不安排，调休工作日按目标判断',()=>{
+  const settings=createHoursSettings();settings.calendarOverrides=[{date:'2026-10-23',working:false,note:'节假日'},{date:'2026-10-24',working:true,note:'调休'}];settings.exemptions=[{date:'2026-10-25',staffId:'100',note:'请假'}];
+  const row=calculate([task('holiday','2026-10-23','2026-10-23','2'),task('working','2026-10-24','2026-10-24','10'),task('leave','2026-10-25','2026-10-25','4')],[],{today:'2026-10-23',range,settings})[0];
+  expect(row.days[0]).toMatchObject({allocated:2,state:'exempt'});expect(row.days[1]).toMatchObject({allocated:10,state:'over'});expect(row.days[2].allocated).toBe(0);expect(row.pending).toHaveLength(1);
+ });
+ it('明确周末加班但缺预估时保留当日原因，不影响其他休息日',()=>{
+  const row=calculate([task('missing','2026-10-24','2026-10-24',undefined)],[],{today:'2026-10-23',range})[0];expect(row.days[1].reasons).toHaveLength(1);expect(row.days[2].reasons).toEqual([]);
+ });
+});
+
+describe('截止日决定末尾周末加班',()=>{
+ const range={start:'2026-10-23',end:'2026-10-26'};
+ it('周五到周一12h跳过周末，得到8/0/0/4',()=>{
+  const row=calculate([task('cross','2026-10-23','2026-10-26','12')],[],{today:'2026-10-23',range})[0];expect(row.days.map(day=>day.allocated)).toEqual([8,0,0,4]);
+ });
+ it('仅周六周日12h仍均分6/6',()=>{
+  const row=calculate([task('cross','2026-10-24','2026-10-25','12')],[],{today:'2026-10-23',range})[0];expect(row.days.map(day=>day.allocated)).toEqual([0,6,6,0]);
+ });
+ it('周五到周六12h得到8/4，工作日容量被固定任务占满则余量全部周末',()=>{
+  const cross=task('cross','2026-10-23','2026-10-24','12');
+  expect(calculate([cross],[],{today:'2026-10-23',range})[0].days.map(day=>day.allocated)).toEqual([8,4,0,0]);
+  expect(calculate([cross,task('fixed','2026-10-23','2026-10-23','8')],[],{today:'2026-10-23',range})[0].days.map(day=>day.allocated)).toEqual([8,12,0,0]);
+ });
+ it('截止日在工作日的跨周末任务不产生周末异常，单格查询保持一致',()=>{
+  const tasks=[task('cross','2026-10-23','2026-10-26','12'),task('missing','2026-10-23','2026-10-26',undefined)];
+  const row=calculate(tasks,[],{today:'2026-10-23',range})[0];expect(row.days[1].reasons).toEqual([]);expect(row.days[2].reasons).toEqual([]);
+  expect(calculate(tasks,[],{today:'2026-10-23',range:{start:'2026-10-26',end:'2026-10-26'}})[0].days[0]).toEqual(row.days[3]);
+ });
+ it('长任务只用截止日前末尾连续休息日，中间周末不自动分配',()=>{
+  const tasks=[task('cross','2026-10-16','2026-10-25','60')];
+  const row=calculate(tasks,[],{today:'2026-10-16',range:{start:'2026-10-16',end:'2026-10-25'}})[0];
+  expect(row.days.map(day=>day.allocated)).toEqual([8,0,0,8,8,8,8,8,6,6]);
+ });
+});
+
+it('工作日截止的未知任务不污染其他任务的周末加班',()=>{
+ const row=calculate([task('live','2026-10-23','2026-10-25','12'),task('unknown','2026-10-23','2026-10-26',undefined)],[],{today:'2026-10-23',range:{start:'2026-10-23',end:'2026-10-26'}})[0];
+ expect(row.days[0].reasons).toHaveLength(1);expect(row.days[1].reasons).toEqual([]);expect(row.days[2].reasons).toEqual([]);
+});

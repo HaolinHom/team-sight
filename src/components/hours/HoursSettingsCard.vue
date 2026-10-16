@@ -35,7 +35,7 @@ function setStates(index: number, event: Event): void {
         <input v-model.number="draft.dailyRequiredHours" type="number" min="0" step="any" aria-label="每日规定工时" /> 小时
       </label>
       <h3>节假日／调休</h3>
-      <p>仅覆盖指定日期；休息日不分配预计工时，已有实际填报仍可查看。</p>
+      <p>仅覆盖指定日期；截止在休息日的任务可将工作日余量分配到末尾休息日，不受每日规定工时限制；已有实际填报仍可查看。</p>
       <div v-for="(item, index) in draft.calendarOverrides" :key="index" class="config-row">
         <input v-model="item.date" type="date" aria-label="日历覆盖日期" />
         <select v-model="item.working" aria-label="日期类型"><option :value="false">休息日</option><option :value="true">工作日</option></select>

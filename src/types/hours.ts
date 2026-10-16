@@ -55,6 +55,7 @@ export interface DailyHours {
   basis: 'actual' | 'forecast';
   state: 'short' | 'enough' | 'over' | 'exempt' | 'unknown';
   contributions: DailyContribution[];
+  /** 数据完整性提示，独立于工时状态；达到目标仍可能有待确认项。 */
   reasons: string[];
 }
 

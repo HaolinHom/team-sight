@@ -55,7 +55,10 @@ export function useSchedule() {
     }
   }
 
+  function invalidate(): void { requestId++; loading.value = false; }
+
   return {
+    invalidate,
     liveTasks,
     errors,
     warnings,

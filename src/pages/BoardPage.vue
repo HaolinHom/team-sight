@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import GanttBoard from '@/components/gantt/GanttBoard.vue';
@@ -43,6 +43,13 @@ const store = useSettings();
 const schedule = useSchedule();
 const credentials = useCredentials();
 
+defineOptions({ name: 'BoardPage' });
+const active = ref(true);
+const ready = ref(false);
+const requestedKey = ref('');
+const loadedSourceKey = ref('');
+let refreshId = 0;
+
 const isDesktop = isTauriRuntime();
 const filters = ref<ScheduleFilters>(createDefaultFilters(currentMonthRange()));
 const collapsedMemberKeys = ref<string[]>(
@@ -55,12 +62,14 @@ const range = computed<DateRange>(() => filters.value.range);
 
 /** 数据源：fixture 用固定验收数据，真实模式用阶段1 拉取结果。 */
 const dataMatchesRange = computed(() =>
+  loadedSourceKey.value === sourceKey.value && credentials.status.value.configured &&
   schedule.loadedRange.value?.start === range.value.start &&
   schedule.loadedRange.value?.end === range.value.end
 );
 const rawTasks = computed(() =>
   FIXTURE_MODE ? FIXTURE_TASKS : dataMatchesRange.value ? schedule.liveTasks.value : []
 );
+const sourceKey = computed(() => JSON.stringify({ projects: store.enabledProjects.value.map(p => p.id).sort(), range: range.value, credentialRevision: credentials.credentialRevision.value }));
 const projectSource = computed(() => (FIXTURE_MODE ? FIXTURE_PROJECTS : store.enabledProjects.value));
 const memberSource = computed<MemberEntry[]>(() =>
   FIXTURE_MODE ? membersFromTasks(FIXTURE_TASKS) : store.settings.value.members
@@ -70,7 +79,10 @@ const statusOptions = computed(() => collectStatusOptions(rawTasks.value));
 const selectedMembers = computed(() =>
   selectMembersByKeys(memberSource.value, filters.value.memberKeys)
 );
-const filteredTasks = computed(() => filterTasks(rawTasks.value, filters.value));
+const filteredTasks = computed(() => filterTasks(rawTasks.value.map(task => {
+  const project = projectSource.value.find(item => item.id === task.projectId);
+  return project ? { ...task, projectName: project.name, projectColor: project.color } : task;
+}), filters.value));
 const resolution = computed(() => createMemberResolution(filteredTasks.value, selectedMembers.value));
 
 const tasks = computed(() => filteredTasks.value);
@@ -154,22 +166,28 @@ async function openTapdLink(event: MouseEvent): Promise<void> {
 
 async function refresh(): Promise<void> {
   if (!canAutoLoad.value) return;
+  const id = ++refreshId;
+  const key = sourceKey.value;
+  requestedKey.value = key;
   await schedule.refresh(store.enabledProjects.value, filters.value.range);
+  if (id === refreshId && schedule.loadStatus.value !== 'failed') loadedSourceKey.value = key;
 }
-
+function reconcile(): void {
+  if (!ready.value || !active.value) return;
+  if (requestedKey.value !== sourceKey.value) {
+    selectedTaskKey.value = null;
+    if (canAutoLoad.value) void refresh();
+  }
+}
 onMounted(async () => {
   await store.load();
   if (!FIXTURE_MODE) await credentials.refresh();
-  await refresh();
+  ready.value = true;
 });
-
-// 只有时间范围变化才重新拉取；项目/成员/状态筛选只作用于已获取数据。
-watch(
-  () => `${filters.value.range.start}~${filters.value.range.end}`,
-  () => {
-    void refresh();
-  }
-);
+watch([ready, active, sourceKey, canAutoLoad], reconcile);
+onActivated(() => { active.value = true; });
+onDeactivated(() => { active.value = false; });
+onUnmounted(() => { refreshId++; schedule.invalidate(); });
 
 const today = todayKey();
 </script>

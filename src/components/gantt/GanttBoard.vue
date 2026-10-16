@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, onActivated, onDeactivated, ref } from 'vue';
 
 import { isWeekend, todayKey, type DateRange } from '@/gantt/dateUtils';
 import { computeLayout } from '@/gantt/layout';
@@ -36,6 +36,17 @@ const emit = defineEmits<{
 
 const timelineRef = ref<HTMLElement | null>(null);
 const viewportOffset = ref(0);
+let savedScroll = { top: 0, left: 0 };
+onDeactivated(() => {
+  const element = timelineRef.value;
+  if (element) savedScroll = { top: element.scrollTop, left: element.scrollLeft };
+  tooltip.value = null;
+});
+onActivated(async () => {
+  await nextTick();
+  const element = timelineRef.value;
+  if (element) { element.scrollTop = savedScroll.top; element.scrollLeft = savedScroll.left; onTimelineScroll(); }
+});
 
 interface TooltipState {
   content: GanttTooltipContent;

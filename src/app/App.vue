@@ -11,7 +11,11 @@ import { RouterLink, RouterView } from 'vue-router';
       <RouterLink class="app__link" to="/settings">设置</RouterLink>
     </nav>
     <main class="app__main">
-      <RouterView />
+      <RouterView v-slot="{ Component, route }">
+        <KeepAlive include="BoardPage,HoursPage">
+          <component :is="Component" :key="route.name" />
+        </KeepAlive>
+      </RouterView>
     </main>
   </div>
 </template>
