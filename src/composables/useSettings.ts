@@ -106,6 +106,23 @@ async function removeMember(staffId: string): Promise<void> {
   }));
 }
 
+async function moveMember(
+  staffId: string,
+  targetStaffId: string,
+  placement: 'before' | 'after'
+): Promise<boolean> {
+  return persist((current) => {
+    if (staffId === targetStaffId) return current;
+    const member = current.members.find((item) => item.staffId === staffId);
+    if (!member || !current.members.some((item) => item.staffId === targetStaffId)) return current;
+    const members = current.members.filter((item) => item.staffId !== staffId);
+    const targetIndex = members.findIndex((item) => item.staffId === targetStaffId);
+    members.splice(targetIndex + (placement === 'after' ? 1 : 0), 0, member);
+    if (members.every((item, index) => item === current.members[index])) return current;
+    return { ...current, members };
+  });
+}
+
 async function updateHours(hours: HoursSettings): Promise<boolean> {
   const error = validateHoursSettings(hours);
   if (error) {
@@ -131,6 +148,7 @@ export function useSettings() {
     removeProject,
     addMembers,
     removeMember,
+    moveMember,
     updateHours,
   };
 }

@@ -19,6 +19,7 @@ const props = withDefaults(
     memberKeysOf?: (task: ScheduleTask) => string[];
     /** 成员键 -> 展示名。 */
     memberNames?: Map<string, string>;
+    memberOrder?: readonly string[];
   }>(),
   {
     collapsedMemberKeys: () => [],
@@ -26,6 +27,7 @@ const props = withDefaults(
     today: undefined,
     memberKeysOf: undefined,
     memberNames: undefined,
+    memberOrder: undefined,
   }
 );
 
@@ -68,6 +70,7 @@ const layout = computed(() =>
     today: props.today ?? todayKey(),
     memberKeysOf: props.memberKeysOf,
     memberNames: props.memberNames,
+    memberOrder: props.memberOrder,
   })
 );
 

@@ -59,6 +59,7 @@ describe('浏览器开发模式', () => {
     const storage = stubWindow(false);
     const settings = createEmptySettings();
     settings.projects = [{ id: '1', name: 'A', enabled: true, color: '#3b82f6' }];
+    settings.members = [{ staffId: '200', name: '李四' }, { staffId: '100', name: '张三' }];
 
     await saveSettings(settings);
 
@@ -66,6 +67,7 @@ describe('浏览器开发模式', () => {
     expect(raw).toBeTruthy();
     const { settings: loaded } = await loadSettings();
     expect(loaded.projects).toEqual(settings.projects);
+    expect(loaded.members).toEqual(settings.members);
   });
 });
 

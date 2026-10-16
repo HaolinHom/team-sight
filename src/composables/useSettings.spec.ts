@@ -20,6 +20,45 @@ beforeEach(async () => {
 });
 
 describe('配置保存一致性', () => {
+  it('成员排序在保存成功后发布，新增和删除保留已有相对顺序', async () => {
+    await store.addMembers([{ staffId: '200', name: '乙' }, { staffId: '300', name: '丙' }]);
+    let finish!: () => void;
+    mocks.save.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const moving = store.moveMember('300', '100', 'before');
+    await Promise.resolve();
+    expect(store.settings.value.members.map(member => member.staffId)).toEqual(['100', '200', '300']);
+    finish();
+    expect(await moving).toBe(true);
+    expect(store.settings.value.members.map(member => member.staffId)).toEqual(['300', '100', '200']);
+    await store.moveMember('300', '200', 'after');
+    await store.addMembers([{ staffId: '400', name: '丁' }]);
+    await store.removeMember('200');
+    expect(store.settings.value.members.map(member => member.staffId)).toEqual(['100', '300', '400']);
+  });
+
+  it('排序失败保留原顺序且不阻断后续保存', async () => {
+    await store.addMembers([{ staffId: '200', name: '乙' }]);
+    mocks.save.mockRejectedValueOnce(new Error('磁盘写入失败'));
+    expect(await store.moveMember('200', '100', 'before')).toBe(false);
+    expect(store.settings.value.members.map(member => member.staffId)).toEqual(['100', '200']);
+    expect(store.saveError.value).toContain('磁盘写入失败');
+    expect(await store.moveMember('200', '100', 'before')).toBe(true);
+    expect(store.settings.value.members.map(member => member.staffId)).toEqual(['200', '100']);
+    expect(store.saveError.value).toBe('');
+  });
+
+  it('排序与删除串行执行，已移除成员、自身及位置不变时不写入', async () => {
+    await store.addMembers([{ staffId: '200', name: '乙' }, { staffId: '300', name: '丙' }]);
+    await Promise.all([store.moveMember('300', '100', 'before'), store.removeMember('100')]);
+    expect(store.settings.value.members.map(member => member.staffId)).toEqual(['300', '200']);
+    mocks.save.mockClear();
+    await store.moveMember('100', '200', 'before');
+    await store.moveMember('200', '100', 'after');
+    await store.moveMember('200', '200', 'after');
+    await store.moveMember('300', '200', 'before');
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
   it.each(['addProject', 'updateProject', 'removeProject', 'addMembers', 'removeMember'])('%s保存失败不改变已确认配置', async (operation) => {
     mocks.save.mockRejectedValueOnce(new Error('磁盘写入失败'));
     if (operation === 'addProject') expect(await store.addProject({ id: '2', name: '新增' })).toBe(false);

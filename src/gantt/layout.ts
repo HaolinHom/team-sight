@@ -40,6 +40,8 @@ export interface ComputeLayoutInput {
   memberKeysOf?: (task: ScheduleTask) => string[];
   /** 成员键 -> 展示名，用于配置成员分组标题。 */
   memberNames?: ReadonlyMap<string, string>;
+  /** 优先展示的成员键顺序；未列出的成员沿用姓名排序。 */
+  memberOrder?: readonly string[];
 }
 
 /** 稳定成员键：优先工号；无工号时退回 `name:<姓名>`，同名单列不合并。 */
@@ -72,13 +74,14 @@ function sortTasksForLayout(tasks: ScheduleTask[]): ScheduleTask[] {
   });
 }
 
-/** 按成员分组：具名成员按中文排序，未分配成员固定排最后。 */
+/** 按成员分组：优先配置顺序，否则按中文排序，未分配成员固定排最后。 */
 export function groupTasksByMember(
   tasks: ScheduleTask[],
-  options: Pick<ComputeLayoutInput, 'memberKeysOf' | 'memberNames'> = {}
+  options: Pick<ComputeLayoutInput, 'memberKeysOf' | 'memberNames' | 'memberOrder'> = {}
 ): GanttMemberGroup[] {
   const groups = new Map<string, GanttMemberGroup>();
   const keysOf = options.memberKeysOf ?? ((task: ScheduleTask) => [resolveMemberKey(task)]);
+  const memberRanks = new Map(options.memberOrder?.map((key, index) => [key, index]));
 
   for (const task of tasks) {
     for (const key of keysOf(task)) {
@@ -105,6 +108,9 @@ export function groupTasksByMember(
     .sort((left, right) => {
       if (left.key === UNASSIGNED_MEMBER_KEY) return 1;
       if (right.key === UNASSIGNED_MEMBER_KEY) return -1;
+      const leftRank = memberRanks.get(left.key) ?? Infinity;
+      const rightRank = memberRanks.get(right.key) ?? Infinity;
+      if (leftRank !== rightRank) return leftRank - rightRank;
       const byName = memberCollator.compare(left.memberName, right.memberName);
       if (byName !== 0) return byName;
       // 同名不同工号：用成员键兜底，保证顺序与数据到达顺序无关。
@@ -120,6 +126,7 @@ export function computeLayout(input: ComputeLayoutInput): GanttLayout {
   const memberGroups = groupTasksByMember(input.tasks, {
     memberKeysOf: input.memberKeysOf,
     memberNames: input.memberNames,
+    memberOrder: input.memberOrder,
   });
 
   const rows: GanttRow[] = [];

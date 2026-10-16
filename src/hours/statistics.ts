@@ -205,5 +205,5 @@ export function calculateHours(input: {
       return day;
     });
     return { member, days, pending, historicalShortDays: days.filter(day => day.state === 'short' && day.basis === 'actual').length, forecastShortDays: days.filter(day => day.state === 'short' && day.basis === 'forecast').length };
-  }).sort((a, b) => b.historicalShortDays - a.historicalShortDays || b.forecastShortDays - a.forecastShortDays || a.member.staffId.localeCompare(b.member.staffId));
+  });
 }

@@ -13,6 +13,7 @@ vi.mock('@/hours/workerClient', () => ({ createHoursCalculator: () => ({ calcula
 import App from './App.vue';
 import BoardPage from '@/pages/BoardPage.vue';
 import HoursPage from '@/pages/HoursPage.vue';
+import SettingsPage from '@/pages/SettingsPage.vue';
 const task = { id: 'a', sourceType: 'task' as const, title: '保活任务', projectId: 'p', projectName: '项目', projectColor: '#3b82f6', assigneeId: '100', assigneeIds: ['100'], assigneeName: '张三', startDate: '2026-10-14', dueDate: '2026-10-14', effort: '8', status: 'open', tapdUrl: 'https://www.tapd.cn/tapd_fe/p/task/detail/a' };
 const snapshot = { tasks: [task], records: [], issues: [], status: 'complete' as const };
 const scheduleResult = { tasks: [task], errors: [], warnings: [], status: 'complete' as const };
@@ -27,12 +28,50 @@ beforeEach(async () => {
   await useSettings().load(true); await useCredentials().refresh();
 });
 afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.useRealTimers(); delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__; });
-async function start(path = '/board') {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/board', name: 'board', component: BoardPage }, { path: '/hours', name: 'hours', component: HoursPage }, { path: '/settings', name: 'settings', component: { template: '<div>设置占位</div>' } }] });
+async function start(path = '/board', realSettings = false) {
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/board', name: 'board', component: BoardPage }, { path: '/hours', name: 'hours', component: HoursPage }, { path: '/settings', name: 'settings', component: realSettings ? SettingsPage : { template: '<div>设置占位</div>' } }] });
   await router.push(path); await router.isReady(); wrapper = mount(App, { global: { plugins: [router] } }); await flushPromises(); await flushPromises();
   return async (path: string) => { await router.push(path); await flushPromises(); await flushPromises(); };
 }
 describe('路由保活', () => {
+  it('设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数', async () => {
+    await useSettings().addMembers([{ staffId: '200', name: '李四' }]);
+    let saved = JSON.stringify(useSettings().settings.value);
+    mocks.invoke.mockImplementation(async (command: string, args?: { settingsJson: string }) => {
+      if (command === 'settings_read') return saved;
+      if (command === 'settings_write') saved = args!.settingsJson;
+      if (command === 'credential_status') return { configured: true, source: 'file', maskedHint: null };
+    });
+    const secondTask = { ...task, id: 'b', title: '李四任务', assigneeId: '200', assigneeIds: ['200'], assigneeName: '李四' };
+    mocks.schedule.mockResolvedValue({ ...scheduleResult, tasks: [secondTask, task] });
+    mocks.hours.mockResolvedValue({ ...snapshot, tasks: [secondTask, task] });
+    const go = await start('/board', true);
+    const board = wrapper!.getComponent(BoardPage);
+    expect(board.findAll('.gantt__member-name').map(item => item.text())).toEqual(['张三', '李四']);
+    const gantt = board.getComponent({ name: 'GanttBoard' });
+    gantt.vm.$emit('select-task', 'task:a'); gantt.vm.$emit('toggle-member', 'staff:100');
+    await go('/hours');
+    await wrapper!.get('button[aria-label="张三 2026-10-14 预计 8h 预计充足"]').trigger('click');
+    await wrapper!.get('select[aria-label="成员筛选"]').setValue('100');
+    await go('/settings');
+    await wrapper!.get('button[aria-label="前移 李四"]').trigger('click'); await flushPromises();
+    expect(mocks.calculate).toHaveBeenCalledTimes(1);
+    await go('/board');
+    expect(wrapper!.findAll('.gantt__member-name').map(item => item.text())).toEqual(['李四', '张三']);
+    expect(wrapper!.get('.board__selected').text()).toContain('保活任务');
+    expect(gantt.props('collapsedMemberKeys')).toEqual(['staff:100']);
+    await go('/hours');
+    expect(wrapper!.get<HTMLSelectElement>('select[aria-label="成员筛选"]').element.value).toBe('100');
+    expect(wrapper!.get('aside').text()).toContain('保活任务');
+    expect(wrapper!.findAll('select[aria-label="成员筛选"] option').map(item => item.attributes('value'))).toEqual(['', '200', '100']);
+    await wrapper!.get('select[aria-label="成员筛选"]').setValue('');
+    expect(wrapper!.findAll('.data-row .member-column > strong').map(item => item.text())).toEqual(['李四', '张三']);
+    expect(mocks.calculate).toHaveBeenCalledTimes(2);
+    expect(mocks.hours).toHaveBeenCalledTimes(1); expect(mocks.schedule).toHaveBeenCalledTimes(1);
+    await go('/settings');
+    expect(wrapper!.findAll('.member-order .mono').map(item => item.text())).toEqual(['200', '100']);
+  });
+
   it('反复切页保留实例、数据、详情、筛选和滚动，超过缓存期限仍不取数', async () => {
     const go = await start(); const board = wrapper!.getComponent(BoardPage); const gantt = board.getComponent({ name: 'GanttBoard' });
     gantt.vm.$emit('select-task', 'task:a'); await flushPromises();

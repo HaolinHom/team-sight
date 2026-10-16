@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { useCredentials } from '@/composables/useCredentials';
 import { useSettings } from '@/composables/useSettings';
@@ -20,6 +20,9 @@ const memberDirectory = ref<MemberEntry[]>([]);
 const membersBusy = ref(false);
 const membersMessage = ref('');
 const memberKeyword = ref('');
+const sortingMembers = ref(false);
+const memberDropTarget = ref<{ staffId: string; placement: 'before' | 'after' } | null>(null);
+let memberDrag: { staffId: string; pointerId: number; x: number; y: number; moved: boolean; handle: HTMLElement } | null = null;
 
 const configuredProjectIds = computed(
   () => new Set(store.settings.value.projects.map((project) => project.id))
@@ -137,10 +140,61 @@ async function loadMemberCandidates(): Promise<void> {
 async function addMember(member: MemberEntry): Promise<void> {
   await store.addMembers([member]);
 }
+
+async function moveMember(staffId: string, targetStaffId: string, placement: 'before' | 'after'): Promise<void> {
+  if (sortingMembers.value) return;
+  sortingMembers.value = true;
+  try {
+    await store.moveMember(staffId, targetStaffId, placement);
+  } finally {
+    sortingMembers.value = false;
+  }
+}
+
+function startMemberDrag(staffId: string, event: PointerEvent): void {
+  if (sortingMembers.value || memberDrag || event.button !== 0) return;
+  event.preventDefault();
+  const handle = event.currentTarget as HTMLElement;
+  handle.focus({ preventScroll: true });
+  memberDrag = { staffId, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, handle };
+  handle.setPointerCapture(event.pointerId);
+}
+
+function memberTargetAt(event: PointerEvent): typeof memberDropTarget.value {
+  const row = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('.member-order__item');
+  if (!row || row.closest('.member-order') !== memberDrag?.handle.closest('.member-order')) return null;
+  const staffId = row.dataset.memberId;
+  if (!staffId || staffId === memberDrag?.staffId) return null;
+  const bounds = row.getBoundingClientRect();
+  return { staffId, placement: event.clientY > bounds.top + bounds.height / 2 ? 'after' : 'before' };
+}
+
+function overMember(event: PointerEvent): void {
+  if (!memberDrag || memberDrag.pointerId !== event.pointerId) return;
+  if (Math.hypot(event.clientX - memberDrag.x, event.clientY - memberDrag.y) >= 4) memberDrag.moved = true;
+  memberDropTarget.value = memberDrag.moved ? memberTargetAt(event) : null;
+}
+
+function endMemberDrag(): void {
+  const drag = memberDrag;
+  memberDrag = null;
+  memberDropTarget.value = null;
+  if (drag?.handle.hasPointerCapture(drag.pointerId)) drag.handle.releasePointerCapture(drag.pointerId);
+}
+
+function dropMember(event: PointerEvent): void {
+  if (!memberDrag || memberDrag.pointerId !== event.pointerId) return;
+  const source = memberDrag.staffId;
+  const target = memberDrag.moved ? memberTargetAt(event) : null;
+  endMemberDrag();
+  if (target) void moveMember(source, target.staffId, target.placement);
+}
+
+onUnmounted(endMemberDrag);
 </script>
 
 <template>
-  <div class="settings">
+  <div class="settings" @keydown.esc="endMemberDrag">
     <h1 class="settings__title">设置</h1>
 
     <section class="card">
@@ -260,6 +314,7 @@ async function addMember(member: MemberEntry): Promise<void> {
       <p class="notice">
         看板仅展示已配置成员的任务；同一任务有多个已配置负责人时，会在每个成员分组下各占一行。
         成员候选来自「已启用项目」的成员目录。
+        拖动手柄或使用前移／后移按钮调整顺序，自动保存后同步到看板与工时页面。
       </p>
 
       <div class="row">
@@ -284,12 +339,36 @@ async function addMember(member: MemberEntry): Promise<void> {
         </li>
       </ul>
 
-      <ul v-if="store.settings.value.members.length" class="chips">
-        <li v-for="member in store.settings.value.members" :key="member.staffId">
-          <span>{{ member.name }}</span>
+      <ol v-if="store.settings.value.members.length" class="member-order" aria-label="展示成员顺序">
+        <li
+          v-for="(member, index) in store.settings.value.members"
+          :key="member.staffId"
+          :data-member-id="member.staffId"
+          class="member-order__item"
+          :class="{
+            'member-order__item--before': memberDropTarget?.staffId === member.staffId && memberDropTarget.placement === 'before',
+            'member-order__item--after': memberDropTarget?.staffId === member.staffId && memberDropTarget.placement === 'after',
+          }"
+        >
+          <span class="member-order__number">{{ index + 1 }}</span>
+          <button
+            type="button"
+            class="member-order__handle"
+            :disabled="sortingMembers"
+            :aria-label="`拖动 ${member.name}`"
+            @pointerdown="startMemberDrag(member.staffId, $event)"
+            @pointermove="overMember"
+            @pointerup="dropMember"
+            @pointercancel="endMemberDrag"
+            @lostpointercapture="endMemberDrag"
+            @dragstart.prevent
+          >⠿</button>
+          <span class="member-order__name">{{ member.name }} <span class="mono">{{ member.staffId }}</span></span>
+          <button type="button" :disabled="sortingMembers || index === 0" :aria-label="`前移 ${member.name}`" @click="moveMember(member.staffId, store.settings.value.members[index - 1].staffId, 'before')">前移</button>
+          <button type="button" :disabled="sortingMembers || index === store.settings.value.members.length - 1" :aria-label="`后移 ${member.name}`" @click="moveMember(member.staffId, store.settings.value.members[index + 1].staffId, 'after')">后移</button>
           <button type="button" class="link" @click="store.removeMember(member.staffId)">移除</button>
         </li>
-      </ul>
+      </ol>
       <p v-else class="message">尚未配置成员，看板将不显示任何任务。</p>
     </section>
 
@@ -413,8 +492,7 @@ button.link {
   margin-top: 8px;
 }
 
-.candidates__list,
-.chips {
+.candidates__list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -423,8 +501,7 @@ button.link {
   list-style: none;
 }
 
-.candidates__list li,
-.chips li {
+.candidates__list li {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -433,6 +510,34 @@ button.link {
   border-radius: 12px;
   background: var(--ts-color-bg);
 }
+
+.member-order {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 720px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-order__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--ts-color-border);
+  border-radius: 4px;
+  background: var(--ts-color-bg);
+}
+
+.member-order__item--before { box-shadow: inset 0 2px #3b82f6; }
+.member-order__item--after { box-shadow: inset 0 -2px #3b82f6; }
+.member-order__number { min-width: 24px; color: var(--ts-color-text-muted); }
+.member-order__name { flex: 1; }
+.member-order__name .mono { margin-left: 6px; color: var(--ts-color-text-muted); }
+.member-order__handle { cursor: grab; user-select: none; touch-action: none; -webkit-user-drag: none; }
+.member-order__handle:active { cursor: grabbing; }
 
 .swatch {
   display: inline-block;

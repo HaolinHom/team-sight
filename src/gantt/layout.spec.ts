@@ -33,6 +33,19 @@ describe('resolveMemberKey', () => {
 });
 
 describe('groupTasksByMember', () => {
+  it('配置顺序优先于姓名与工号，缺少顺序的成员沿用旧排序', () => {
+    const tasks = [
+      task({ id: '1', title: 'A', assigneeId: '100', assigneeName: '张三' }),
+      task({ id: '2', title: 'B', assigneeId: '200', assigneeName: '李四' }),
+      task({ id: '3', title: 'C', assigneeId: '300', assigneeName: '李四' }),
+      task({ id: '4', title: 'D', assigneeId: null, assigneeName: '' }),
+    ];
+    expect(groupTasksByMember(tasks, { memberOrder: ['staff:100', 'staff:300', 'staff:200'] }).map(group => group.key))
+      .toEqual(['staff:100', 'staff:300', 'staff:200', 'unassigned']);
+    expect(groupTasksByMember(tasks, { memberOrder: ['staff:100'] }).map(group => group.key))
+      .toEqual(['staff:100', 'staff:200', 'staff:300', 'unassigned']);
+  });
+
   it('未分配成员固定排最后，且同名不同工号不合并', () => {
     const groups = groupTasksByMember([
       task({ id: '1', title: 'A', assigneeId: null, assigneeName: '' }),
@@ -56,6 +69,23 @@ describe('groupTasksByMember', () => {
 });
 
 describe('computeLayout', () => {
+  it('多负责人按配置分组，折叠和筛选不改变相对顺序及组内任务排序', () => {
+    const tasks = [
+      task({ id: 'later', title: '后开始', assigneeIds: ['100', '200', '300'], startDate: '2026-10-03' }),
+      task({ id: 'earlier', title: '先开始', assigneeIds: ['100', '200', '300'] }),
+    ];
+    const input = {
+      tasks, range: RANGE, memberOrder: ['staff:300', 'staff:100', 'staff:200'],
+      memberKeysOf: (item: ScheduleTask) => item.assigneeIds.map(id => `staff:${id}`),
+    };
+    const layout = computeLayout({ ...input, collapsedMemberKeys: ['staff:100'] });
+    expect(layout.memberGroups.map(group => group.key)).toEqual(input.memberOrder);
+    expect(layout.memberGroups.every(group => group.tasks.map(item => item.id).join() === 'earlier,later')).toBe(true);
+    expect(layout.rows.filter(row => row.type === 'task').map(row => row.memberKey)).toEqual(['staff:300', 'staff:300', 'staff:200', 'staff:200']);
+    const filtered = computeLayout({ ...input, memberKeysOf: () => ['staff:100', 'staff:300'] });
+    expect(filtered.memberGroups.map(group => group.key)).toEqual(['staff:300', 'staff:100']);
+  });
+
   it('成员标题行与任务行共用同一套纵坐标计算', () => {
     const layout = computeLayout({
       tasks: [

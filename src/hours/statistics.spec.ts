@@ -16,6 +16,20 @@ function calculate(tasks:ScheduleTask[], records:TimesheetRecord[] = [], extra: 
 const example = [task('A','2026-10-12','2026-10-12','4'),task('B','2026-10-12','2026-10-12','2'),task('C','2026-10-12','2026-10-13','6'),task('D','2026-10-13','2026-10-13','2'),task('E','2026-10-13','2026-10-14','4'),task('F','2026-10-14','2026-10-14','6')];
 
 describe('每日实际与预计工时',()=>{
+ it('按输入成员顺序返回，不按不足天数排序，重排不改变统计',()=>{
+  const members = [member, {staffId:'200',name:'李四'}, {staffId:'300',name:'李四'}];
+  const tasks = [task('enough','2026-10-12','2026-10-12','8')];
+  const records = [record('past','X','100','2026-10-09',8)];
+  const options = {members,today:'2026-10-12',range:{start:'2026-10-09',end:'2026-10-12'}};
+  const original = calculate(tasks, records, options);
+  expect(original.map(row=>row.member.staffId)).toEqual(['100','200','300']);
+  expect(original[0].historicalShortDays).toBeLessThan(original[1].historicalShortDays);
+  expect(original[0].forecastShortDays).toBeLessThan(original[1].forecastShortDays);
+  const reordered = calculate(tasks, records, {...options,members:[members[2],members[0],members[1]]});
+  expect(reordered.map(row=>row.member.staffId)).toEqual(['300','100','200']);
+  for (const row of reordered) expect(row).toEqual(original.find(item=>item.member.staffId===row.member.staffId));
+ });
+
  it('按示例补齐为 8/8/8，并且跨日任务保留余量',()=>{
   const row=calculate(example)[0]; expect(row.days.map(day=>day.total)).toEqual([8,8,8]);
   expect(row.days.map(day=>day.contributions.find(item=>item.taskKey==='p:task:C')?.allocated??0)).toEqual([2,4,0]);

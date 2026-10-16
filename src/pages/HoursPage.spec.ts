@@ -59,7 +59,10 @@ it('大矩阵限制DOM数量，滚动可显示后续成员和日期',async()=>{
  const wrapper=await mountPage();useSettings().settings.value.members=Array.from({length:100},(_,i)=>({staffId:String(i+100),name:'成员'+i}));await flushPromises();await flushPromises();
  expect(wrapper.findAll('.day-cell').length).toBeLessThan(200);expect(wrapper.get('table').attributes('aria-rowcount')).toBe('101');
  const matrix=wrapper.get<HTMLElement>('.matrix');matrix.element.scrollTop=1440;matrix.element.scrollLeft=2200;await matrix.trigger('scroll');await new Promise(resolve=>setTimeout(resolve,30));await flushPromises();
- expect(wrapper.get('tbody .data-row').attributes('aria-rowindex')).not.toBe('2');expect(wrapper.get('thead').text()).not.toContain('10-01');wrapper.unmount();
+ const firstRow=wrapper.get('tbody .data-row');
+ expect(firstRow.attributes('aria-rowindex')).not.toBe('2');
+ expect(firstRow.get('.member-column > strong').text()).toBe('成员'+(Number(firstRow.attributes('aria-rowindex'))-2));
+ expect(wrapper.get('thead').text()).not.toContain('10-01');wrapper.unmount();
 });
 
 it('预计充足与待确认同时展示，待确认汇总和筛选仍包含达标日期',async()=>{

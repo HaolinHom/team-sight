@@ -88,6 +88,7 @@ const resolution = computed(() => createMemberResolution(filteredTasks.value, se
 const tasks = computed(() => filteredTasks.value);
 const boardMemberKeysOf = computed(() => resolution.value.memberKeysOf);
 const boardMemberNames = computed(() => resolution.value.memberNames);
+const boardMemberOrder = computed(() => FIXTURE_MODE ? undefined : [...resolution.value.memberNames.keys()]);
 
 /** fixture 模式下列表来自固定数据，真实模式下来自设置页已启用项目。 */
 const enabledProjectCount = computed(() => projectSource.value.length);
@@ -255,6 +256,7 @@ const today = todayKey();
         :today="today"
         :member-keys-of="boardMemberKeysOf"
         :member-names="boardMemberNames"
+        :member-order="boardMemberOrder"
         @toggle-member="toggleMember"
         @select-task="selectTask"
       />

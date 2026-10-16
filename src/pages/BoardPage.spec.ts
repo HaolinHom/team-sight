@@ -124,10 +124,10 @@ describe('BoardPage 默认视图', () => {
     const wrapper = await mountBoard();
 
     expect(wrapper.findAll('.gantt__label-row--task')).toHaveLength(TASKS.length);
-    // 成员分组按中文拼音排序（李四 L 在 张三 Z 之前）
+    // 成员分组遵循设置中的成员数组顺序。
     expect(wrapper.findAll('.gantt__member-name').map((item) => item.text())).toEqual([
-      '李四',
       '张三',
+      '李四',
     ]);
   });
 });
