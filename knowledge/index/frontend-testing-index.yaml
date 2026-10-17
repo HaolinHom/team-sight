@@ -14,6 +14,13 @@ items:
   - id: frontend-reliability-notes
     title: "前端异步数据与配置一致性"
     path: "knowledge/frontend-reliability-notes.md"
-    summary: "最新请求提交与旧数据范围标注；聚合完整性与分页警告；配置串行保存、成功后提交、失败可重试，原生控件恢复确认值；Worker快照和错误保真、完整缓存保留原时间；KeepAlive门控加载及资源清理；members数组统一展示顺序，工号移动，memberOrder控制看板，工时保留输入顺序，排序不改变查询身份、复用快照重算。"
-    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing", "worker", "cache", "keepalive", "member-order"]
-    verifiedAt: "2026-10-16"
+    summary: "最新请求提交与旧数据范围标注；聚合完整性与分页警告；配置串行保存、成功后提交、失败可重试，原生控件恢复确认值；Worker快照和错误保真、完整缓存保留原时间；KeepAlive门控加载及资源清理；members数组统一展示顺序，工号移动，memberOrder控制看板，工时保留输入顺序，排序不改变查询身份、复用快照重算；项目名按ID在渲染时解析，改名不取数、不重算，工时原因保留结构。"
+    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing", "worker", "cache", "keepalive", "member-order", "project-name", "identity"]
+    verifiedAt: "2026-10-17"
+
+  - id: china-calendar-notes
+    title: "中国节假日及调休与永久缓存"
+    path: "knowledge/china-calendar-notes.md"
+    summary: "配置v3默认关闭中国日历并忽略旧手动日期；holiday-cn双源校验、12月补查次年公告及较后公告覆盖；年度缓存永久有效，缺失自动获取一次、已有缓存仅手动刷新，保存成功才更新状态；看板和工时Worker共享工作日映射，覆盖预测完整任务区间，规则变化复用TAPD快照重算。"
+    tags: ["frontend", "calendar", "holiday-cn", "settings", "cache", "gantt", "hours", "worker"]
+    verifiedAt: "2026-10-17"

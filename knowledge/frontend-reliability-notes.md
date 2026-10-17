@@ -52,3 +52,17 @@ src/composables/useSchedule.spec.ts、src/composables/useSettings.spec.ts、src/
 - 看板 `sourceKey` 不含成员顺序；工时 `hoursQueryKey` 将成员工号排序后生成查询键。展示顺序与数据查询身份分开，因此仅调序不重新请求 TAPD。工时 `calculationKey` 包含原顺序 members，返回保活页面后复用已有 Worker 快照重算。
 
 证据：src/composables/useSettings.ts、src/gantt/layout.ts、src/hours/statistics.ts、src/pages/BoardPage.vue、src/pages/HoursPage.vue、src/composables/useHours.ts、src/app/App.spec.ts；artifacts/report/20261016_1530_member-order_测试报告.md（317 项前端测试及生产构建），artifacts/report/20261016_1553_member-drag-fix_测试报告.md（后续 321 项回归及 macOS 拖拽持久化验收）。跨页无新增请求与状态保留由 memory Router 集成测试验证，未对桌面 TAPD 请求单独抓包。
+
+## 项目显示名称与查询身份分离
+
+> 验证及授权提升日期：2026-10-17。
+
+- `ProjectConfig.name` 为本应用配置名称，新项目默认取 TAPD 名称；项目 ID 为稳定身份，改名无需 schema 迁移。
+- `useSettings.updateProject` 返回保存成功布尔值；名称去除首尾空白、拒绝空值，同值不写入，串行队列保存成功后发布状态。
+- 看板展示任务时按项目 ID 覆盖最新配置名称；工时详情按项目 ID 查名称，不依赖快照任务的 `projectName`。
+- `HoursIssue.message` 仅含问题正文；`DailyHours.reasons` 为包含 `message` 和可选 `projectId` 的结构，Worker 结果不固化项目名。完整失败通过 `failureIssues` 保留结构供页面格式化。
+- 项目改名不进入看板 `sourceKey`、`hoursQueryKey` 或工时 `calculationKey`，保活返回无需取数或重算；名称在渲染时解析。
+
+证据：`src/composables/useSettings.ts`、`src/composables/useHours.ts`、`src/types/hours.ts`、`src/pages/BoardPage.vue`、`src/pages/HoursPage.vue`、`src/app/App.spec.ts`；`artifacts/report/20261017_1028_project-name_测试报告.md` 记录 331 项前端回归及生产构建通过，macOS 生产包真实编辑、看板与工时明细/原因展示及重启持久化验收通过。
+
+验证边界：Windows/Linux 未实测；磁盘写入失败、完整接口失败及待安排任务改名由模拟回归覆盖。无需取数和重算由真实路由集成测试验证，桌面未单独抓包统计查询次数。提升时仅核对源码与既有证据，未重新执行测试或桌面验收。
