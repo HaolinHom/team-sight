@@ -15,6 +15,12 @@ describe('后台工时计算生命周期', () => {
   const {calculator,workers,finish}=setup();const first=calculator.calculate(input);expect(workers[0].postMessage.mock.calls[0][0].snapshot).toBe(input.snapshot);finish(0);await first;
   const second=calculator.calculate({...input,settings:{...input.settings,dailyRequiredHours:7.5}});expect(workers).toHaveLength(1);expect(workers[0].postMessage.mock.calls[1][0].snapshot).toBeUndefined();finish(0);await second;
  });
+ it('日历重算传递新规则并复用已有快照', async () => {
+  const {calculator,workers,finish}=setup();const first=calculator.calculate(input);finish(0);await first;
+  const calendar={'2026-10-10':{working:true,name:'国庆补班'}};
+  const second=calculator.calculate({...input,calendar});const request=workers[0].postMessage.mock.calls[1][0] as HoursWorkerRequest;
+  expect(request.snapshot).toBeUndefined();expect(request.input.calendar).toEqual(calendar);finish(0);await second;
+ });
  it('新计算终止旧任务，旧结果不提交', async () => {
   const {calculator,workers,finish}=setup();const old=calculator.calculate(input);const rejected=expect(old).rejects.toMatchObject({name:'AbortError'});const next=calculator.calculate(input);expect(workers[0].terminate).toHaveBeenCalledOnce();finish(0);finish(1);await rejected;expect((await next).calculationMs).toBe(1);
  });

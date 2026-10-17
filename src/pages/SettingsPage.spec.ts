@@ -48,6 +48,72 @@ describe('设置页保存失败', () => {
   });
 });
 
+describe('项目名称编辑', () => {
+  let saved = createEmptySettings();
+  const writes = () => invokeMock.mock.calls.filter(([command]) => command === 'settings_write');
+  beforeEach(() => {
+    saved = createEmptySettings();
+    saved.projects = [{ id: '1', name: '项目', enabled: true, color: '#3b82f6' }];
+    invokeMock.mockImplementation(async (command: string, args?: { settingsJson: string }) => {
+      if (command === 'settings_read') return JSON.stringify(saved);
+      if (command === 'settings_write') saved = JSON.parse(args!.settingsJson);
+      if (command === 'credential_status') return { configured: true, source: 'file', maskedHint: null };
+    });
+  });
+  async function edit() {
+    const wrapper = mount(SettingsPage);
+    await flushPromises();
+    await wrapper.get('[aria-label="编辑项目 1 的名称"]').trigger('click');
+    return wrapper;
+  }
+
+  it('保存名称去除首尾空白，重新打开后保留且不改变项目身份', async () => {
+    let wrapper = await edit();
+    await wrapper.get('input[aria-label="项目 1 的名称"]').setValue('  简称  ');
+    await wrapper.get('.project-name-editor').trigger('submit'); await flushPromises();
+    expect(wrapper.find('.project-name-editor').exists()).toBe(false);
+    expect(saved.projects).toEqual([{ id: '1', name: '简称', enabled: true, color: '#3b82f6' }]);
+    wrapper.unmount(); wrapper = await edit();
+    expect(wrapper.get<HTMLInputElement>('input[aria-label="项目 1 的名称"]').element.value).toBe('简称');
+    wrapper.unmount();
+  });
+
+  it('取消、未变化和空白名称不写入，离开页面丢弃草稿', async () => {
+    let wrapper = await edit();
+    await wrapper.get('input[aria-label="项目 1 的名称"]').setValue('   ');
+    await wrapper.get('.project-name-editor').trigger('submit');
+    expect(wrapper.get('.project-name-editor [role="alert"]').text()).toBe('项目名称不能为空');
+    await wrapper.get('input[aria-label="项目 1 的名称"]').setValue('  项目  ');
+    await wrapper.get('.project-name-editor').trigger('submit'); await flushPromises();
+    await wrapper.get('[aria-label="编辑项目 1 的名称"]').trigger('click');
+    await wrapper.get('input[aria-label="项目 1 的名称"]').setValue('草稿');
+    await wrapper.findAll('.project-name-editor button')[1].trigger('click');
+    expect(wrapper.text()).not.toContain('草稿');
+    await wrapper.get('[aria-label="编辑项目 1 的名称"]').trigger('click');
+    await wrapper.get('input[aria-label="项目 1 的名称"]').setValue('未保存');
+    wrapper.unmount(); wrapper = await edit();
+    expect(wrapper.get<HTMLInputElement>('input[aria-label="项目 1 的名称"]').element.value).toBe('项目');
+    expect(writes()).toHaveLength(0); wrapper.unmount();
+  });
+
+  it('保存期间保持确认名称并禁用编辑，失败保留草稿可以重试', async () => {
+    const wrapper = await edit();
+    let fail!: (error: Error) => void;
+    invokeMock.mockImplementationOnce(() => new Promise<void>((_, reject) => { fail = reject; }));
+    await wrapper.get('input[aria-label="项目 1 的名称"]').setValue('简称');
+    await wrapper.get('.project-name-editor').trigger('submit'); await flushPromises();
+    expect(saved.projects[0].name).toBe('项目');
+    expect(wrapper.get<HTMLInputElement>('.project-name-editor input').element.disabled).toBe(true);
+    expect(wrapper.findAll('.project-name-editor button').every(button => (button.element as HTMLButtonElement).disabled)).toBe(true);
+    fail(new Error('磁盘写入失败')); await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain('磁盘写入失败');
+    expect(wrapper.get<HTMLInputElement>('.project-name-editor input').element.value).toBe('简称');
+    await wrapper.get('.project-name-editor').trigger('submit'); await flushPromises();
+    expect(saved.projects[0].name).toBe('简称');
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false); wrapper.unmount();
+  });
+});
+
 describe('展示成员排序', () => {
   let saved = createEmptySettings();
   const hitTestDescriptor = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');

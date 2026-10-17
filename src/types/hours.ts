@@ -3,7 +3,6 @@ import type { MemberEntry } from './settings';
 
 export interface HoursSettings {
   dailyRequiredHours: number;
-  calendarOverrides: Array<{ date: string; working: boolean; note: string }>;
   exemptions: Array<{ staffId: string; date: string; note: string }>;
   completedStates: Array<{ projectId: string; type: WorkItemType; values: string[] }>;
 }
@@ -56,7 +55,13 @@ export interface DailyHours {
   state: 'short' | 'enough' | 'over' | 'exempt' | 'unknown';
   contributions: DailyContribution[];
   /** 数据完整性提示，独立于工时状态；达到目标仍可能有待确认项。 */
-  reasons: string[];
+  reasons: HoursReason[];
+}
+
+/** 展示时根据项目 ID 拼接最新配置名称，避免固化在 Worker 结果中。 */
+export interface HoursReason {
+  message: string;
+  projectId?: string;
 }
 
 export interface PendingHours {

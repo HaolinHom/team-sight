@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onActivated, onDeactivated, ref } from 'vue';
 
-import { isWeekend, todayKey, type DateRange } from '@/gantt/dateUtils';
+import { todayKey, type DateRange } from '@/gantt/dateUtils';
+import { isWorkingDay, type WorkingCalendar } from '@/calendar/chinaCalendar';
 import { computeLayout } from '@/gantt/layout';
 import { buildTooltipContent, type GanttTooltipContent } from '@/gantt/tooltip';
 import type { ScheduleTask } from '@/types/schedule';
@@ -12,6 +13,7 @@ const props = withDefaults(
   defineProps<{
     tasks: ScheduleTask[];
     range: DateRange;
+    calendar?: WorkingCalendar;
     collapsedMemberKeys?: string[];
     selectedTaskKey?: string | null;
     today?: string;
@@ -28,6 +30,7 @@ const props = withDefaults(
     memberKeysOf: undefined,
     memberNames: undefined,
     memberOrder: undefined,
+    calendar: () => ({}),
   }
 );
 
@@ -81,7 +84,7 @@ const columns = computed(() =>
     monthLabel: day.endsWith('-01') ? `${Number(day.slice(5, 7))}月` : '',
     x: index * layout.value.config.dayColumnWidth,
     width: layout.value.config.dayColumnWidth,
-    weekend: isWeekend(day),
+    weekend: !isWorkingDay(day, props.calendar),
     today: day === (props.today ?? todayKey()),
   }))
 );

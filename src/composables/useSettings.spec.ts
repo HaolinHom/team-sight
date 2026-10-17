@@ -20,6 +20,25 @@ beforeEach(async () => {
 });
 
 describe('配置保存一致性', () => {
+  it('并发保存开关与不同年份缓存时按最新配置合并，不丢失其他设置', async () => {
+    store.settings.value.chinaCalendar = { enabled: false, years: {} };
+    const cache = { year: 2026, fetchedAt: '2026-10-17T00:00:00Z', papers: ['https://www.gov.cn/example'], days: { '2026-10-10': { working: true, name: '补班' } } };
+    await Promise.all([store.setChinaCalendarEnabled(true), store.cacheChinaCalendarYear(cache), store.cacheChinaCalendarYear({ ...cache, year: 2027 })]);
+    expect(store.settings.value.chinaCalendar.enabled).toBe(true); expect(Object.keys(store.settings.value.chinaCalendar.years)).toEqual(['2026', '2027']);
+    expect(store.settings.value.projects).toEqual(SETTINGS.projects); expect(store.settings.value.members).toEqual(SETTINGS.members);
+  });
+  it('改名允许重名，空白及未变化不写入，重复添加不覆盖名称', async () => {
+    expect(await store.updateProject('1', { name: '   ' })).toBe(false);
+    expect(await store.updateProject('1', { name: ' 项目 ' })).toBe(true);
+    expect(mocks.save).not.toHaveBeenCalled();
+    await store.addProject({ id: '2', name: '简称' });
+    expect(await store.updateProject('1', { name: ' 简称 ' })).toBe(true);
+    expect(await store.addProject({ id: '1', name: 'TAPD 原名称' })).toBe(false);
+    expect(store.settings.value.projects.map(project => project.name)).toEqual(['简称', '简称']);
+    mocks.save.mockRejectedValueOnce(new Error('写入失败'));
+    expect(await store.updateProject('1', { name: '修改失败' })).toBe(false);
+    expect(store.settings.value.projects[0].name).toBe('简称');
+  });
   it('成员排序在保存成功后发布，新增和删除保留已有相对顺序', async () => {
     await store.addMembers([{ staffId: '200', name: '乙' }, { staffId: '300', name: '丙' }]);
     let finish!: () => void;

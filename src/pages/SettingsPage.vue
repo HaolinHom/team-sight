@@ -16,6 +16,10 @@ const tokenInput = ref('');
 const availableProjects = ref<TapdProjectSummary[]>([]);
 const projectsBusy = ref(false);
 const projectsMessage = ref('');
+const editingProjectId = ref<string | null>(null);
+const projectNameInput = ref('');
+const projectNameError = ref('');
+const savingProjectName = ref(false);
 const memberDirectory = ref<MemberEntry[]>([]);
 const membersBusy = ref(false);
 const membersMessage = ref('');
@@ -88,6 +92,31 @@ async function loadProjects(): Promise<void> {
 
 async function addProject(project: TapdProjectSummary): Promise<void> {
   await store.addProject({ id: project.id, name: project.name });
+}
+
+function editProjectName(project: ProjectConfig): void {
+  editingProjectId.value = project.id;
+  projectNameInput.value = project.name;
+  projectNameError.value = '';
+}
+
+function cancelProjectName(): void {
+  editingProjectId.value = null;
+  projectNameInput.value = '';
+  projectNameError.value = '';
+}
+
+async function saveProjectName(project: ProjectConfig): Promise<void> {
+  if (savingProjectName.value) return;
+  const name = projectNameInput.value.trim();
+  if (!name) { projectNameError.value = '项目名称不能为空'; return; }
+  savingProjectName.value = true;
+  projectNameError.value = '';
+  try {
+    if (await store.updateProject(project.id, { name })) cancelProjectName();
+  } finally {
+    savingProjectName.value = false;
+  }
 }
 
 function updateProjectEnabled(project: ProjectConfig, event: Event): void {
@@ -269,7 +298,18 @@ onUnmounted(endMemberDrag);
                 @change="updateProjectEnabled(project, $event)"
               />
             </td>
-            <td>{{ project.name }}</td>
+            <td>
+              <form v-if="editingProjectId === project.id" class="project-name-editor" @submit.prevent="saveProjectName(project)">
+                <input v-model="projectNameInput" :aria-label="`项目 ${project.id} 的名称`" :disabled="savingProjectName" @keydown.esc.prevent="!savingProjectName && cancelProjectName()" />
+                <button type="submit" :disabled="savingProjectName">{{ savingProjectName ? '保存中…' : '保存' }}</button>
+                <button type="button" :disabled="savingProjectName" @click="cancelProjectName">取消</button>
+                <span v-if="projectNameError" role="alert">{{ projectNameError }}</span>
+              </form>
+              <template v-else>
+                {{ project.name }}
+                <button type="button" class="link" :aria-label="`编辑项目 ${project.id} 的名称`" :disabled="editingProjectId !== null" @click="editProjectName(project)">编辑</button>
+              </template>
+            </td>
             <td class="mono">{{ project.id }}</td>
             <td>
               <input
@@ -280,7 +320,7 @@ onUnmounted(endMemberDrag);
               />
             </td>
             <td>
-              <button type="button" class="link" @click="store.removeProject(project.id)">移除</button>
+              <button type="button" class="link" :disabled="editingProjectId === project.id" @click="store.removeProject(project.id)">移除</button>
             </td>
           </tr>
         </tbody>
@@ -383,6 +423,8 @@ onUnmounted(endMemberDrag);
 </template>
 
 <style scoped>
+.project-name-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.project-name-editor [role="alert"] { color: #b91c1c; }
 .settings {
   display: flex;
   flex-direction: column;

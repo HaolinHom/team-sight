@@ -9,6 +9,15 @@ const query:HoursQuery={projects:[],members:[],range:{start:'2026-10-12',end:'20
 const result:HoursSnapshot={tasks:[],records:[],issues:[],status:'complete'};
 beforeEach(()=>{mocks.fetch.mockReset().mockResolvedValue(result);});
 describe('工时加载一致性',()=>{
+ it('完整失败保留结构化问题，异常及后续成功清理问题',async()=>{
+  const store=useHours();const issue={projectId:'p',affects:'both' as const,message:'记录缺失'};
+  mocks.fetch.mockResolvedValueOnce({...result,status:'failed',issues:[issue]});await store.refresh(query);
+  expect(store.failureIssues.value).toEqual([issue]);
+  mocks.fetch.mockRejectedValueOnce(new Error('网络失败'));await store.refresh(query);
+  expect(store.failureIssues.value).toEqual([]);expect(store.error.value).toBe('网络失败');
+  mocks.fetch.mockResolvedValueOnce({...result,status:'failed',issues:[issue]});await store.refresh(query);
+  await store.refresh(query);expect(store.failureIssues.value).toEqual([]);expect(store.error.value).toBe('');
+ });
  it('只允许最新请求提交成功或失败',async()=>{
   let resolveOld!:(value:HoursSnapshot)=>void;
   mocks.fetch.mockImplementationOnce(()=>new Promise<HoursSnapshot>(resolve=>{resolveOld=resolve;}));

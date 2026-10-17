@@ -30,6 +30,19 @@ function topOf(wrapper: ReturnType<typeof mountBoard>, memberName: string): numb
 }
 
 describe('GanttBoard 布局渲染', () => {
+  it('表头与背景共用日历：周中休假标灰，周末补班取消灰底', async () => {
+    const wrapper = mountBoard();
+    const before = wrapper.findAll('.gantt__bar').map(bar => bar.attributes('x'));
+    await wrapper.setProps({ calendar: { '2026-10-01': { working: false, name: '国庆节' }, '2026-10-10': { working: true, name: '补班' } } });
+    const headers = wrapper.findAll('.gantt__day');
+    expect(headers[0].classes()).toContain('gantt__day--weekend');
+    expect(headers[9].classes()).not.toContain('gantt__day--weekend');
+    const background = wrapper.findAll('.gantt__svg > g:first-child rect');
+    expect(background.some(rect => Number(rect.attributes('x')) === 0)).toBe(true);
+    expect(background.some(rect => Number(rect.attributes('x')) === 9 * DEFAULT_LAYOUT_CONFIG.dayColumnWidth)).toBe(false);
+    expect(wrapper.findAll('.gantt__bar').map(bar => bar.attributes('x'))).toEqual(before);
+    wrapper.unmount();
+  });
   it('成员标题行不显示任务条，每个任务独占一行', () => {
     const wrapper = mountBoard();
 

@@ -2,7 +2,8 @@ import { dateDiffInDays, eachDateKey, isValidDateKey, type DateRange } from '@/g
 import type { HoursSettings, HoursSnapshot, MemberHours, DailyHours, DailyContribution, TimesheetRecord } from '@/types/hours';
 import type { MemberEntry } from '@/types/settings';
 import type { ScheduleTask } from '@/types/schedule';
-import { dailyTarget, isHoursCompleted } from './settings';
+import { isHoursCompleted } from './settings';
+import { isWorkingDay, type WorkingCalendar } from '@/calendar/chinaCalendar';
 
 const EPSILON = 1e-9;
 export const hoursTaskKey = (task: Pick<ScheduleTask, 'projectId' | 'sourceType' | 'id'>): string => [task.projectId, task.sourceType, task.id].join(':');
@@ -20,7 +21,7 @@ export function formatHours(value: number): string {
 interface Allocation { task: ScheduleTask; key: string; remaining: number; dates: string[]; overtimeDates: string[]; explanation: string }
 
 export function calculateHours(input: {
-  snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string;
+  snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string; calendar?: WorkingCalendar;
 }): MemberHours[] {
   const { snapshot, members, settings, range, today } = input;
   const dates = eachDateKey(range);
@@ -53,7 +54,6 @@ export function calculateHours(input: {
       owned.push(task); tasksByMember.set(id, owned);
     }
   }
-  const overrides = new Map(settings.calendarOverrides.map(item => [item.date, item.working]));
   const exemptions = new Set(settings.exemptions.map(item => item.staffId + ':' + item.date));
   const weekdays = new Map<string, boolean>();
   return members.map(member => {
@@ -62,8 +62,8 @@ export function calculateHours(input: {
     const targetCache = new Map<string, number>();
     const eligibleCache = new Map<string, string[]>();
     const workingFor = (date: string): boolean => {
-      let working = overrides.get(date) ?? weekdays.get(date);
-      if (working === undefined) { working = dailyTarget(date, '', { ...settings, calendarOverrides: [], exemptions: [] }) > 0; weekdays.set(date, working); }
+      let working = weekdays.get(date);
+      if (working === undefined) { working = isWorkingDay(date, input.calendar); weekdays.set(date, working); }
       return working;
     };
     const overtimeDates = new Set<string>();
@@ -188,18 +188,18 @@ export function calculateHours(input: {
       const day = getDay(date);
       day.total = day.actual + (day.basis === 'forecast' ? day.allocated : 0);
       day.deficit = Math.max(day.target - day.total, 0);
-      day.reasons = snapshot.issues.filter(issue => (!issue.staffId || issue.staffId === member.staffId) && (!issue.date || issue.date === date) && !issue.taskKey && ((issue.affects === 'actual' || issue.affects === 'both') && date <= today || (issue.affects === 'forecast' || issue.affects === 'both') && date >= today && (day.target > 0 || overtimeDates.has(date)))).map(issue => issue.message);
+      day.reasons = snapshot.issues.filter(issue => (!issue.staffId || issue.staffId === member.staffId) && (!issue.date || issue.date === date) && !issue.taskKey && ((issue.affects === 'actual' || issue.affects === 'both') && date <= today || (issue.affects === 'forecast' || issue.affects === 'both') && date >= today && (day.target > 0 || overtimeDates.has(date)))).map(issue => ({ projectId: issue.projectId, message: issue.message }));
       if (date >= today && (day.target > 0 || overtimeDates.has(date))) {
         for (const task of unknownTasks) {
           if (day.target === 0 && !taskOvertimeDates.get(hoursTaskKey(task))?.has(date)) continue;
           // 无有效完整区间的任务仅列入待安排，不能推断其影响所有未来日期。
           if (task.startDate && task.dueDate && isValidDateKey(task.startDate) && isValidDateKey(task.dueDate) && task.startDate <= task.dueDate && task.startDate <= date && task.dueDate >= date) {
             const reason = pendingReasons.get(hoursTaskKey(task));
-            day.reasons.push('任务「' + task.title + '」：' + (reason || '无法完整计算剩余排期'));
+            day.reasons.push({ projectId: task.projectId, message: '任务「' + task.title + '」：' + (reason || '无法完整计算剩余排期') });
           }
         }
       }
-      day.reasons = [...new Set(day.reasons)];
+      day.reasons = [...new Map(day.reasons.map(reason => [JSON.stringify([reason.projectId, reason.message]), reason])).values()];
       // 已知工时达到目标时保留工时结论；完整性由 reasons 独立表达。
       day.state = day.target === 0 ? 'exempt' : day.total + EPSILON < day.target ? (day.reasons.length ? 'unknown' : 'short') : day.basis === 'forecast' && day.total > day.target + EPSILON ? 'over' : 'enough';
       return day;

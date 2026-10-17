@@ -16,6 +16,11 @@ function calculate(tasks:ScheduleTask[], records:TimesheetRecord[] = [], extra: 
 const example = [task('A','2026-10-12','2026-10-12','4'),task('B','2026-10-12','2026-10-12','2'),task('C','2026-10-12','2026-10-13','6'),task('D','2026-10-13','2026-10-13','2'),task('E','2026-10-13','2026-10-14','4'),task('F','2026-10-14','2026-10-14','6')];
 
 describe('每日实际与预计工时',()=>{
+ it('相同问题按项目区分，同一项目重复问题去重并保留项目ID',()=>{
+  const issues=[{projectId:'p',affects:'both' as const,message:'记录缺失'},{projectId:'q',affects:'both' as const,message:'记录缺失'},{projectId:'p',affects:'both' as const,message:'记录缺失'}];
+  const row=calculate([],[],{snapshot:{tasks:[],records:[],status:'partial',issues}})[0];
+  expect(row.days[0].reasons).toEqual([{projectId:'p',message:'记录缺失'},{projectId:'q',message:'记录缺失'}]);
+ });
  it('按输入成员顺序返回，不按不足天数排序，重排不改变统计',()=>{
   const members = [member, {staffId:'200',name:'李四'}, {staffId:'300',name:'李四'}];
   const tasks = [task('enough','2026-10-12','2026-10-12','8')];
@@ -93,8 +98,8 @@ describe('日历与完整性',()=>{
   expect(calculate([task('X','2026-10-12','2026-10-13','12')],[],{settings})[0].days.slice(0,2).map(day=>day.total)).toEqual([7.5,4.5]);
  });
  it('周末不安排，调休可安排，豁免仍保留实际',()=>{
-  const settings=createHoursSettings(); settings.calendarOverrides=[{date:'2026-10-10',working:true,note:'调休'}];settings.exemptions=[{staffId:'100',date:'2026-10-12',note:'请假'}];
-  const row=calculate([task('X','2026-10-10','2026-10-12','8')],[record('actual','X','100','2026-10-12',2)],{today:'2026-10-10',range:{start:'2026-10-10',end:'2026-10-12'},settings})[0];
+  const settings=createHoursSettings();settings.exemptions=[{staffId:'100',date:'2026-10-12',note:'请假'}];
+  const row=calculate([task('X','2026-10-10','2026-10-12','8')],[record('actual','X','100','2026-10-12',2)],{today:'2026-10-10',range:{start:'2026-10-10',end:'2026-10-12'},settings,calendar:{'2026-10-10':{working:true,name:'调休'}}})[0];
   expect(row.days.map(day=>day.allocated)).toEqual([8,0,0]);expect(row.days[2].state).toBe('exempt');
   expect(calculate([], [record('actual','X','100','2026-10-12',2)],{settings})[0].days[0].actual).toBe(2);
  });
@@ -120,13 +125,13 @@ describe('达标结论与完整性独立', () => {
  it('实际达到目标仍达标，并保留待确认原因', () => {
   const records = [record('r', 'X', '100', '2026-10-12', 8)];
   const day = calculate([], [], { today: '2026-10-13', snapshot: { tasks: [], records, status: 'partial', issues: [issue] } })[0].days[0];
-  expect(day).toMatchObject({ actual: 8, total: 8, state: 'enough', reasons: [issue.message] });
+  expect(day).toMatchObject({ actual: 8, total: 8, state: 'enough', reasons: [{ projectId: issue.projectId, message: issue.message }] });
  });
  it('实际2h加分配6h达到目标仍预计充足', () => {
   const tasks = [task('X', '2026-10-12', '2026-10-12', '8')];
   const records = [record('r', 'X', '100', '2026-10-12', 2)];
   const day = calculate([], [], { snapshot: { tasks, records, status: 'partial', issues: [issue] } })[0].days[0];
-  expect(day).toMatchObject({ actual: 2, allocated: 6, total: 8, state: 'enough', reasons: [issue.message] });
+  expect(day).toMatchObject({ actual: 2, allocated: 6, total: 8, state: 'enough', reasons: [{ projectId: issue.projectId, message: issue.message }] });
  });
  it('未知任务不覆盖已知8h排期的充足结论', () => {
   const row = calculate([task('X','2026-10-12','2026-10-12','8'), task('missing','2026-10-12','2026-10-14',undefined)])[0];
@@ -135,7 +140,7 @@ describe('达标结论与完整性独立', () => {
  });
  it('已知超额保留超额提示，未知不足不计入不足天数', () => {
   const day = calculate([], [], { snapshot: { tasks: [task('X','2026-10-12','2026-10-12','10')], records: [], status: 'partial', issues: [issue] } })[0].days[0];
-  expect(day.state).toBe('over'); expect(day.reasons).toEqual([issue.message]);
+  expect(day.state).toBe('over'); expect(day.reasons).toEqual([{ projectId: issue.projectId, message: issue.message }]);
  });
 });
 
@@ -148,8 +153,8 @@ describe('休息日完整性范围', () => {
  });
  it('未来休息日忽略接口异常，调休工作日恢复待确认', () => {
   const snapshot: HoursSnapshot = { tasks: [], records: [], status: 'partial', issues: [{ projectId:'p', affects:'both', message:'接口未完整' }] };
-  const settings = createHoursSettings(); settings.calendarOverrides=[{ date:'2026-10-24', working:true, note:'调休' }];
-  const row = calculate([], [], { today:'2026-10-23', range, snapshot, settings })[0];
+  const settings = createHoursSettings();
+  const row = calculate([], [], { today:'2026-10-23', range, snapshot, settings,calendar:{'2026-10-24':{working:true,name:'调休'}} })[0];
   expect(row.days[0].state).toBe('unknown'); expect(row.days[1].reasons).toEqual([]);
  });
  it('成员豁免日排除预测异常，有效实际仍保留', () => {
@@ -160,8 +165,8 @@ describe('休息日完整性范围', () => {
  it('过去或今天休息日仍保留实际记录不完整提示', () => {
   const snapshot: HoursSnapshot = { tasks: [], records:[record('r','X','100','2026-10-24',2)], status:'partial', issues:[{ projectId:'p', affects:'actual', message:'记录未完整' },{ projectId:'p', affects:'forecast', message:'排期未完整' }] };
   const row = calculate([],[],{ today:'2026-10-25',range,snapshot })[0];
-  expect(row.days[0]).toMatchObject({ state:'exempt',actual:2,reasons:['记录未完整'] });
-  expect(row.days[1].reasons).toEqual(['记录未完整']);
+  expect(row.days[0]).toMatchObject({ state:'exempt',actual:2,reasons:[{ projectId: 'p', message: '记录未完整' }] });
+  expect(row.days[1].reasons).toEqual([{ projectId: 'p', message: '记录未完整' }]);
  });
 });
 
@@ -172,7 +177,7 @@ describe('异常仅影响可定位的日期',()=>{
  });
  it('四项有完整排期但缺预估的任务只影响自身区间，0h也可能待确认',()=>{
   const tasks=Array.from({length:4},(_,i)=>task('unknown'+i,'2026-10-12','2026-10-13',undefined));
-  const row=calculate(tasks)[0];expect(row.days.map(day=>day.reasons.length)).toEqual([4,4,0]);expect(row.days.map(day=>day.state)).toEqual(['unknown','unknown','short']);expect(row.days[0].reasons[0]).toContain('缺少有效预估工时');
+  const row=calculate(tasks)[0];expect(row.days.map(day=>day.reasons.length)).toEqual([4,4,0]);expect(row.days.map(day=>day.state)).toEqual(['unknown','unknown','short']);expect(row.days[0].reasons[0].message).toContain('缺少有效预估工时');
  });
  it('接口失败仍影响相应日期，不能因已知0h而误判确定不足',()=>{
   const snapshot:HoursSnapshot={tasks:[],records:[],status:'partial',issues:[{projectId:'p',staffId:'100',date:'2026-10-13',affects:'forecast',message:'接口读取失败'}]};
@@ -200,8 +205,8 @@ describe('非工作日按需加班',()=>{
   expect(row.days[1]).toMatchObject({actual:5,allocated:10,total:15,target:0,state:'exempt'});
  });
  it('节假日可加班，个人请假不安排，调休工作日按目标判断',()=>{
-  const settings=createHoursSettings();settings.calendarOverrides=[{date:'2026-10-23',working:false,note:'节假日'},{date:'2026-10-24',working:true,note:'调休'}];settings.exemptions=[{date:'2026-10-25',staffId:'100',note:'请假'}];
-  const row=calculate([task('holiday','2026-10-23','2026-10-23','2'),task('working','2026-10-24','2026-10-24','10'),task('leave','2026-10-25','2026-10-25','4')],[],{today:'2026-10-23',range,settings})[0];
+  const settings=createHoursSettings();settings.exemptions=[{date:'2026-10-25',staffId:'100',note:'请假'}];
+  const row=calculate([task('holiday','2026-10-23','2026-10-23','2'),task('working','2026-10-24','2026-10-24','10'),task('leave','2026-10-25','2026-10-25','4')],[],{today:'2026-10-23',range,settings,calendar:{'2026-10-23':{working:false,name:'节假日'},'2026-10-24':{working:true,name:'调休'}}})[0];
   expect(row.days[0]).toMatchObject({allocated:2,state:'exempt'});expect(row.days[1]).toMatchObject({allocated:10,state:'over'});expect(row.days[2].allocated).toBe(0);expect(row.pending).toHaveLength(1);
  });
  it('明确周末加班但缺预估时保留当日原因，不影响其他休息日',()=>{

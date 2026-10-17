@@ -26,6 +26,23 @@ beforeEach(()=>{
 afterEach(()=>{vi.useRealTimers();vi.unstubAllEnvs();delete (window as unknown as Record<string,unknown>).__TAURI_INTERNALS__;});
 const mountPage=async()=>{await useSettings().load(true);const wrapper=mount(HoursPage,{global:{stubs:{RouterLink:{template:'<a><slot /></a>'}}}});await flushPromises();await flushPromises();return wrapper;};
 describe('每日工时页面',()=>{
+ it('待安排任务使用最新配置名称，不读取旧快照名称，未知项目回退ID',async()=>{
+  mocks.fetch.mockResolvedValue({...snapshot,tasks:[{...task('pending','100','8'),startDate:null,dueDate:null},{...task('unknown','100','8'),projectId:'missing',startDate:null,dueDate:null}]});
+  const wrapper=await mountPage();await wrapper.get('.pending-button').trigger('click');
+  await useSettings().updateProject('p',{name:'简称'});await flushPromises();
+  const names=wrapper.findAll('aside article .meta').map(item=>item.text());
+  expect(names).toContain('简称 · open');expect(names).toContain('missing · open');
+  expect(wrapper.get('select[aria-label="明细项目筛选"]').text()).toContain('简称');
+  expect(mocks.fetch).toHaveBeenCalledTimes(1);wrapper.unmount();
+ });
+ it('完整失败的问题名称随配置更新，随后网络失败不保留旧问题',async()=>{
+  mocks.fetch.mockResolvedValue({...snapshot,status:'failed',issues:[{projectId:'p',affects:'both',message:'记录读取失败'}]});
+  const wrapper=await mountPage();expect(wrapper.get('[role="alert"]').text()).toBe('项目：记录读取失败');
+  await useSettings().updateProject('p',{name:'简称'});await flushPromises();
+  expect(wrapper.get('[role="alert"]').text()).toBe('简称：记录读取失败');expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  mocks.fetch.mockRejectedValueOnce(new Error('网络失败'));await wrapper.get('form button[type="button"]').trigger('click');await flushPromises();
+  expect(wrapper.get('[role="alert"]').text()).toBe('网络失败');wrapper.unmount();
+ });
  it('展示默认自然月矩阵，过去实际与今天预计分别标记',async()=>{
   const wrapper=await mountPage();expect(mocks.fetch).toHaveBeenCalledTimes(1);expect(mocks.fetch.mock.calls[0][0].range).toEqual({start:'2026-10-01',end:'2026-10-31'});
   expect(wrapper.get('button[aria-label="张三 2026-10-13 实际 6h 缺 2h"]').attributes('data-state')).toBe('short');expect(wrapper.get('button[aria-label="张三 2026-10-14 预计 8h 预计充足"]').text()).toContain('已填报 0h');wrapper.unmount();

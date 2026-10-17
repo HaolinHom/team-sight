@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { createHoursSettings, shanghaiToday, validateHoursSettings } from '@/hours/settings';
 import type { HoursSettings } from '@/types/hours';
+import ChinaCalendarSettings from './ChinaCalendarSettings.vue';
 
 const store = useSettings();
 const copy = (value: HoursSettings) => JSON.parse(JSON.stringify(value)) as HoursSettings;
@@ -30,19 +31,11 @@ function setStates(index: number, event: Event): void {
   <section class="hours-settings" aria-labelledby="hours-settings-title">
     <h2 id="hours-settings-title">工时统计</h2>
     <p>默认周一至周五为工作日，统计日界为北京时间。当前规定工时：{{ store.settings.value.hours?.dailyRequiredHours ?? 8 }} 小时。</p>
+    <ChinaCalendarSettings />
     <fieldset :disabled="busy">
       <label class="required-hours">每日规定工时
         <input v-model.number="draft.dailyRequiredHours" type="number" min="0" step="any" aria-label="每日规定工时" /> 小时
       </label>
-      <h3>节假日／调休</h3>
-      <p>仅覆盖指定日期；截止在休息日的任务可将工作日余量分配到末尾休息日，不受每日规定工时限制；已有实际填报仍可查看。</p>
-      <div v-for="(item, index) in draft.calendarOverrides" :key="index" class="config-row">
-        <input v-model="item.date" type="date" aria-label="日历覆盖日期" />
-        <select v-model="item.working" aria-label="日期类型"><option :value="false">休息日</option><option :value="true">工作日</option></select>
-        <input v-model="item.note" placeholder="说明（可选）" aria-label="日历覆盖说明" />
-        <button type="button" @click="draft.calendarOverrides.splice(index, 1)">移除</button>
-      </div>
-      <button type="button" @click="draft.calendarOverrides.push({ date: shanghaiToday(), working: false, note: '' })">添加日期覆盖</button>
       <h3>成员整日请假豁免</h3>
       <div v-for="(item, index) in draft.exemptions" :key="index" class="config-row">
         <select v-model="item.staffId" aria-label="豁免成员"><option value="">选择成员</option><option v-for="member in store.settings.value.members" :key="member.staffId" :value="member.staffId">{{ member.name }}</option></select>

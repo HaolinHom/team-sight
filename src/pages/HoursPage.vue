@@ -4,8 +4,10 @@ import { currentMonthRange, eachDateKey, type DateRange } from '@/gantt/dateUtil
 import { validateRange } from '@/gantt/filters';
 import { useHours, hoursQueryKey } from '@/composables/useHours';
 import { useSettings } from '@/composables/useSettings';
+import { useChinaCalendar } from '@/composables/useChinaCalendar';
+import { calendarYearsForRanges, calendarTaskRanges } from '@/calendar/chinaCalendar';
 import { useCredentials } from '@/composables/useCredentials';
-import { createHoursSettings, shanghaiToday } from '@/hours/settings';
+import { createHoursSettings, shanghaiToday, isHoursCompleted } from '@/hours/settings';
 import { formatHours, hoursTaskKey } from '@/hours/statistics';
 import { isTauriRuntime } from '@/services/tapd/client';
 import { openExternalUrl } from '@/services/externalLink';
@@ -13,12 +15,13 @@ import { buildTapdUrl } from '@/services/tapd/mapper';
 import { createHoursFixture } from '@/fixtures/hoursFixture';
 import { matrixWindow, MATRIX_COLUMN_WIDTH, MATRIX_ROW_HEIGHT } from '@/hours/matrixWindow';
 import { createHoursCalculator } from '@/hours/workerClient';
-import type { DailyHours, MemberHours } from '@/types/hours';
+import type { DailyHours, HoursReason, MemberHours } from '@/types/hours';
 
 defineOptions({ name: 'HoursPage' });
 const active = ref(true);
 const requestedKey = ref('');
 const store = useSettings();
+const calendar = useChinaCalendar();
 const credentials = useCredentials();
 const hours = useHours();
 const fixtureMode = import.meta.env.VITE_HOURS_FIXTURE === '1';
@@ -40,11 +43,16 @@ const query = computed(() => ({ projects: store.enabledProjects.value, members: 
 const queryKey = computed(() => hoursQueryKey(query.value));
 const canLoad = computed(() => !fixtureMode && isTauriRuntime() && credentials.status.value.configured && projects.value.length > 0 && members.value.length > 0);
 const snapshot = computed(() => fixtureMode ? fixture.value.snapshot : canLoad.value && hours.loadedKey.value === queryKey.value ? hours.snapshot.value : null);
+const calendarYears = computed(() => calendarYearsForRanges([range.value, ...calendarTaskRanges(snapshot.value?.tasks.filter(task => !isHoursCompleted(task, settings.value)) ?? [], today.value)]));
+const calendarWarnings = computed(() => calendar.warningsFor(calendarYears.value.required));
+watch([ready, active, calendar.enabled, calendar.currentYear, () => calendarYears.value.sources.join(',')], () => {
+  if (ready.value && active.value && calendar.enabled.value) void calendar.ensure([calendar.currentYear.value, ...calendarYears.value.sources]);
+});
 const calculator = createHoursCalculator();
 const calculatedRows = shallowRef<MemberHours[]>([]);
 const calculating = ref(false), calculationError = ref('');
 let calculationId = 0;
-const calculationKey = computed(() => JSON.stringify({ settings: settings.value, members: members.value, range: range.value, today: today.value }));
+const calculationKey = computed(() => JSON.stringify({ settings: settings.value, members: members.value, range: range.value, today: today.value, calendar: calendar.days.value }));
 const calculatedSnapshot = shallowRef<typeof snapshot.value>(null);
 const calculatedKey = ref('');
 const rows = computed(() => snapshot.value && calculatedSnapshot.value === snapshot.value && calculatedKey.value === calculationKey.value ? calculatedRows.value : []);
@@ -62,7 +70,7 @@ watch([snapshot, calculationKey, active], async () => {
   const source = snapshot.value, key = calculationKey.value;
   runningSnapshot = source; runningKey = key;
   try {
-    const result = await calculator.calculate({ snapshot: source, members: members.value, settings: settings.value, range: range.value, today: today.value });
+    const result = await calculator.calculate({ snapshot: source, members: members.value, settings: settings.value, range: range.value, today: today.value, calendar: calendar.days.value });
     if (id !== calculationId) return;
     calculatedSnapshot.value = source; calculatedKey.value = key; calculatedRows.value = result.rows ?? [];
     console.info('[hours-performance]', { ...source.metrics, calculationMs: result.calculationMs });
@@ -111,7 +119,8 @@ const selectedDay = computed(() => selectedRow.value?.days.find(day => day.date 
 const taskMap = computed(() => new Map(snapshot.value?.tasks.map(task => [hoursTaskKey(task), task])));
 const contributions = computed(() => selectedDay.value?.contributions.filter(item => !detailProject.value || item.projectId === detailProject.value) ?? []);
 const pending = computed(() => selectedRow.value?.pending.filter(item => !detailProject.value || item.task.projectId === detailProject.value) ?? []);
-const issueMessages = computed(() => [...new Set(snapshot.value?.issues.map(issue => issue.message))]);
+const issueMessages = computed(() => [...new Set(snapshot.value?.issues.map(formatReason))]);
+const loadError = computed(() => hours.failureIssues.value.length ? hours.failureIssues.value.map(formatReason).join('；') : hours.error.value);
 const emptyMessage = computed(() => {
   if (calculationError.value) return '工时计算失败，请刷新重试。';
   if (calculating.value && !rows.value.length) return '正在后台计算每日工时…';
@@ -158,6 +167,7 @@ async function select(staffId: string, date: string, event: MouseEvent): Promise
 function closeDetails(): void { selectedStaff.value = ''; returnFocus?.focus(); }
 function contributionTitle(key: string): string { return taskMap.value.get(key)?.title ?? (key.split(':')[1] === 'bug' ? '缺陷 ' : '任务 ') + key.split(':').slice(2).join(':'); }
 function projectName(id: string): string { return projects.value.find(project => project.id === id)?.name ?? id; }
+function formatReason(reason: HoursReason): string { return reason.projectId ? projectName(reason.projectId) + '：' + reason.message : reason.message; }
 function contributionUrl(key: string): string { const [projectId, type, ...id] = key.split(':'); return buildTapdUrl(projectId, type === 'bug' ? 'bug' : 'task', id.join(':')); }
 async function openLink(url: string): Promise<void> {
   linkError.value = '';
@@ -218,10 +228,11 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
       <label>关注 <select v-model="anomalyFilter" aria-label="异常筛选"><option value="all">全部情况</option><option value="historical">历史实际不足</option><option value="forecast">预计排期不足</option><option value="over">排期超额</option><option value="unknown">待确认</option></select></label>
       <button type="button" :disabled="!canLoad || hours.loading.value" @click="refresh(true)">{{ hours.loading.value ? '加载中…' : '刷新' }}</button>
     </form>
-    <p v-if="rangeError || startupError || credentials.loadError.value || hours.error.value || calculationError" class="error" role="alert">{{ rangeError || startupError || credentials.loadError.value || hours.error.value || calculationError }}</p>
+    <p v-if="rangeError || startupError || credentials.loadError.value || loadError || calculationError" class="error" role="alert">{{ rangeError || startupError || credentials.loadError.value || loadError || calculationError }}</p>
     <p v-if="hours.progress.value" role="status" class="meta">{{ hours.progress.value.stage }} · {{ hours.progress.value.completed }}／{{ hours.progress.value.total }}</p>
     <p v-if="calculating" role="status" class="meta">正在后台计算每日工时…</p>
     <p v-if="rangeNote" class="notice">{{ rangeNote }}</p>
+    <p v-if="calendarWarnings.length" class="notice" role="status">{{ calendarWarnings.join('；') }} <RouterLink to="/settings">前往设置查看日历状态</RouterLink></p>
     <p v-if="fixtureMode" class="notice">演示数据，不访问 TAPD。</p>
     <p v-if="hours.stale.value && hours.snapshot.value" class="notice">当前显示上次加载的旧数据。{{ hours.loadedKey.value !== queryKey ? '旧数据与当前范围不一致，已隐藏。' : '刷新成功后更新。' }}</p>
     <p v-if="hours.lastLoadedAt.value" class="meta">最后成功加载：{{ hours.lastLoadedAt.value }} · 全部已启用项目，任务与缺陷 · 切换范围可复用 1 分钟内缓存，刷新重新获取</p>
@@ -251,11 +262,11 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
       </section>
       <aside v-if="selectedRow" ref="detailsElement" class="details" tabindex="-1" aria-label="工时明细">
         <header><h2>{{ selectedRow.member.name }} · {{ selectedDate || '待安排任务' }}</h2><button type="button" aria-label="关闭工时明细" @click="closeDetails">关闭</button></header>
-        <template v-if="selectedDay"><p class="detail-total">{{ daySummary(selectedDay) }}{{ selectedDay.state === 'exempt' && selectedDay.total === 0 ? '' : ' · ' + stateLabel(selectedDay) }}</p><p v-if="selectedDay.state === 'exempt'">非工作日不受每日规定工时约束，不判断不足或超额。<br />实际 {{ formatHours(selectedDay.actual) }}h ＋ 加班分配 {{ formatHours(selectedDay.allocated) }}h</p><p v-else>实际 {{ formatHours(selectedDay.actual) }}h ＋ 剩余分配 {{ formatHours(selectedDay.allocated) }}h<br />当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.basis === 'forecast' && selectedDay.state !== 'exempt'" class="notice">当前预计值由已填报工时与可计算的剩余排期组成，不代表实际已达标。</p><p v-if="selectedDay.reasons.length" class="notice">当日数据待确认 · {{ selectedDay.reasons.length }}个原因。{{ selectedDay.state === 'exempt' ? '仅影响工时数据完整性，非工作日不判断不足或超额。' : selectedDay.actual >= selectedDay.target && selectedDay.target > 0 ? '已记录的实际工时已达到目标。' : selectedDay.total >= selectedDay.target && selectedDay.target > 0 ? '当前已知工时达到目标，预计分配仍可能随数据补全调整。' : '当前已知工时未达到目标，数据补全前不能确定不足。' }}</p><ul v-if="selectedDay.reasons.length" class="error"><li v-for="reason in selectedDay.reasons" :key="reason">{{ reason }}</li></ul></template>
+        <template v-if="selectedDay"><p class="detail-total">{{ daySummary(selectedDay) }}{{ selectedDay.state === 'exempt' && selectedDay.total === 0 ? '' : ' · ' + stateLabel(selectedDay) }}</p><p v-if="selectedDay.state === 'exempt'">非工作日不受每日规定工时约束，不判断不足或超额。<br />实际 {{ formatHours(selectedDay.actual) }}h ＋ 加班分配 {{ formatHours(selectedDay.allocated) }}h</p><p v-else>实际 {{ formatHours(selectedDay.actual) }}h ＋ 剩余分配 {{ formatHours(selectedDay.allocated) }}h<br />当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.basis === 'forecast' && selectedDay.state !== 'exempt'" class="notice">当前预计值由已填报工时与可计算的剩余排期组成，不代表实际已达标。</p><p v-if="selectedDay.reasons.length" class="notice">当日数据待确认 · {{ selectedDay.reasons.length }}个原因。{{ selectedDay.state === 'exempt' ? '仅影响工时数据完整性，非工作日不判断不足或超额。' : selectedDay.actual >= selectedDay.target && selectedDay.target > 0 ? '已记录的实际工时已达到目标。' : selectedDay.total >= selectedDay.target && selectedDay.target > 0 ? '当前已知工时达到目标，预计分配仍可能随数据补全调整。' : '当前已知工时未达到目标，数据补全前不能确定不足。' }}</p><ul v-if="selectedDay.reasons.length" class="error"><li v-for="reason in selectedDay.reasons" :key="JSON.stringify(reason)">{{ formatReason(reason) }}</li></ul></template>
         <label>明细项目 <select v-model="detailProject" aria-label="明细项目筛选"><option value="">全部项目</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
         <p class="meta">项目筛选仅影响明细，全天汇总保持不变。</p>
         <template v-if="selectedDay"><article v-for="item in contributions.slice(0, detailLimit)" :key="item.taskKey"><span class="meta">{{ projectName(item.projectId) }} · {{ taskMap.get(item.taskKey)?.status || '历史填报' }}</span><h3>{{ contributionTitle(item.taskKey) }}</h3><p>实际 {{ formatHours(item.actual) }}h · 当天分配 {{ formatHours(item.allocated) }}h</p><p class="meta">{{ item.explanation }}</p><a :href="contributionUrl(item.taskKey)" @click.prevent="openLink(contributionUrl(item.taskKey))">打开 TAPD</a></article><p v-if="!contributions.length" class="meta">当天没有对应项目的有效工时贡献。</p></template>
-        <template v-else><article v-for="item in pending.slice(0, detailLimit)" :key="hoursTaskKey(item.task)"><span class="meta">{{ item.task.projectName }} · {{ item.task.status }}</span><h3>{{ item.task.title }}</h3><p>剩余 {{ item.hours === null ? '待确认' : formatHours(item.hours) + 'h' }} · {{ item.reason }}</p><a :href="item.task.tapdUrl" @click.prevent="openLink(item.task.tapdUrl)">打开 TAPD</a></article></template>
+        <template v-else><article v-for="item in pending.slice(0, detailLimit)" :key="hoursTaskKey(item.task)"><span class="meta">{{ projectName(item.task.projectId) }} · {{ item.task.status }}</span><h3>{{ item.task.title }}</h3><p>剩余 {{ item.hours === null ? '待确认' : formatHours(item.hours) + 'h' }} · {{ item.reason }}</p><a :href="item.task.tapdUrl" @click.prevent="openLink(item.task.tapdUrl)">打开 TAPD</a></article></template>
         <button v-if="(selectedDay ? contributions.length : pending.length) > detailLimit" type="button" @click="detailLimit += 50">显示更多明细</button>
         <p v-if="linkError" role="alert" class="error">{{ linkError }}</p>
       </aside>

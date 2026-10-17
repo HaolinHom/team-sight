@@ -18,6 +18,7 @@ describe('createEmptySettings', () => {
       projects: [],
       members: [],
       hours: createHoursSettings(),
+      chinaCalendar: { enabled: false, years: {} },
       updatedAt: '2026-10-10T00:00:00.000Z',
     });
   });

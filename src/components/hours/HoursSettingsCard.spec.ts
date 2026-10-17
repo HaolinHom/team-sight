@@ -29,9 +29,9 @@ describe('工时设置',()=>{
   expect(useSettings().settings.value.hours.dailyRequiredHours).toBe(8);expect(wrapper.get<HTMLInputElement>('input[aria-label="每日规定工时"]').element.value).toBe('8');expect(useSettings().saveError.value).toContain('磁盘写入失败');
   await wrapper.get('input[aria-label="每日规定工时"]').setValue('7.5');await save(wrapper);await flushPromises();expect(useSettings().settings.value.hours.dailyRequiredHours).toBe(7.5);wrapper.unmount();
  });
- it('日期覆盖、豁免、项目终态均可编辑并持久化',async()=>{
-  const wrapper=mount(HoursSettingsCard);for(const text of ['添加日期覆盖','添加成员豁免','添加结束状态']) await wrapper.findAll('button').find(button=>button.text()===text)!.trigger('click');
-  await wrapper.get('input[aria-label="日历覆盖日期"]').setValue('2026-10-01');await wrapper.get('input[aria-label="豁免日期"]').setValue('2026-10-14');await wrapper.get('input[aria-label="结束状态原值"]').setValue('已验收，已取消');await save(wrapper);await flushPromises();
-  expect(useSettings().settings.value.hours).toMatchObject({calendarOverrides:[{date:'2026-10-01',working:false}],exemptions:[{staffId:'100',date:'2026-10-14'}],completedStates:[{projectId:'p',type:'task',values:['已验收','已取消']}]});wrapper.unmount();
+ it('移除手动日期，豁免、项目终态仍可编辑并持久化',async()=>{
+  const wrapper=mount(HoursSettingsCard);expect(wrapper.find('input[aria-label="日历覆盖日期"]').exists()).toBe(false);for(const text of ['添加成员豁免','添加结束状态']) await wrapper.findAll('button').find(button=>button.text()===text)!.trigger('click');
+  await wrapper.get('input[aria-label="豁免日期"]').setValue('2026-10-14');await wrapper.get('input[aria-label="结束状态原值"]').setValue('已验收，已取消');await save(wrapper);await flushPromises();
+  expect(useSettings().settings.value.hours).toMatchObject({exemptions:[{staffId:'100',date:'2026-10-14'}],completedStates:[{projectId:'p',type:'task',values:['已验收','已取消']}]});wrapper.unmount();
  });
 });

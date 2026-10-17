@@ -11,6 +11,7 @@ import {
 import type { ProjectConfig } from '@/types/schedule';
 import type { HoursSettings } from '@/types/hours';
 import { validateHoursSettings } from '@/hours/settings';
+import type { CalendarYearCache } from '@/calendar/chinaCalendar';
 
 /**
  * 配置状态在模块级共享，保证设置页与看板页看到同一份数据。
@@ -42,7 +43,7 @@ function persist(update: (current: AppSettings) => AppSettings): Promise<boolean
   const operation = saveQueue.then(async () => {
     try {
       const next = update(settings.value);
-      if (next === settings.value) return true;
+      if (next === settings.value) { saveError.value = ''; return true; }
       await saveSettings(next);
       settings.value = next;
       saveError.value = '';
@@ -75,11 +76,23 @@ async function addProject(project: { id: string; name: string }): Promise<boolea
   return saved && added;
 }
 
-async function updateProject(id: string, patch: Partial<ProjectConfig>): Promise<void> {
-  await persist((current) => ({
-    ...current,
-    projects: current.projects.map((project) => project.id === id ? { ...project, ...patch } : project),
-  }));
+async function updateProject(id: string, patch: Partial<ProjectConfig>): Promise<boolean> {
+  const changes = { ...patch };
+  if (changes.name !== undefined) {
+    changes.name = changes.name.trim();
+    if (!changes.name) {
+      saveError.value = '项目名称不能为空';
+      return false;
+    }
+  }
+  return persist((current) => {
+    const project = current.projects.find((item) => item.id === id);
+    if (!project || Object.entries(changes).every(([key, value]) => project[key as keyof ProjectConfig] === value)) return current;
+    return {
+      ...current,
+      projects: current.projects.map((item) => item.id === id ? { ...item, ...changes } : item),
+    };
+  });
 }
 
 async function removeProject(id: string): Promise<void> {
@@ -133,6 +146,19 @@ async function updateHours(hours: HoursSettings): Promise<boolean> {
   return persist((current) => ({ ...current, hours: savedHours }));
 }
 
+async function setChinaCalendarEnabled(enabled: boolean): Promise<boolean> {
+  return persist(current => current.chinaCalendar.enabled === enabled ? current : {
+    ...current, chinaCalendar: { ...current.chinaCalendar, enabled },
+  });
+}
+
+async function cacheChinaCalendarYear(cache: CalendarYearCache): Promise<boolean> {
+  const saved = JSON.parse(JSON.stringify(cache)) as CalendarYearCache;
+  return persist(current => ({ ...current, chinaCalendar: {
+    ...current.chinaCalendar, years: { ...current.chinaCalendar.years, [saved.year]: saved },
+  } }));
+}
+
 export function useSettings() {
   const enabledProjects = computed(() => settings.value.projects.filter((item) => item.enabled));
 
@@ -150,5 +176,7 @@ export function useSettings() {
     removeMember,
     moveMember,
     updateHours,
+    setChinaCalendarEnabled,
+    cacheChinaCalendarYear,
   };
 }

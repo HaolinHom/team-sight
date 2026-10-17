@@ -20,6 +20,11 @@ function transport(options: { tasks?: Record<string,unknown>[]; actual?: Record<
 }
 
 describe('工时数据接入',()=>{
+ it('问题正文不固化项目名称，保留项目ID供页面解析',async()=>{
+  const result=await fetchHoursSnapshot({...query,projects:[{...query.projects[0],name:'旧项目长名称'}]},transport({fail:path=>path==='/workspaces/users'}));
+  expect(result.issues.length).toBeGreaterThan(0);
+  expect(result.issues.every(issue=>issue.projectId==='p'&&!issue.message.includes('旧项目长名称'))).toBe(true);
+ });
  it('独立读取展示区间和完整累计，跨查询去重，历史不依赖排期',async()=>{
   const mock=transport();const result=await fetchHoursSnapshot(query,mock);
   expect(result.status).toBe('complete'); expect(result.records).toHaveLength(3);

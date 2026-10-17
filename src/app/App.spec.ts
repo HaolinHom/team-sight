@@ -34,6 +34,83 @@ async function start(path = '/board', realSettings = false) {
   return async (path: string) => { await router.push(path); await flushPromises(); await flushPromises(); };
 }
 describe('路由保活', () => {
+  it('日历开关更新保活看板与工时，复用快照不重新查询TAPD', async () => {
+    const go = await start('/board');
+    await go('/hours'); await go('/settings');
+    const calculations = mocks.calculate.mock.calls.length;
+    await useSettings().cacheChinaCalendarYear({ year: 2026, fetchedAt: '2000-01-01T00:00:00Z', papers: ['https://www.gov.cn/example'], days: { '2026-10-01': { working: false, name: '国庆节' }, '2026-10-10': { working: true, name: '补班' }, '2026-10-14': { working: false, name: '测试休假' } } });
+    await useSettings().setChinaCalendarEnabled(true); await flushPromises();
+    expect(mocks.calculate).toHaveBeenCalledTimes(calculations);
+    await go('/board'); const headers = wrapper!.findAll('.gantt__day');
+    expect(headers[0].classes()).toContain('gantt__day--weekend'); expect(headers[9].classes()).not.toContain('gantt__day--weekend');
+    await go('/hours'); expect(mocks.calculate).toHaveBeenCalledTimes(calculations + 1);
+    expect(wrapper!.get('button[aria-label="张三 2026-10-14 预计 8h 非工作日"]').attributes('data-state')).toBe('exempt');
+    await useSettings().setChinaCalendarEnabled(false); await flushPromises();
+    expect(wrapper!.find('button[aria-label="张三 2026-10-14 预计 8h 预计充足"]').exists()).toBe(true);
+    await go('/board'); expect(wrapper!.findAll('.gantt__day')[9].classes()).toContain('gantt__day--weekend');
+    expect(mocks.schedule).toHaveBeenCalledTimes(1); expect(mocks.hours).toHaveBeenCalledTimes(1);
+    expect(mocks.invoke.mock.calls.some(call => call[0] === 'china_calendar_get')).toBe(false);
+  });
+  it('预测完整区间按需获取跨年日历，未发布年份降级提示，切页不重复失败请求', async () => {
+    const original = mocks.invoke.getMockImplementation()!;
+    mocks.invoke.mockImplementation(async (command: string, args?: { year: number }) => {
+      if (command === 'china_calendar_get') {
+        if (args!.year === 2027) throw new Error('尚未发布');
+        return JSON.stringify({ year: 2026, papers: ['https://www.gov.cn/example'], days: [{ date: '2026-10-10', name: '国庆节', isOffDay: false }] });
+      }
+      return original(command, args);
+    });
+    await useSettings().setChinaCalendarEnabled(true);
+    mocks.hours.mockResolvedValue({ ...snapshot, tasks: [{ ...task, dueDate: '2027-01-04' }] });
+    const go = await start('/hours');
+    const calendarRequests = () => mocks.invoke.mock.calls.filter(call => call[0] === 'china_calendar_get');
+    expect(calendarRequests().map(call => call[1].year).sort()).toEqual([2026, 2027]);
+    expect(wrapper!.text()).toContain('2027 年节假日日历未获取'); expect(wrapper!.text()).toContain('暂按周一至周五');
+    expect(useSettings().settings.value.chinaCalendar.years[2026]).toBeDefined();
+    await go('/settings'); await go('/hours'); expect(calendarRequests()).toHaveLength(2); expect(mocks.hours).toHaveBeenCalledTimes(1);
+  });
+  it('从设置保存项目名称后统一更新保活页面，保留详情筛选折叠滚动且不查询或重算', async () => {
+    let saved = JSON.stringify(useSettings().settings.value);
+    mocks.invoke.mockImplementation(async (command: string, args?: { settingsJson: string }) => {
+      if (command === 'settings_read') return saved;
+      if (command === 'settings_write') saved = args!.settingsJson;
+      if (command === 'credential_status') return { configured: true, source: 'file', maskedHint: null };
+    });
+    mocks.hours.mockResolvedValue({ ...snapshot, status: 'partial', issues: [{ projectId: 'p', affects: 'both', message: '记录缺失' }] });
+    const go = await start('/board', true);
+    const board = wrapper!.getComponent(BoardPage);
+    const gantt = board.getComponent({ name: 'GanttBoard' });
+    gantt.vm.$emit('select-task', 'task:a');
+    gantt.vm.$emit('toggle-member', 'staff:100');
+    const timeline = board.get<HTMLElement>('.gantt__timeline'); timeline.element.scrollLeft = 70;
+    await go('/hours');
+    await wrapper!.get('button[aria-label^="张三 2026-10-14 "]').trigger('click');
+    await wrapper!.get('select[aria-label="明细项目筛选"]').setValue('p');
+    const matrix = wrapper!.get<HTMLElement>('.matrix'); matrix.element.scrollLeft = 80;
+    await go('/settings');
+    await wrapper!.get('[aria-label="编辑项目 p 的名称"]').trigger('click');
+    await wrapper!.get('input[aria-label="项目 p 的名称"]').setValue(' 简称 ');
+    await wrapper!.get('.project-name-editor').trigger('submit'); await flushPromises();
+    expect(JSON.parse(saved).projects[0].name).toBe('简称');
+    await go('/board');
+    expect(wrapper!.get('.board__selected').text()).toContain('[简称] 保活任务');
+    expect(board.getComponent({ name: 'FilterPanel' }).props('projects')[0].name).toBe('简称');
+    expect(gantt.props('collapsedMemberKeys')).toEqual(['staff:100']);
+    expect(board.get<HTMLElement>('.gantt__timeline').element.scrollLeft).toBe(70);
+    gantt.vm.$emit('toggle-member', 'staff:100'); await flushPromises();
+    expect(board.get('.gantt__task-title').text()).toContain('[简称]');
+    await board.get('.gantt__bar').trigger('mouseenter', { clientX: 300, clientY: 300 });
+    expect(board.get('[role="tooltip"]').text()).toContain('简称');
+    expect(board.get('.board__selected a').attributes('href')).toBe(task.tapdUrl);
+    await go('/hours');
+    expect(wrapper!.get('aside article .meta').text()).toContain('简称');
+    expect(wrapper!.get('aside ul.error').text()).toContain('简称：记录缺失');
+    expect(wrapper!.get('details.notice').text()).toContain('简称：记录缺失');
+    expect(wrapper!.get<HTMLSelectElement>('select[aria-label="明细项目筛选"]').element.value).toBe('p');
+    expect(wrapper!.get<HTMLElement>('.matrix').element.scrollLeft).toBe(80);
+    expect(wrapper!.get('aside article a').attributes('href')).toBe(task.tapdUrl);
+    expect(mocks.schedule).toHaveBeenCalledTimes(1); expect(mocks.hours).toHaveBeenCalledTimes(1); expect(mocks.calculate).toHaveBeenCalledTimes(1);
+  });
   it('设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数', async () => {
     await useSettings().addMembers([{ staffId: '200', name: '李四' }]);
     let saved = JSON.stringify(useSettings().settings.value);

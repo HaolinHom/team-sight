@@ -1,9 +1,10 @@
 import type { ProjectConfig } from './schedule';
 import type { HoursSettings } from './hours';
 import { createHoursSettings, normalizeHoursSettings } from '@/hours/settings';
+import { createChinaCalendarSettings, normalizeChinaCalendar, type ChinaCalendarSettings } from '@/calendar/chinaCalendar';
 
 /** 配置 schema 版本，用于后续迁移判断。 */
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 
 /** 展示成员：工号是稳定标识，姓名为展示名。 */
 export interface MemberEntry {
@@ -16,6 +17,7 @@ export interface AppSettings {
   projects: ProjectConfig[];
   members: MemberEntry[];
   hours: HoursSettings;
+  chinaCalendar: ChinaCalendarSettings;
   updatedAt: string;
 }
 
@@ -44,6 +46,7 @@ export function createEmptySettings(now: Date = new Date()): AppSettings {
     projects: [],
     members: [],
     hours: createHoursSettings(),
+    chinaCalendar: createChinaCalendarSettings(),
     updatedAt: now.toISOString(),
   };
 }
@@ -128,6 +131,7 @@ export function normalizeSettings(
       projects,
       members,
       hours: normalizeHoursSettings(record.hours),
+      chinaCalendar: normalizeChinaCalendar(record.chinaCalendar),
       updatedAt: asString(record.updatedAt) || now.toISOString(),
     },
     warning,

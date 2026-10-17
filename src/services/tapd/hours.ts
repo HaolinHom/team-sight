@@ -104,13 +104,13 @@ export async function fetchHoursSnapshot(query: HoursQuery, transport: TapdTrans
       knownUsers.set(project.id, new Set(users.map(user => String(user.user))));
     } catch (error) {
       signal?.throwIfAborted();
-      issues.push({ projectId: project.id, affects: 'forecast', message: project.name + '：成员目录加载失败，无法确认任务归属：' + String(error) });
+      issues.push({ projectId: project.id, affects: 'forecast', message: '成员目录加载失败，无法确认任务归属：' + String(error) });
     } finally { directoryDone(); }
   });
 
   function collectTimesheets(result: PageResult, project: ProjectConfig, affects: HoursIssue['affects'], taskKey?: string): void {
     if (result.complete) successfulSources++;
-    else issues.push({ projectId: project.id, affects, taskKey, message: project.name + '：工时记录不完整：' + result.error });
+    else issues.push({ projectId: project.id, affects, taskKey, message: '工时记录不完整：' + result.error });
     for (const row of result.rows) {
       if (!['task', 'bug'].includes(String(row.entity_type)) || Number(row.is_delete) === 1) continue;
       const date = normalizeDateKey(row.spentdate);
@@ -119,13 +119,13 @@ export async function fetchHoursSnapshot(query: HoursQuery, transport: TapdTrans
       const id = row.id == null ? '' : String(row.id);
       const entityId = row.entity_id == null ? '' : String(row.entity_id);
       if (taskKey && [project.id, row.entity_type, entityId].join(':') !== taskKey) {
-        issues.push({ projectId: project.id, affects, taskKey, message: project.name + '：工时关联工作项筛选不匹配' });
+        issues.push({ projectId: project.id, affects, taskKey, message: '工时关联工作项筛选不匹配' });
         continue;
       }
       const staffId = parseAssignees(owner)[0]?.id;
       const invalidOwner = !staffId && !knownUsers.get(project.id)?.has(owner);
       if (!date || hours === null || !owner || !id || !entityId || invalidOwner) {
-        issues.push({ projectId: project.id, affects, taskKey, date: date ?? undefined, staffId: staffId ?? undefined, message: project.name + '：存在无法解析日期、工时或填报人的记录' });
+        issues.push({ projectId: project.id, affects, taskKey, date: date ?? undefined, staffId: staffId ?? undefined, message: '存在无法解析日期、工时或填报人的记录' });
         continue;
       }
       // 目录中无工号的账号无法被配置为展示成员；仍保留其花费以扣减任务总剩余量。
@@ -151,19 +151,19 @@ export async function fetchHoursSnapshot(query: HoursQuery, transport: TapdTrans
   await runWithConcurrency(jobs, 3, async ({ project, member, user, type }) => {
     const result = await pages(type === 'task' ? '/tasks' : '/bugs', { workspace_id: project.id, [type === 'task' ? 'owner' : 'current_owner']: user, fields: fieldsFor(type) }, type === 'task' ? 'Task' : 'Bug');
     if (result.complete) successfulSources++;
-    else issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: project.name + '：成员工作项不完整：' + result.error });
+    else issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: '成员工作项不完整：' + result.error });
     taskDone();
     for (const row of result.rows) {
       const task = mapRow(row, project, type);
       if (!task) {
-        issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: project.name + '：存在缺少 ID 的工作项' });
+        issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: '存在缺少 ID 的工作项' });
       } else if (task.assigneeIds.includes(member.staffId)) {
         tasks.set(hoursTaskKey(task), task);
         if (parseAssignees(type === 'task' ? row.owner : row.current_owner).some(owner => !owner.id)) {
-          issues.push({ projectId: project.id, affects: 'forecast', taskKey: hoursTaskKey(task), message: project.name + '：多人工作项存在无法识别工号的负责人，份额待确认' });
+          issues.push({ projectId: project.id, affects: 'forecast', taskKey: hoursTaskKey(task), message: '多人工作项存在无法识别工号的负责人，份额待确认' });
         }
       } else {
-        issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: project.name + '：工作项负责人筛选或身份解析不匹配' });
+        issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: '工作项负责人筛选或身份解析不匹配' });
       }
     }
   });

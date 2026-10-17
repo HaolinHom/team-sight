@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
+mod china_calendar;
 
 const TAPD_API_BASE: &str = "https://api.tapd.cn";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -259,6 +260,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             tapd_get,
+            china_calendar::china_calendar_get,
             credential_set,
             credential_status,
             credential_delete,

@@ -7,6 +7,8 @@ import FilterPanel from '@/components/board/FilterPanel.vue';
 import { useCredentials } from '@/composables/useCredentials';
 import { useSchedule } from '@/composables/useSchedule';
 import { useSettings } from '@/composables/useSettings';
+import { useChinaCalendar } from '@/composables/useChinaCalendar';
+import { calendarYearsForRanges } from '@/calendar/chinaCalendar';
 import {
   GANTT_FIXTURE_COLLAPSED_MEMBERS,
   GANTT_FIXTURE_PROJECTS,
@@ -40,6 +42,7 @@ const FIXTURE_PROJECTS =
 const SETTINGS_LINK_STATES = new Set(['no-credential', 'no-projects', 'no-members']);
 
 const store = useSettings();
+const calendar = useChinaCalendar();
 const schedule = useSchedule();
 const credentials = useCredentials();
 
@@ -59,6 +62,11 @@ const selectedTaskKey = ref<string | null>(null);
 const externalLinkError = ref('');
 
 const range = computed<DateRange>(() => filters.value.range);
+const calendarYears = computed(() => calendarYearsForRanges([range.value]));
+const calendarWarnings = computed(() => calendar.warningsFor(calendarYears.value.required));
+watch([ready, active, calendar.enabled, calendar.currentYear, () => calendarYears.value.sources.join(',')], () => {
+  if (ready.value && active.value && calendar.enabled.value) void calendar.ensure([calendar.currentYear.value, ...calendarYears.value.sources]);
+});
 
 /** 数据源：fixture 用固定验收数据，真实模式用阶段1 拉取结果。 */
 const dataMatchesRange = computed(() =>
@@ -218,6 +226,8 @@ const today = todayKey();
       </div>
     </header>
 
+    <p v-if="calendarWarnings.length" class="board__state" role="status">{{ calendarWarnings.join('；') }} <RouterLink to="/settings">前往设置查看日历状态</RouterLink></p>
+
     <p
       v-if="boardState.message && (schedule.loading.value || schedule.loadStatus.value !== 'failed')"
       class="board__state"
@@ -251,6 +261,7 @@ const today = todayKey();
       <GanttBoard
         :tasks="tasks"
         :range="range"
+        :calendar="calendar.days.value"
         :collapsed-member-keys="collapsedMemberKeys"
         :selected-task-key="selectedTaskKey"
         :today="today"

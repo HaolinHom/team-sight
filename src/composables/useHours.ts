@@ -2,7 +2,7 @@ import { createHoursCache } from '@/services/tapd/hoursCache';
 const hoursCache = createHoursCache();
 import { ref, shallowRef } from 'vue';
 import { fetchHoursSnapshot, type HoursQuery } from '@/services/tapd/hours';
-import type { HoursSnapshot } from '@/types/hours';
+import type { HoursIssue, HoursSnapshot } from '@/types/hours';
 
 export function hoursQueryKey(query: HoursQuery): string {
   return JSON.stringify({ projects: query.projects.filter(project => project.enabled).map(project => project.id).sort(), members: query.members.map(member => member.staffId).sort(), range: query.range, today: query.today, completedStates: query.settings.completedStates, credentialRevision: query.credentialRevision ?? 0 });
@@ -14,6 +14,7 @@ export function useHours() {
   const lastLoadedAt = ref('');
   const loading = ref(false);
   const error = ref('');
+  const failureIssues = shallowRef<HoursIssue[]>([]);
   const stale = ref(false);
   let requestId = 0;
   let controller: AbortController | undefined;
@@ -32,9 +33,11 @@ export function useHours() {
       const result = await fetchHoursSnapshot(query, undefined, { signal, cache: hoursCache, force, onProgress: value => { if (id === requestId) progress.value = value; } });
       if (id !== requestId) return;
       if (result.status === 'failed') {
+        failureIssues.value = result.issues;
         error.value = result.issues.map(issue => issue.message).join('；') || '全部工时数据源加载失败';
         stale.value = true;
       } else {
+        failureIssues.value = [];
         snapshot.value = result;
         loadedKey.value = key;
         lastLoadedAt.value = new Date(result.fetchedAt ?? Date.now()).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
@@ -43,6 +46,7 @@ export function useHours() {
       }
     } catch (failure) {
       if (id !== requestId) return;
+      failureIssues.value = [];
       error.value = failure instanceof Error ? failure.message : String(failure);
       stale.value = true;
     } finally {
@@ -56,6 +60,7 @@ export function useHours() {
     progress.value = null;
     loading.value = false;
     stale.value = true;
+    failureIssues.value = [];
   }
-  return { snapshot, loadedKey, lastLoadedAt, loading, error, stale, progress, refresh, invalidate };
+  return { snapshot, loadedKey, lastLoadedAt, loading, error, failureIssues, stale, progress, refresh, invalidate };
 }

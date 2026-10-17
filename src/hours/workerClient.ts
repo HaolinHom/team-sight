@@ -27,7 +27,7 @@ export function createHoursCalculator(factory = () => new Worker(new URL('./hour
         worker.onmessageerror = () => { pending = undefined; cancel(); reject(new Error('后台工时结果读取失败，请重试')); };
         const request: HoursWorkerRequest = {
           id,
-          input: JSON.parse(JSON.stringify({ members: input.members, settings: input.settings, range: input.range, today: input.today })),
+          input: JSON.parse(JSON.stringify({ members: input.members, settings: input.settings, range: input.range, today: input.today, calendar: input.calendar })),
           ...(snapshot !== input.snapshot ? { snapshot: toRaw(input.snapshot) } : {}),
         };
         worker.postMessage(request);
