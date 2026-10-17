@@ -1,4 +1,4 @@
-# Tauri 2 桌面能力：外部链接与后台命令
+# Tauri 2 桌面能力：外部链接、后台命令与内部拖拽
 
 > 验证时间：2026-10-10｜验证方式：桌面端实测（修复「点击打开 TAPD 无反应」缺陷）＋ 插件源码与构建产物核对
 
@@ -41,3 +41,15 @@
 - 工时纯 TypeScript 计算放入 module Web Worker；现有 Tauri 传输函数依赖 window，不能未经适配直接在 Worker 调用。Worker 生命周期及结果保护见 [前端可靠性知识](frontend-reliability-notes.md)。
 
 证据：src-tauri/src/lib.rs、src/services/tapd/client.ts、src/services/tapd/requestQueue.ts；artifacts/report/20261014_1355_hours-performance_诊断报告.md、artifacts/report/20261014_1400_hours-performance_测试报告.md。原验证包含 241 项前端用例、4 项 Rust 用例、生产 Worker 与真实 TAPD 缓存核对；未测量桌面精确输入延迟。
+
+## 内部拖拽排序与实际输入验证
+
+> 验证及授权提升日期：2026-10-16；实测平台：macOS Tauri 生产包。
+
+- 本项目设置页原 HTML5 drag/drop 排序通过模拟事件测试，但桌面实际拖动未能可靠提交。不能由此推断所有 Tauri 平台均不支持 HTML5 拖放，也未将特定原生拦截机制确认为本次唯一根因。
+- 当前内部排序使用 Pointer Events 与 `setPointerCapture`，不依赖系统原生拖放流程；手柄禁用原生拖动与文本选择，`touch-action: none`。macOS 最终生产包实测向前、向后、跨多行移动与重启后的顺序持久化均成功，无需修改 Tauri 窗口拖放配置。
+- 捕获期间事件 currentTarget 仍是源手柄，目标应按 `document.elementFromPoint(clientX, clientY)` 找到同一列表的成员行，以行中点判断 before／after；pointerup 时重新命中，避免沿用过时提示。
+- 用 pointerId 隔离拖动，设置最小移动距离避免点击误提交；pointercancel、lostpointercapture、Escape 及卸载时清理。释放捕获前先清空内部状态，防止释放引起的取消事件干扰已确定的提交。
+- 真实验收应从本次构建的绝对 `.app` 路径启动，避免误测旧安装包；检查顺序更新及重启持久化，并恢复测试前的用户配置。
+
+证据：src/pages/SettingsPage.vue、src/pages/SettingsPage.spec.ts；artifacts/report/20261016_1553_member-drag-fix_测试报告.md、artifacts/report/20261016_1553_member-drag-fix.log。Windows、Linux、触摸屏及触控笔未实测；取消事件和写入失败由组件测试覆盖。

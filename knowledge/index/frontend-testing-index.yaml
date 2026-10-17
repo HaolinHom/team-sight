@@ -7,13 +7,13 @@ items:
   - id: frontend-testing-notes
     title: "Vue 3 + Vitest 组件测试接入"
     path: "knowledge/frontend-testing-notes.md"
-    summary: "按文件启用 jsdom（// @vitest-environment jsdom）；挂载页面的 RouterLink stub、Tauri 运行时补丁、await flushPromises；vi.mock 命令层与 importOriginal 部分替换；模块作用域读 import.meta.env 时需先 stubEnv 再动态 import；事件上抛型组件要 setProps 模拟父级更新；保活测试使用真实memory Router，共享模块状态的组件必须卸载以清理watch。"
-    tags: ["frontend", "testing", "vitest", "vue"]
+    summary: "按文件启用 jsdom；RouterLink stub、Tauri 运行时补丁、flushPromises；部分模块 mock、stubEnv 后动态 import、事件上抛后 setProps；保活用真实 memory Router 并卸载清理 watch；VTU 2.5.1 指针继承属性只读错误用 MouseEvent 加 pointerId 派发适配，捕获与坐标单独 mock，桌面拖拽需生产包实测。"
+    tags: ["frontend", "testing", "vitest", "vue", "pointer", "drag"]
     verifiedAt: "2026-10-16"
 
   - id: frontend-reliability-notes
     title: "前端异步数据与配置一致性"
     path: "knowledge/frontend-reliability-notes.md"
-    summary: "刷新仅允许最新请求提交，记录数据时间范围并标注旧数据；聚合区分complete/partial/failed，分页触顶保留任务并产生warnings；配置串行保存、成功后提交状态、失败提示且不阻断后续写入；原生checkbox/color事件需恢复已确认值；Worker快照复用与响应式结果校验、错误保真；完整响应缓存保留原始时间；KeepAlive停用门控配置加载，后台工作继续，激活恢复视口，卸载释放资源。"
-    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing", "worker", "cache", "keepalive"]
+    summary: "最新请求提交与旧数据范围标注；聚合完整性与分页警告；配置串行保存、成功后提交、失败可重试，原生控件恢复确认值；Worker快照和错误保真、完整缓存保留原时间；KeepAlive门控加载及资源清理；members数组统一展示顺序，工号移动，memberOrder控制看板，工时保留输入顺序，排序不改变查询身份、复用快照重算。"
+    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing", "worker", "cache", "keepalive", "member-order"]
     verifiedAt: "2026-10-16"

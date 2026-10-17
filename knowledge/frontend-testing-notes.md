@@ -58,3 +58,14 @@ vi.mock('@/services/tapd/client', async (importOriginal) => ({
 - 组件测试若共享模块状态，必须在用例结束时卸载页面。遗留 watch 会响应后续用例的状态变化，消耗单次 mock 响应，导致用例互相干扰。
 
 证据：src/app/App.spec.ts、src/pages/BoardPage.spec.ts；artifacts/report/20261014_1442_route-keepalive_测试报告.md。
+
+## 指针事件测试与桌面验收
+
+> 验证及授权提升日期：2026-10-16；版本边界：本项目当前 jsdom 与 Vue Test Utils 2.5.1 组合。
+
+- `trigger('pointerdown', { button: 0, clientX, clientY })` 在该组合中尝试赋值 PointerEvent 从 MouseEvent 继承的只读属性，报 `Cannot set property button ... which has only a getter`。可构造 `new MouseEvent(type, { bubbles: true, cancelable: true, ...init })`，通过 `Object.defineProperty(event, 'pointerId', { value })` 补充指针身份，再 `dispatchEvent` 并 `await nextTick()`。这是测试环境适配，不替代真实指针事件验收。
+- 组件测试单独 mock `setPointerCapture`、`hasPointerCapture`、`releasePointerCapture`、`document.elementFromPoint` 与目标行边界；命中测试补丁用后恢复，组件结束时卸载。
+- 排序测试覆盖目标前／后插入提示、释放时重新命中、取消、其他 pointerId 不提交、轻微移动／自身／列表外释放不保存，以及保存失败后重试。
+- HTML5 drag/drop 的模拟事件测试通过，不代表 Tauri WebView 实际拖动可用。桌面交互改动需用最终生产包实际拖动并核对保存与重启持久化，平台范围见 [桌面知识](tauri-desktop-notes.md)。
+
+证据：src/pages/SettingsPage.spec.ts；artifacts/report/20261016_1553_member-drag-fix_测试报告.md、artifacts/report/20261016_1553_member-drag-fix.log。原 HTML5 方案模拟测试通过却未发现桌面无法提交；最终指针实现的 321 项回归与 macOS 桌面验收通过。

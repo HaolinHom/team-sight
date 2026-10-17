@@ -40,3 +40,15 @@ src/composables/useSchedule.spec.ts、src/composables/useSettings.spec.ts、src/
 - 激活后 nextTick 恢复滚动并重新测量工时虚拟矩阵；停用断开 ResizeObserver，真正卸载才取消请求、终止 Worker，并清理定时器与监听器。
 
 证据：src/app/App.vue、src/pages/BoardPage.vue、src/pages/HoursPage.vue；src/app/App.spec.ts 使用真实 memory Router 的回归，以及 src/pages/BoardPage.spec.ts；artifacts/report/20261014_1442_route-keepalive_测试报告.md 包含前端测试、构建与 macOS 桌面切页验收。
+
+## 成员展示顺序与查询身份
+
+> 验证及授权提升日期：2026-10-16。
+
+- `AppSettings.members` 数组顺序统一决定设置、看板与工时的成员展示顺序，无单独排序字段或配置迁移；新增成员追加到末尾。
+- `useSettings.moveMember(staffId, targetStaffId, placement)` 以工号指定 before／after 相对位置，在现有 persist 串行队列内计算，保存成功才提交共享状态。无效成员、自身或位置不变不写入。
+- 真实看板页面传入 `memberOrder` 成员键列表到 GanttBoard 和布局层；未传时保留姓名排序，未指定位置的成员排在已指定成员之后，未分配成员仍在最后。不新增无任务成员组，组内任务排序及多负责人归属保持原逻辑。
+- 工时 `calculateHours` 保留输入 members 顺序，筛选与虚拟矩阵沿用结果顺序，不按不足天数重排。
+- 看板 `sourceKey` 不含成员顺序；工时 `hoursQueryKey` 将成员工号排序后生成查询键。展示顺序与数据查询身份分开，因此仅调序不重新请求 TAPD。工时 `calculationKey` 包含原顺序 members，返回保活页面后复用已有 Worker 快照重算。
+
+证据：src/composables/useSettings.ts、src/gantt/layout.ts、src/hours/statistics.ts、src/pages/BoardPage.vue、src/pages/HoursPage.vue、src/composables/useHours.ts、src/app/App.spec.ts；artifacts/report/20261016_1530_member-order_测试报告.md（317 项前端测试及生产构建），artifacts/report/20261016_1553_member-drag-fix_测试报告.md（后续 321 项回归及 macOS 拖拽持久化验收）。跨页无新增请求与状态保留由 memory Router 集成测试验证，未对桌面 TAPD 请求单独抓包。
