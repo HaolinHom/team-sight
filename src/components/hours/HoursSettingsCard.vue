@@ -30,12 +30,12 @@ function setStates(index: number, event: Event): void {
 <template>
   <section class="hours-settings" aria-labelledby="hours-settings-title">
     <h2 id="hours-settings-title">工时统计</h2>
+    <label class="required-hours">每日规定工时
+      <input v-model.number="draft.dailyRequiredHours" :disabled="busy" type="number" min="0" step="any" aria-label="每日规定工时" /> 小时
+    </label>
     <p>默认周一至周五为工作日，统计日界为北京时间。当前规定工时：{{ store.settings.value.hours?.dailyRequiredHours ?? 8 }} 小时。</p>
     <ChinaCalendarSettings />
     <fieldset :disabled="busy">
-      <label class="required-hours">每日规定工时
-        <input v-model.number="draft.dailyRequiredHours" type="number" min="0" step="any" aria-label="每日规定工时" /> 小时
-      </label>
       <h3>成员整日请假豁免</h3>
       <div v-for="(item, index) in draft.exemptions" :key="index" class="config-row">
         <select v-model="item.staffId" aria-label="豁免成员"><option value="">选择成员</option><option v-for="member in store.settings.value.members" :key="member.staffId" :value="member.staffId">{{ member.name }}</option></select>
@@ -63,6 +63,7 @@ function setStates(index: number, event: Event): void {
 .hours-settings { padding: 12px 14px; border: 1px solid var(--ts-color-border); border-radius: var(--ts-radius); background: var(--ts-color-surface); }
 h2 { margin: 0 0 8px; font-size: 14px; }
 h3 { margin: 18px 0 8px; font-size: 13px; }
+fieldset > h3:first-child { margin-top: 0; }
 p { color: var(--ts-color-text-muted); margin: 6px 0 10px; font-size: 12px; }
 fieldset { border: 0; margin: 0; padding: 0; }
 .required-hours, .config-row, .save-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
