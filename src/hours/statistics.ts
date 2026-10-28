@@ -54,7 +54,7 @@ export function calculateHours(input: {
       owned.push(task); tasksByMember.set(id, owned);
     }
   }
-  const exemptions = new Set(settings.exemptions.map(item => item.staffId + ':' + item.date));
+  const exemptions = new Map(settings.exemptions.map(item => [item.staffId + ':' + item.date, item.hours]));
   const weekdays = new Map<string, boolean>();
   return members.map(member => {
     const dayMap = new Map<string, DailyHours>();
@@ -70,7 +70,7 @@ export function calculateHours(input: {
     const targetFor = (date: string): number => {
       let target = targetCache.get(date);
       if (target === undefined) {
-        target = workingFor(date) && !exemptions.has(member.staffId + ':' + date) ? settings.dailyRequiredHours : 0;
+        target = workingFor(date) ? Math.max(settings.dailyRequiredHours - (exemptions.get(member.staffId + ':' + date) ?? 0), 0) : 0;
         targetCache.set(date, target);
       }
       return target;
@@ -78,7 +78,7 @@ export function calculateHours(input: {
     function getDay(date: string): DailyHours {
       let day = dayMap.get(date);
       if (!day) {
-        day = { date, actual: 0, allocated: 0, total: 0, target: targetFor(date), deficit: 0, basis: date < today ? 'actual' : 'forecast', state: 'enough', contributions: [], reasons: [] };
+        day = { date, leaveHours: exemptions.get(member.staffId + ':' + date) ?? 0, actual: 0, allocated: 0, total: 0, target: targetFor(date), deficit: 0, basis: date < today ? 'actual' : 'forecast', state: 'enough', contributions: [], reasons: [] };
         dayMap.set(date, day);
       }
       return day;

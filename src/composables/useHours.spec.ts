@@ -36,7 +36,7 @@ describe('工时加载一致性',()=>{
   expect(mocks.fetch.mock.calls[0][0].range.end).toBe('2026-10-14');expect(store.snapshot.value).toBeNull();
  });
  it('修改目标或日历无需重取数据，修改终态需要重取累计',()=>{
-  expect(hoursQueryKey({...query,settings:{...query.settings,dailyRequiredHours:7.5,exemptions:[{staffId:'1',date:'2026-10-14',note:''}]}})).toBe(hoursQueryKey(query));
+  expect(hoursQueryKey({...query,settings:{...query.settings,dailyRequiredHours:7.5,exemptions:[{staffId:'1',date:'2026-10-14',hours:8,note:''}]}})).toBe(hoursQueryKey(query));
   expect(hoursQueryKey({...query,settings:{...query.settings,completedStates:[{projectId:'p',type:'task',values:['已验收']}]}})).not.toBe(hoursQueryKey(query));
  });
 });

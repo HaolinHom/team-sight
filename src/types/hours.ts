@@ -1,9 +1,16 @@
 import type { ScheduleTask, WorkItemType } from './schedule';
 import type { MemberEntry } from './settings';
 
+export interface LeaveExemption {
+  staffId: string;
+  date: string;
+  hours: number;
+  note: string;
+}
+
 export interface HoursSettings {
   dailyRequiredHours: number;
-  exemptions: Array<{ staffId: string; date: string; note: string }>;
+  exemptions: LeaveExemption[];
   completedStates: Array<{ projectId: string; type: WorkItemType; values: string[] }>;
 }
 
@@ -46,6 +53,7 @@ export interface DailyContribution {
 
 export interface DailyHours {
   date: string;
+  leaveHours: number;
   actual: number;
   allocated: number;
   total: number;

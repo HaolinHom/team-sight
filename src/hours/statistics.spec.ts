@@ -16,6 +16,28 @@ function calculate(tasks:ScheduleTask[], records:TimesheetRecord[] = [], extra: 
 const example = [task('A','2026-10-12','2026-10-12','4'),task('B','2026-10-12','2026-10-12','2'),task('C','2026-10-12','2026-10-13','6'),task('D','2026-10-13','2026-10-13','2'),task('E','2026-10-13','2026-10-14','4'),task('F','2026-10-14','2026-10-14','6')];
 
 describe('每日实际与预计工时',()=>{
+ it('半日请假扣减目标及跨日分配容量，实际填报保留',()=>{
+  const settings={...createHoursSettings(),exemptions:[{staffId:'100',date:'2026-10-12',hours:4,note:''}]};
+  const row=calculate([task('span','2026-10-12','2026-10-13','10')],[record('spent','span','100','2026-10-12',2)],{settings})[0];
+  expect(row.days[0]).toMatchObject({leaveHours:4,target:4,actual:2,allocated:2,total:4,state:'enough'});
+  expect(row.days[1]).toMatchObject({leaveHours:0,target:8,allocated:6});
+ });
+ it.each([8,10])('请假%s小时目标为0，保留实际且不分配工作',hours=>{
+  const settings={...createHoursSettings(),exemptions:[{staffId:'100',date:'2026-10-12',hours,note:''}]};
+  const row=calculate([task('span','2026-10-12','2026-10-13','10')],[record('spent','span','100','2026-10-12',2)],{settings})[0];
+  expect(row.days[0]).toMatchObject({leaveHours:hours,target:0,actual:2,allocated:0,total:2,state:'exempt'});
+  expect(row.days[1].allocated).toBe(8);
+ });
+ it('半日请假保留单日任务超额及历史不足判断',()=>{
+  const settings={...createHoursSettings(),exemptions:[{staffId:'100',date:'2026-10-12',hours:4,note:''}]};
+  expect(calculate([task('fixed','2026-10-12','2026-10-12','6')],[],{settings})[0].days[0]).toMatchObject({target:4,allocated:6,state:'over'});
+  expect(calculate([],[record('spent','x','100','2026-10-12',3)],{settings,today:'2026-10-13'})[0].days[0]).toMatchObject({target:4,actual:3,allocated:0,deficit:1,state:'short'});
+ });
+ it('休息日部分请假仍排除末尾加班分配',()=>{
+  const settings={...createHoursSettings(),exemptions:[{staffId:'100',date:'2026-10-18',hours:4,note:''}]};
+  const row=calculate([task('overtime','2026-10-16','2026-10-18','12')],[],{settings,today:'2026-10-16',range:{start:'2026-10-16',end:'2026-10-18'}})[0];
+  expect(row.days.map(day=>day.allocated)).toEqual([8,4,0]);expect(row.days[2]).toMatchObject({leaveHours:4,target:0,state:'exempt'});
+ });
  it('相同问题按项目区分，同一项目重复问题去重并保留项目ID',()=>{
   const issues=[{projectId:'p',affects:'both' as const,message:'记录缺失'},{projectId:'q',affects:'both' as const,message:'记录缺失'},{projectId:'p',affects:'both' as const,message:'记录缺失'}];
   const row=calculate([],[],{snapshot:{tasks:[],records:[],status:'partial',issues}})[0];
@@ -98,7 +120,7 @@ describe('日历与完整性',()=>{
   expect(calculate([task('X','2026-10-12','2026-10-13','12')],[],{settings})[0].days.slice(0,2).map(day=>day.total)).toEqual([7.5,4.5]);
  });
  it('周末不安排，调休可安排，豁免仍保留实际',()=>{
-  const settings=createHoursSettings();settings.exemptions=[{staffId:'100',date:'2026-10-12',note:'请假'}];
+  const settings=createHoursSettings();settings.exemptions=[{staffId:'100',date:'2026-10-12',hours:8,note:'请假'}];
   const row=calculate([task('X','2026-10-10','2026-10-12','8')],[record('actual','X','100','2026-10-12',2)],{today:'2026-10-10',range:{start:'2026-10-10',end:'2026-10-12'},settings,calendar:{'2026-10-10':{working:true,name:'调休'}}})[0];
   expect(row.days.map(day=>day.allocated)).toEqual([8,0,0]);expect(row.days[2].state).toBe('exempt');
   expect(calculate([], [record('actual','X','100','2026-10-12',2)],{settings})[0].days[0].actual).toBe(2);
@@ -158,7 +180,7 @@ describe('休息日完整性范围', () => {
   expect(row.days[0].state).toBe('unknown'); expect(row.days[1].reasons).toEqual([]);
  });
  it('成员豁免日排除预测异常，有效实际仍保留', () => {
-  const settings = createHoursSettings(); settings.exemptions=[{ staffId:'100', date:'2026-10-12', note:'请假' }];
+  const settings = createHoursSettings(); settings.exemptions=[{ staffId:'100', date:'2026-10-12', hours:8,note:'请假' }];
   const row = calculate([task('missing',null,null,undefined)], [record('r','X','100','2026-10-12',2)], { settings })[0];
   expect(row.days[0]).toMatchObject({ state:'exempt', actual:2, allocated:0, reasons:[] });
  });
@@ -205,7 +227,7 @@ describe('非工作日按需加班',()=>{
   expect(row.days[1]).toMatchObject({actual:5,allocated:10,total:15,target:0,state:'exempt'});
  });
  it('节假日可加班，个人请假不安排，调休工作日按目标判断',()=>{
-  const settings=createHoursSettings();settings.exemptions=[{date:'2026-10-25',staffId:'100',note:'请假'}];
+  const settings=createHoursSettings();settings.exemptions=[{date:'2026-10-25',staffId:'100',hours:8,note:'请假'}];
   const row=calculate([task('holiday','2026-10-23','2026-10-23','2'),task('working','2026-10-24','2026-10-24','10'),task('leave','2026-10-25','2026-10-25','4')],[],{today:'2026-10-23',range,settings,calendar:{'2026-10-23':{working:false,name:'节假日'},'2026-10-24':{working:true,name:'调休'}}})[0];
   expect(row.days[0]).toMatchObject({allocated:2,state:'exempt'});expect(row.days[1]).toMatchObject({allocated:10,state:'over'});expect(row.days[2].allocated).toBe(0);expect(row.pending).toHaveLength(1);
  });

@@ -34,6 +34,21 @@ async function start(path = '/board', realSettings = false) {
   return async (path: string) => { await router.push(path); await flushPromises(); await flushPromises(); };
 }
 describe('路由保活', () => {
+  it('日历草稿统一保存后更新保活工时，复用快照重算且不重新查询', async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function(this: HTMLDialogElement) { this.open = false; } });
+    const go=await start('/hours',true);await go('/settings');
+    const calculations=mocks.calculate.mock.calls.length;
+    await wrapper!.get('[data-date="2026-10-14"]').trigger('click');
+    await wrapper!.findAll('button').find(button=>button.text()==='添加成员')!.trigger('click');
+    await wrapper!.get('[aria-label="请假工时 1"]').setValue('4');await wrapper!.get('dialog form').trigger('submit');
+    expect(useSettings().settings.value.hours.exemptions).toEqual([]);
+    await wrapper!.findAll('button').find(button=>button.text()==='保存工时配置')!.trigger('click');await flushPromises();
+    expect(mocks.calculate).toHaveBeenCalledTimes(calculations);await go('/hours');
+    expect(wrapper!.get('button[aria-label^="张三 2026-10-14 "]').text()).toContain('请假 4h · 目标 4h');
+    expect(mocks.calculate).toHaveBeenCalledTimes(calculations+1);expect(mocks.hours).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
   it('日历开关更新保活看板与工时，复用快照不重新查询TAPD', async () => {
     const go = await start('/board');
     await go('/hours'); await go('/settings');

@@ -26,6 +26,15 @@ beforeEach(()=>{
 afterEach(()=>{vi.useRealTimers();vi.unstubAllEnvs();delete (window as unknown as Record<string,unknown>).__TAURI_INTERNALS__;});
 const mountPage=async()=>{await useSettings().load(true);const wrapper=mount(HoursPage,{global:{stubs:{RouterLink:{template:'<a><slot /></a>'}}}});await flushPromises();await flushPromises();return wrapper;};
 describe('每日工时页面',()=>{
+ it('请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD',async()=>{
+  const wrapper=await mountPage();const store=useSettings();
+  await store.updateHours({...store.settings.value.hours,exemptions:[{staffId:'100',date:'2026-10-13',hours:4,note:''},{staffId:'100',date:'2026-10-14',hours:8,note:''},{staffId:'100',date:'2026-10-15',hours:4,note:''}]});await flushPromises();
+  const past=wrapper.get('button[aria-label^="张三 2026-10-13 "]');expect(past.text()).toContain('请假 4h · 目标 4h');expect(past.attributes('data-state')).toBe('enough');
+  const full=wrapper.get('button[aria-label^="张三 2026-10-14 "]');expect(full.text()).toContain('请假豁免');expect(full.text()).not.toContain('非工作日');expect(full.classes()).toContain('tone-nonworking');expect(wrapper.get('.legend').text()).toContain('灰色：非工作日／请假豁免');
+  await full.trigger('click');expect(wrapper.get('aside').text()).toContain('请假 8h · 当日目标 0h');expect(wrapper.get('aside').text()).toContain('请假已抵扣');
+  const half=wrapper.get('button[aria-label^="张三 2026-10-15 "]');expect(half.text()).toContain('缺 4h');expect(half.text()).toContain('请假 4h · 目标 4h');
+  expect(mocks.fetch).toHaveBeenCalledTimes(1);wrapper.unmount();
+ });
  it('待安排任务使用最新配置名称，不读取旧快照名称，未知项目回退ID',async()=>{
   mocks.fetch.mockResolvedValue({...snapshot,tasks:[{...task('pending','100','8'),startDate:null,dueDate:null},{...task('unknown','100','8'),projectId:'missing',startDate:null,dueDate:null}]});
   const wrapper=await mountPage();await wrapper.get('.pending-button').trigger('click');

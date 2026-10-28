@@ -5,7 +5,7 @@ import { validateRange } from '@/gantt/filters';
 import { useHours, hoursQueryKey } from '@/composables/useHours';
 import { useSettings } from '@/composables/useSettings';
 import { useChinaCalendar } from '@/composables/useChinaCalendar';
-import { calendarYearsForRanges, calendarTaskRanges } from '@/calendar/chinaCalendar';
+import { calendarYearsForRanges, calendarTaskRanges, isWorkingDay } from '@/calendar/chinaCalendar';
 import { useCredentials } from '@/composables/useCredentials';
 import { createHoursSettings, shanghaiToday, isHoursCompleted } from '@/hours/settings';
 import { formatHours, hoursTaskKey } from '@/hours/statistics';
@@ -143,12 +143,15 @@ function daySummary(day: DailyHours): string {
   return day.state === 'exempt' && day.total === 0 ? stateLabel(day) : (day.basis === 'actual' ? '实际 ' : '预计 ') + formatHours(day.total) + 'h';
 }
 function stateLabel(day: DailyHours): string {
-  if (day.state === 'exempt') return '非工作日';
+  if (day.state === 'exempt') return isLeaveExempt(day) ? '请假豁免' : '非工作日';
   if (day.state === 'unknown') return '待确认';
   if (day.state === 'short') return '缺 ' + formatHours(day.deficit) + 'h';
   if (day.basis === 'forecast' && day.actual >= day.target) return '实际已达标';
   if (day.state === 'over') return '排期超额 +' + formatHours(day.total - day.target) + 'h';
   return day.basis === 'actual' ? '达标' : '预计充足';
+}
+function isLeaveExempt(day: DailyHours): boolean {
+  return day.target === 0 && day.leaveHours > 0 && isWorkingDay(day.date, calendar.days.value);
 }
 function dayName(date: string): string {
   return dateNames.value.get(date) ?? '';
@@ -252,7 +255,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
             <tr v-if="windowBounds.top" aria-hidden="true"><td class="spacer" :colspan="spacerColumns" :style="{ height: windowBounds.top + 'px' }"></td></tr>
             <tr v-for="(row, rowIndex) in renderedRows" :key="row.member.staffId" class="data-row" :aria-rowindex="windowBounds.rowStart + rowIndex + 2" :style="windowBounds.virtual ? { height: MATRIX_ROW_HEIGHT + 'px' } : undefined">
               <th class="member-column"><strong>{{ row.member.name }}</strong><span>历史不足 {{ row.historicalShortDays }} 天<br />预计不足 {{ row.forecastShortDays }} 天</span><button v-if="row.pending.length" type="button" class="pending-button" @click="select(row.member.staffId, '', $event)">逾期待安排 {{ row.pending.filter(item => item.overdue).length }} 项<br />待确认／待安排 {{ row.pending.filter(item => !item.overdue).length }} 项<br />已知剩余 {{ pendingSummaries.get(row.member.staffId)?.remaining }}h</button></th>
-              <td v-if="windowBounds.left" class="spacer" aria-hidden="true" :style="{ width: windowBounds.left + 'px' }"></td><td v-for="day in row.days.slice(windowBounds.columnStart, windowBounds.columnEnd)" :key="day.date"><button type="button" class="day-cell" :class="['tone-' + cellTone(day), { selected: selectedStaff === row.member.staffId && selectedDate === day.date }]" :data-state="day.state" :aria-label="row.member.name + ' ' + day.date + ' ' + daySummary(day) + (day.state === 'exempt' && day.total === 0 ? '' : ' ' + stateLabel(day)) + (day.reasons.length ? ' 当日数据待确认 ' + day.reasons.length + '个原因' : '')" @click="select(row.member.staffId, day.date, $event)"><strong>{{ daySummary(day) }}</strong><span v-if="day.state !== 'exempt' || day.total > 0">{{ stateLabel(day) }}</span><small v-if="day.reasons.length" class="data-warning">当日数据待确认 · {{ day.reasons.length }}个原因</small><small v-if="day.date === today && (day.state !== 'exempt' || day.total > 0)">已填报 {{ formatHours(day.actual) }}h</small></button></td>
+              <td v-if="windowBounds.left" class="spacer" aria-hidden="true" :style="{ width: windowBounds.left + 'px' }"></td><td v-for="day in row.days.slice(windowBounds.columnStart, windowBounds.columnEnd)" :key="day.date"><button type="button" class="day-cell" :class="['tone-' + cellTone(day), { selected: selectedStaff === row.member.staffId && selectedDate === day.date }]" :data-state="day.state" :aria-label="row.member.name + ' ' + day.date + ' ' + daySummary(day) + (day.state === 'exempt' && day.total === 0 ? '' : ' ' + stateLabel(day)) + (day.leaveHours > 0 ? ' 请假 ' + formatHours(day.leaveHours) + 'h 目标 ' + formatHours(day.target) + 'h' : '') + (day.reasons.length ? ' 当日数据待确认 ' + day.reasons.length + '个原因' : '')" @click="select(row.member.staffId, day.date, $event)"><strong>{{ daySummary(day) }}</strong><span v-if="day.state !== 'exempt' || day.total > 0">{{ stateLabel(day) }}</span><small v-if="day.leaveHours > 0">请假 {{ formatHours(day.leaveHours) }}h · 目标 {{ formatHours(day.target) }}h</small><small v-if="day.reasons.length" class="data-warning">当日数据待确认 · {{ day.reasons.length }}个原因</small><small v-if="day.date === today && (day.state !== 'exempt' || day.total > 0)">已填报 {{ formatHours(day.actual) }}h</small></button></td>
               <td v-if="windowBounds.right" class="spacer" aria-hidden="true" :style="{ width: windowBounds.right + 'px' }"></td>
             </tr>
             <tr v-if="windowBounds.bottom" aria-hidden="true"><td class="spacer" :colspan="spacerColumns" :style="{ height: windowBounds.bottom + 'px' }"></td></tr>
@@ -262,7 +265,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
       </section>
       <aside v-if="selectedRow" ref="detailsElement" class="details" tabindex="-1" aria-label="工时明细">
         <header><h2>{{ selectedRow.member.name }} · {{ selectedDate || '待安排任务' }}</h2><button type="button" aria-label="关闭工时明细" @click="closeDetails">关闭</button></header>
-        <template v-if="selectedDay"><p class="detail-total">{{ daySummary(selectedDay) }}{{ selectedDay.state === 'exempt' && selectedDay.total === 0 ? '' : ' · ' + stateLabel(selectedDay) }}</p><p v-if="selectedDay.state === 'exempt'">非工作日不受每日规定工时约束，不判断不足或超额。<br />实际 {{ formatHours(selectedDay.actual) }}h ＋ 加班分配 {{ formatHours(selectedDay.allocated) }}h</p><p v-else>实际 {{ formatHours(selectedDay.actual) }}h ＋ 剩余分配 {{ formatHours(selectedDay.allocated) }}h<br />当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.basis === 'forecast' && selectedDay.state !== 'exempt'" class="notice">当前预计值由已填报工时与可计算的剩余排期组成，不代表实际已达标。</p><p v-if="selectedDay.reasons.length" class="notice">当日数据待确认 · {{ selectedDay.reasons.length }}个原因。{{ selectedDay.state === 'exempt' ? '仅影响工时数据完整性，非工作日不判断不足或超额。' : selectedDay.actual >= selectedDay.target && selectedDay.target > 0 ? '已记录的实际工时已达到目标。' : selectedDay.total >= selectedDay.target && selectedDay.target > 0 ? '当前已知工时达到目标，预计分配仍可能随数据补全调整。' : '当前已知工时未达到目标，数据补全前不能确定不足。' }}</p><ul v-if="selectedDay.reasons.length" class="error"><li v-for="reason in selectedDay.reasons" :key="JSON.stringify(reason)">{{ formatReason(reason) }}</li></ul></template>
+        <template v-if="selectedDay"><p class="detail-total">{{ daySummary(selectedDay) }}{{ selectedDay.state === 'exempt' && selectedDay.total === 0 ? '' : ' · ' + stateLabel(selectedDay) }}</p><p v-if="selectedDay.leaveHours > 0">请假 {{ formatHours(selectedDay.leaveHours) }}h · 当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.state === 'exempt'">{{ isLeaveExempt(selectedDay) ? '请假已抵扣当日规定工时，不判断不足或超额。' : '非工作日不受每日规定工时约束，不判断不足或超额。' }}<br />实际 {{ formatHours(selectedDay.actual) }}h ＋ {{ isLeaveExempt(selectedDay) ? '剩余分配' : '加班分配' }} {{ formatHours(selectedDay.allocated) }}h</p><p v-else>实际 {{ formatHours(selectedDay.actual) }}h ＋ 剩余分配 {{ formatHours(selectedDay.allocated) }}h<br />当日目标 {{ formatHours(selectedDay.target) }}h</p><p v-if="selectedDay.basis === 'forecast' && selectedDay.state !== 'exempt'" class="notice">当前预计值由已填报工时与可计算的剩余排期组成，不代表实际已达标。</p><p v-if="selectedDay.reasons.length" class="notice">当日数据待确认 · {{ selectedDay.reasons.length }}个原因。{{ selectedDay.state === 'exempt' ? (isLeaveExempt(selectedDay) ? '仅影响工时数据完整性，请假豁免日不判断不足或超额。' : '仅影响工时数据完整性，非工作日不判断不足或超额。') : selectedDay.actual >= selectedDay.target && selectedDay.target > 0 ? '已记录的实际工时已达到目标。' : selectedDay.total >= selectedDay.target && selectedDay.target > 0 ? '当前已知工时达到目标，预计分配仍可能随数据补全调整。' : '当前已知工时未达到目标，数据补全前不能确定不足。' }}</p><ul v-if="selectedDay.reasons.length" class="error"><li v-for="reason in selectedDay.reasons" :key="JSON.stringify(reason)">{{ formatReason(reason) }}</li></ul></template>
         <label>明细项目 <select v-model="detailProject" aria-label="明细项目筛选"><option value="">全部项目</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
         <p class="meta">项目筛选仅影响明细，全天汇总保持不变。</p>
         <template v-if="selectedDay"><article v-for="item in contributions.slice(0, detailLimit)" :key="item.taskKey"><span class="meta">{{ projectName(item.projectId) }} · {{ taskMap.get(item.taskKey)?.status || '历史填报' }}</span><h3>{{ contributionTitle(item.taskKey) }}</h3><p>实际 {{ formatHours(item.actual) }}h · 当天分配 {{ formatHours(item.allocated) }}h</p><p class="meta">{{ item.explanation }}</p><a :href="contributionUrl(item.taskKey)" @click.prevent="openLink(contributionUrl(item.taskKey))">打开 TAPD</a></article><p v-if="!contributions.length" class="meta">当天没有对应项目的有效工时贡献。</p></template>
@@ -271,7 +274,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('focus', up
         <p v-if="linkError" role="alert" class="error">{{ linkError }}</p>
       </aside>
     </div>
-    <p class="legend">绿色：达到目标；红色：历史不足；橙色：今天／未来预计不足；灰色：非工作日。数据待确认单独提示。工时按已配置成员展示，多人任务按全部负责人份额计算。</p>
+    <p class="legend">绿色：达到目标；红色：历史不足；橙色：今天／未来预计不足；灰色：非工作日／请假豁免。数据待确认单独提示。工时按已配置成员展示，多人任务按全部负责人份额计算。</p>
   </div>
 </template>
 

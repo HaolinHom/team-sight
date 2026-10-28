@@ -17,11 +17,11 @@ describe('中国日历及配置迁移', () => {
     expect(isWorkingDay('2026-10-11', calendar)).toBe(false);
     expect(isWorkingDay('2026-10-12', calendar)).toBe(true);
     expect(dailyTarget('2026-10-10', '100', createHoursSettings(), calendar)).toBe(8);
-    expect(dailyTarget('2026-10-10', '100', { ...createHoursSettings(), exemptions: [{ staffId: '100', date: '2026-10-10', note: '' }] }, calendar)).toBe(0);
+    expect(dailyTarget('2026-10-10', '100', { ...createHoursSettings(), exemptions: [{ staffId: '100', date: '2026-10-10', hours:8,note: '' }] }, calendar)).toBe(0);
     expect(isWorkingDay('2026-10-10', mergeCalendar({ enabled: false, years: { 2026: cache } }))).toBe(false);
   });
   it('缓存没有有效期，v2手动覆盖丢弃，其他工时配置保留', () => {
-    const { settings } = normalizeSettings({ schemaVersion: 2, hours: { dailyRequiredHours: 7.5, calendarOverrides: [{ date: '2026-10-12', working: false }], exemptions: [{ staffId: '100', date: '2026-10-10' }] }, chinaCalendar: { enabled: true, years: { 2026: cache } } }, new Date('2090-01-01'));
+    const { settings } = normalizeSettings({ schemaVersion: 2, hours: { dailyRequiredHours: 7.5, calendarOverrides: [{ date: '2026-10-12', working: false }], exemptions: [{ staffId: '100', date: '2026-10-10', hours: 8 }] }, chinaCalendar: { enabled: true, years: { 2026: cache } } }, new Date('2090-01-01'));
     expect(settings.schemaVersion).toBe(3); expect(settings.chinaCalendar.years[2026]).toEqual(cache);
     expect(settings.hours).not.toHaveProperty('calendarOverrides'); expect(settings.hours.dailyRequiredHours).toBe(7.5); expect(settings.hours.exemptions).toHaveLength(1);
   });
