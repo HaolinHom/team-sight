@@ -2,9 +2,11 @@
 
 ## Summary
 
-版本：v1.0；日期：2026-10-27；状态：基于已确认产品取舍编制，待技术方案确认后实施。
+版本：v1.2；日期：2026-10-28；状态：单进程架构、首版发布方式与 SQLite 驱动选型已确认，其余实现待技术方案确认后实施。
 
 将现有 TeamSight 从 Tauri 桌面应用演进为本地服务：Agent 通过 MCP 调用 TAPD 操作与团队分析能力，MCP Apps 承载会话内配置、甘特图、工时表和报表。宿主负责自然语言理解、工具编排与定时任务，TeamSight 负责数据、业务规则、输出和执行回执。
+
+v1.2 保留 MCP 接入层与 TeamSight 应用服务同进程运行，以及“JS 代码 + 依赖”的首版发布方式；SQLite 确定采用 `better-sqlite3` 驱动，Node.js 以 22 LTS 为基线。SQLite 引擎与目标平台原生模块随生产依赖交付，Node.js 运行时由宿主或用户环境提供，发布包不携带运行时。
 
 ### 已确认范围
 
@@ -14,6 +16,10 @@
 | TAPD 基础操作 | 需求与任务的搜索、读取、创建、修改；项目、成员及字段元数据 |
 | 团队分析 | 排期聚合、每日工时、当前排期与区间工时报告、按需风险检查 |
 | 呈现与导出 | MCP Apps、JSON、PNG/SVG、HTML、Markdown/CSV；Agent 可据结构化数据生成 UI |
+| 进程模型 | MCP 接入、业务计算、TAPD 适配与资源管理共用一个 Node.js 进程 |
+| 首版发布方式 | JS 代码 + 生产依赖 + Apps 资源；使用外部兼容 Node.js，不打包运行时或 SEA 自包含可执行文件 |
+| 运行时基线 | Node.js 22 LTS，最低 22.14.0；发布时锁定通过验证的维护版本 |
+| 本地存储 | SQLite + `better-sqlite3`；使用参数化 SQL 与版本化迁移，大型快照和图表文件独立保存 |
 | 定时使用 | 复用宿主定时任务，调用相同查询、分析和报告能力 |
 | 首发组合 | Codex + macOS/Windows；Deepseek Harness 随后适配，Linux 后续支持 |
 | 旧 App | 过渡期保留对照，新形态达到验收后退役 |
@@ -26,25 +32,27 @@
 
 ### 1. 总体架构与技术选择
 
-采用 TypeScript 领域核心、Node.js 本地服务、Vue MCP Apps UI，使用官方 MCP TypeScript SDK 与 MCP Apps SDK。沿用 pnpm，运行时采用经 macOS/Windows 验证的受支持 Node LTS；SDK、运行时和渲染依赖在 P0 锁定具体版本。
+采用 TypeScript 领域核心、Node.js 本地服务、Vue MCP Apps UI，使用官方 MCP TypeScript SDK 与 MCP Apps SDK。沿用 pnpm，TypeScript 构建为可发布的 JavaScript。存储采用 SQLite + `better-sqlite3`，首版以 Node.js 22 LTS 为基线，最低 22.14.0。P0 锁定经 macOS/Windows 验证的 Node.js 维护版本、SDK 与生产依赖版本；运行时通过宿主明确提供的入口或用户安装环境获取。
 
 ```mermaid
 flowchart TB
     U[用户] --> A[Codex / 后续 Deepseek Harness]
     Q[宿主定时任务] --> A
-    A --> G[MCP 接入层]
+    A --> G
     A --> UI[MCP Apps 设置和分析界面]
     UI -->|宿主通信桥| G
-    G --> S[本地 TeamSight 应用服务]
-    S --> T[TAPD 适配与操作目录]
-    S --> C[工时 日历 排期布局 风险计算]
-    S --> R[UI 资源与文件渲染]
-    S --> D[配置 快照 产物与操作回执]
+    subgraph P[TeamSight Server：单个 Node.js 进程]
+        G[MCP 接入层] --> S[TeamSight 应用服务]
+        S --> T[TAPD 适配与操作目录]
+        S --> C[工时 日历 排期布局 风险计算]
+        S --> R[UI 资源与文件渲染]
+        S --> D[配置 快照 产物与操作回执管理]
+    end
     S --> K[系统凭据存储]
     T --> API[TAPD Open API]
 ```
 
-服务内共用一套用例、取数、缓存和权限校验。MCP、Apps 的工具调用和文件输出不各自复制业务规则。
+MCP 接入层与应用服务是同进程的代码模块，工具处理函数直接调用应用服务，共用配置、缓存、数据库连接、TAPD 请求队列和权限校验。两层之间无需 HTTP 或 IPC 转发，也不设置独立的常驻 MCP 代理进程。MCP Apps 资源由同一服务提供，界面在 Agent 宿主中渲染。
 
 建议逐步提取为以下模块，目录名称是目标结构：
 
@@ -52,7 +60,7 @@ flowchart TB
 | --- | --- | --- |
 | `packages/core` | 类型、日期/日历、工时计算、甘特布局、风险规则 | 不依赖 Vue、DOM、Tauri 或 MCP |
 | `packages/tapd` | 元数据、操作目录、请求队列、分页、映射、读写错误 | 通过注入的传输与凭据接口访问 TAPD |
-| `apps/server` | 用例、MCP、配置、存储、任务和资源管理 | 持有本地业务状态、访问范围和执行回执 |
+| `apps/server` | 单进程启动入口、MCP、用例、配置、存储、任务和资源管理 | 在同一进程内持有业务状态、访问范围和执行回执 |
 | `apps/mcp-ui` | 设置、甘特图、工时表和报告视图 | 作为 MCP UI 资源随包交付，经宿主调用工具 |
 
 静态渲染与命令行启动入口位于 `apps/server` 内部，分别消费分析视图模型和服务用例。输入契约使用同一份定义生成 MCP Schema 与服务校验规则。
@@ -79,20 +87,22 @@ flowchart TB
 
 ### 3. 安装、连接与本地服务生命周期
 
-目标体验是注册 MCP 后，由宿主启动入口并准备好本地服务，随后即可进入配置。
+#### 3.1 单进程启动与连接
 
-优先验证 `teamsight mcp` 启动入口：宿主通过 STDIO 启动轻量接入进程，入口发现或启动当前系统用户的单实例服务。服务可同时提供 Streamable HTTP；需要直接 HTTP 连接的客户端使用实际服务地址与访问凭据。
+主路径建议采用 Streamable HTTP：通过 JS 入口启动一个完整的 TeamSight 服务进程，多个 Agent 连接同一服务地址。MCP 工具、资源和应用服务随该进程一起初始化、运行和退出。
 
-这是一套后端的两种接入方式。STDIO 入口必须保留工具 Schema、Apps 元信息、资源读取、错误及取消等语义；不能只代理工具文本结果。P0 同时验证宿主与 SDK 支持的接入方式，之后确定首发推荐配置。
+启动前检查可用 Node.js 路径、声明的版本范围、Node-API 兼容性及 `better-sqlite3` 原生模块加载；宿主明确提供运行时入口时可使用宿主运行时，否则使用用户安装的兼容 Node.js。首次启动后即可打开配置，注册 MCP 地址本身不负责启动常驻服务；安装说明需明确启动步骤，自动启动方式在 P0 验证后固定。
+
+STDIO 保留为按目标宿主需要验证的兼容模式：由宿主直接启动完整的 TeamSight JS 入口，在同一进程内加载 MCP 与业务服务。该模式不再通过轻量入口启动另一个后台服务。多个宿主分别以 STDIO 启动时会产生各自实例；需要共享唯一服务进程时使用 Streamable HTTP。
 
 建议提供以下命令，名称为目标接口，当前尚未实现：
 
 ```text
-teamsight mcp
 teamsight serve
 teamsight status
 teamsight doctor
 teamsight stop
+teamsight mcp   # 仅在宿主需要 STDIO 且该模式通过验证后提供
 ```
 
 - 无 TAPD 凭据时也能启动，提供状态、设置与连接诊断。
@@ -100,9 +110,28 @@ teamsight stop
 - HTTP 默认监听 loopback，验证访问身份、Host 和来源；本地 MCP 凭据与 TAPD 令牌分离。
 - 服务端口、实例信息和启动结果可诊断；端口冲突不能结束未知进程。
 - MCP 协议使用 stdout 时，运行日志进入 stderr 或文件，防止破坏通信。
-- 单个对话断开不直接结束其他连接使用的服务。显式停止或升级时先处理在途操作，记录未完成状态。
+- Streamable HTTP 模式中，单个对话断开不结束其他连接使用的服务；STDIO 模式生命周期跟随启动它的宿主连接。退出或升级时处理在途操作并记录未完成状态。
 
-首发发行物应包含可用运行时或提供经过验证的安装依赖流程；最终用户不应临时编译原生依赖。SQLite、凭据管理和 PNG 渲染的发行物兼容性均属于 macOS/Windows P0 验证范围。
+#### 3.2 首次版本发布方式：JS 代码 + 依赖
+
+发布包包含构建后的服务端 JavaScript、生产依赖、MCP Apps 静态资源、包元信息和启动说明。首次版本不包含 Node.js 运行时，也不生成 SEA 自包含可执行文件；开发工具、源码构建环境不作为最终运行要求。
+
+```text
+teamsight/
+├── package.json
+├── server/
+│   └── index.js       # 同进程初始化 MCP 与应用服务
+├── node_modules/     # 已准备好的生产依赖
+└── ui/               # 构建后的 MCP Apps 资源
+```
+
+安装环境必须提供可执行且版本兼容的 Node.js；缺失或不兼容时返回明确诊断与配置说明。宿主自用 Node.js 不一定向扩展公开，需验证其可调用路径和版本，不能仅因宿主内部使用 Node.js 就认定可复用。
+
+如生成 `.mcpb`，增加 `manifest.json`，使用 Node 类型入口并声明 Node.js 版本要求；代码、生产依赖与 UI 资源随 Bundle 交付，运行时仍来自包外。目标宿主能否直接安装 Bundle、如何启动入口以及如何连接 Streamable HTTP，均纳入 P0 验证，不能由文件格式推导为已支持。
+
+SQLite 通过 `better-sqlite3` 生产依赖交付，包含 SQLite 引擎及目标系统、CPU 架构对应的 `.node` 原生模块；用户无需另外安装 SQLite 服务、命令行工具或 C++ 编译环境。`better-sqlite3` v13 使用 Node-API，预编译模块直接随 npm 包提供，发布时保留模块及其加载路径，并校验 Node-API 版本兼容性。不得将单一平台的依赖安装结果视为已通过跨平台验收。
+
+凭据管理与 PNG 渲染若使用原生依赖，同样提供匹配目标系统、CPU 架构及支持的 Node.js 版本的预构建产物。生产依赖在发布时准备完成，不依赖用户安装时临时下载或编译原生模块；安装验收分别覆盖 macOS/Windows，必要时提供对应平台的发布包。
 
 ### 4. MCP Apps 设置闭环
 
@@ -198,11 +227,27 @@ Agent 生成式 UI 可以调整视图组织，但指标与证据使用服务结�
 
 ### 9. 存储、缓存与并发
 
+#### 9.1 驱动选型与存储职责
+
+SQLite 驱动确定采用 `better-sqlite3`，首版不采用 `node:sqlite`。当前选型依据为 `better-sqlite3@13.0.3`：v13 使用 Node-API 10，对 Node.js 22 分支的兼容起点是 22.14.0。发布时固定通过 P0 验证的驱动补丁版本与 Node.js 22 LTS 维护版本；其他 Node.js 主版本经单独验证后再纳入兼容范围。驱动及其内置 SQLite 可随生产依赖独立更新，升级时检查驱动 API 和 SQLite 行为兼容性。
+
 SQLite 保存配置及修订、快照/分析/产物元信息和操作回执；较大快照与渲染产物保存在当前用户数据目录。TAPD 凭据独立存入系统凭据管理，不随配置导出。
+
+使用参数化 SQL 与版本化迁移管理表结构；TAPD ID 按字符串传递、以 TEXT 保存。初始化与迁移失败时返回可诊断错误，不以创建空库覆盖已有数据。数据库文件及其 WAL 位于当前用户本机数据目录。
+
+#### 9.2 数据库访问与事务
+
+同一服务实例共用数据库访问入口与连接，写入使用短事务和串行队列。配置修订比较、更新及幂等键约束在数据库事务内完成。启用 WAL 改善读写并发，但同一数据库仍只有一个写入者；STDIO 若启动多个实例并共享数据库文件，仍需通过 SQLite 锁、有限等待和冲突处理协调，不能仅依赖进程内队列。
+
+`better-sqlite3` 的查询与事务 API 为同步执行，包装为 `async` 不会消除线程阻塞。首版保持查询结果有界、索引合理，事务内只做数据库操作，不等待 TAPD 请求或生成图表、报告。长查询、锁等待和迁移对 MCP 响应的影响纳入量测；若实测出现明显阻塞，再将数据库操作移入同进程 Worker 线程，保持单个 Node.js 进程。
+
+#### 9.3 缓存与 TAPD 并发
 
 完整查询缓存保留原始获取时间；不完整数据可供本次分析说明，但不提升为完整缓存。缓存身份包含凭据主体/版本、授权范围和查询条件；规则变更复用适用原始快照重算，展示别名变化不触发不必要取数。
 
 全服务共用 TAPD 请求队列，先沿用当前并发 3 并量测。读取采用有上限的退避重试；分页预算、重复分页检测、取消和截断结果均显式处理。逐个未完成工作项读取累计花费的成本仍需量测，服务化不会自动消除。
+
+#### 9.4 耗时作业与恢复
 
 短查询直接返回，长计算在达到响应预算时转为可查询作业；不依赖宿主必须实现某个任务扩展。重启后计算作业标记中断，在途写入按未知状态核实。数据清理不得删除未完成或待核实的操作回执。
 
@@ -228,28 +273,29 @@ TeamSight 提供确定性查询与报告接口，以及日常检查、每周报�
 
 | 阶段 | 内容 | 进入下一阶段的条件 |
 | --- | --- | --- |
-| P0：宿主与运行验证 | Codex Apps 设置往返、工具/资源展示、服务启动、凭据链路、跨平台依赖、最小定时调用 | 有实测的 SDK/协议/宿主版本组合；配置路径成立；macOS/Windows 的关键发布依赖可用 |
+| P0：宿主与运行验证 | Codex Apps 设置往返、工具/资源展示、单进程启动、外部 Node.js 22 LTS、Bundle 接入方式、凭据链路、`better-sqlite3` 与其他跨平台依赖、最小定时调用 | 有实测的 SDK/协议/宿主版本组合；配置路径成立；固定 Node.js 维护版本、来源与驱动版本；macOS/Windows 的原生模块加载及数据库读写可用 |
 | P1a：核心与配置 | 提取核心、服务传输、统一存储、配置导入、Apps 设置、基础查询 | 不依赖 Tauri 可计算；新旧输入口径一致；配置保存与恢复可靠 |
 | P1b：首版能力 | 需求/任务写入、复合分析、风险、Apps 图表、静态输出、固定报告 | Codex 完整场景通过，写入与数据不完整情况可解释 |
-| P1c：首版发布与退役 | 两系统安装、迁移、宿主定时工作流、使用诊断、旧 App 对照验收 | 首版验收通过后退役旧 App |
-| P2：第二宿主 | Deepseek Harness 的实际版本适配 | 分别记录工具、Apps、产物、认证与定时能力边界 |
-| 后续 | Linux、更多 TAPD 对象，以及按新需求启动的插队协作 | 各自形成独立范围与验收，不提前增加首版依赖 |
+| P1c：首版发布与退役 | JS 代码 + 依赖发布包、两系统 Node.js 版本与 Node-API 检查、原生模块交付、安装与迁移、宿主定时工作流、使用诊断、旧 App 对照验收 | 发布包不含 Node.js 运行时，使用声明的外部 Node.js 与随包 SQLite 驱动完成首版验收后退役旧 App |
+| 后续1 | Deepseek Harness 的实际版本适配 | 分别记录工具、Apps、产物、认证与定时能力边界 |
+| 后续2 | Linux、更多 TAPD 对象，以及按新需求启动的插队协作 | 各自形成独立范围与验收，不提前增加首版依赖 |
 
 P0 出现宿主 UI 缺口时，先形成可复查结果并收敛适配方案，再继续依赖该能力的实现；不把未验证假设留到发布末期。未经原型与范围量测，不承诺固定工期。
 
 ## Test Plan
 
-本轮编制技术方案，尚未实施或运行功能测试。未来验证采用以下场景，并迁移现有有效测试；新增测试覆盖新的契约和失败边界。
+本方案尚未实施或运行功能测试。未来验证采用以下场景，并迁移现有有效测试；新增测试覆盖新的契约和失败边界。
 
 | 对象 | 验证内容 |
 | --- | --- |
 | 核心计算 | 同快照的新旧结果、小时请假、节假日/调休、跨月跨年、时区、成员顺序、累计花费和未知量 |
 | 配置与凭据 | 无配置启动、Apps 读取/保存、两会话修订冲突、磁盘失败、凭据链路、导入不丢数据 |
+| SQLite 存储 | `better-sqlite3` 原生模块加载与读写、Schema 迁移及失败诊断、配置修订和回执事务、写锁竞争、重启恢复，以及同步查询和锁等待对 MCP 响应的影响 |
 | TAPD 读写 | 真实字段与权限、字符串长 ID、分页与限流、业务错误、重复提交、超时未知、并发修改及读回 |
 | 呈现 | 图表与报告同口径，中文字体、大范围拆图、转义、CSV 公式注入处理及资源读取 |
-| 生命周期 | 多客户端单实例、断连、端口冲突、启动失败、取消、退出、重启恢复和日志脱敏 |
+| 进程与生命周期 | MCP 与应用服务同进程、HTTP 多客户端共享实例、无常驻代理、STDIO 实例边界、断连、端口冲突、启动失败、取消、退出、重启恢复和日志脱敏 |
 | 定时执行 | 宿主真实调度、同一 MCP 可达、无人值守权限、工作日/时区、休眠离线及失败回执 |
-| 首发发行物 | macOS/Windows 安装、运行时与原生依赖、路径空格、权限、凭据和资源打包 |
+| 首发发行物 | JS 代码、生产依赖与 UI 资源齐全，包内无 Node.js 运行时；macOS/Windows 验证外部 Node.js 22 LTS 路径、缺失/版本不兼容诊断、Node-API 10 与原生模块匹配、无需安装时下载或编译原生模块、路径空格、权限、凭据及 Bundle 接入 |
 
 首版验收以 Codex 完成“安装配置 → 基础读写 → 排期/工时分析 → Apps 与文件结果 → 周期调用”为闭环，并完成旧 App 关键语义对照。P0 宿主验证与真实 TAPD 写入验收不能由单元测试代替。
 
@@ -257,6 +303,8 @@ P0 出现宿主 UI 缺口时，先形成可复查结果并收敛适配方案，�
 
 - 产品范围依据已确认的[头脑风暴讨论稿 v0.4](/Users/haolin/Projects/team-sight/artifacts/plan/20261027_2316_teamsight-brainstorm-mcp-apps.md)。产品方向确认不等同于技术方案已批准实施。
 - 首版面向单个本机用户与多个本机可达 Agent 客户端；团队共享服务和云端访问另行设计。
+- 已确认采用单个 Node.js 进程承载 MCP 与应用服务，首版发布“JS 代码 + 依赖”。Node.js 由宿主或用户环境提供；自带运行时与 SEA 不纳入首次版本。
+- 已确认 SQLite 使用 `better-sqlite3`；首版 Node.js 基线为 22 LTS，最低 22.14.0。驱动、SQLite 引擎与目标平台原生模块随生产依赖交付，具体驱动补丁及 Node.js 维护版本经 P0 验证后固定。
 - Codex Apps、无人值守 MCP、目标 Deepseek Harness 版本及发行依赖仍需真实验证；不由文档推导为已兼容。
 - 凭据、TAPD 写权限和工时单位按实际项目校验。未实际创建或修改远端对象，不将文档存在视为权限证明。
 - 首版不实现插队优化与批量重排；未来可使用显式技能、容量预留、Agent 提案及服务评估，按具体方案授权应用。
@@ -266,5 +314,9 @@ P0 出现宿主 UI 缺口时，先形成可复查结果并收敛适配方案，�
 - [MCP Apps](https://modelcontextprotocol.io/docs/extensions/apps)与[SDK](https://apps.extensions.modelcontextprotocol.io/api/)：资源、宿主通信与工具交互。
 - [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp)与[定时任务](https://learn.chatgpt.com/docs/automations)：接入方式与本地执行条件。
 - [OpenAI ChatGPT UI 文档](https://developers.openai.com/plugins/build/chatgpt-ui)：UI 资源与状态实践，Codex 行为单独验证。
+- [MCPB 说明](https://github.com/modelcontextprotocol/mcpb/blob/main/README.md)与[Manifest 规范](https://github.com/modelcontextprotocol/mcpb/blob/main/MANIFEST.md)：Node 类型 Bundle、依赖交付与运行时兼容要求；宿主安装和启动方式需单独验证。
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)、[v13 发布说明](https://github.com/WiseLibs/better-sqlite3/releases/tag/v13.0.0)与[v13.0.3 构建配置](https://github.com/WiseLibs/better-sqlite3/blob/v13.0.3/binding.gyp)：同步 API、事务、Node-API 10 及随包预编译模块交付。
+- [Node-API 版本矩阵](https://nodejs.org/api/n-api.html#node-api-version-matrix)：Node-API 10 对 Node.js 22 分支的最低要求为 22.14.0。
+- [SQLite WAL](https://www.sqlite.org/wal.html#concurrency)：读写并发、单写入者与 WAL 文件管理。
 - [TAPD API 文档](https://open.tapd.cn/document/api-doc/API%E6%96%87%E6%A1%A3/api_reference/)：登记操作与字段契约的来源，具体项目权限需验收。
 - 当前工作区源码、项目知识，以及[上一轮服务技术讨论](/Users/haolin/Projects/team-sight/artifacts/plan/20261027_2228_teamsight-local-service-mcp.md)。
