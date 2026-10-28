@@ -1,0 +1,17 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"revision\":2,\"config\":{\"teamName\":\"前端组 · P0 Codex 验收\",\"dailyHours\":7.5,\"timeZone\":\"UTC\"},\"credentialPresent\":true}"
+    }
+  ],
+  "structuredContent": {
+    "revision": 2,
+    "config": {
+      "teamName": "前端组 · P0 Codex 验收",
+      "dailyHours": 7.5,
+      "timeZone": "UTC"
+    },
+    "credentialPresent": true
+  }
+}

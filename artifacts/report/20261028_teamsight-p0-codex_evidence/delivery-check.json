@@ -1,0 +1,94 @@
+{
+  "checkedAt": "2026-10-28T04:07:49.122Z",
+  "method": "File API Markdown link/whitespace/source/archive consistency checks; no new shell test commands",
+  "documents": [
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-macos_测试报告.md",
+      "localLinks": 23,
+      "missingLinks": [],
+      "trailingWhitespaceLines": [],
+      "newlineAtEnd": true,
+      "mergeConflictMarkers": false
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_测试报告.md",
+      "localLinks": 21,
+      "missingLinks": [],
+      "trailingWhitespaceLines": [],
+      "newlineAtEnd": true,
+      "mergeConflictMarkers": false
+    },
+    {
+      "file": "artifacts/knowledge/20261028_teamsight-p0-runtime.md",
+      "localLinks": 2,
+      "missingLinks": [],
+      "trailingWhitespaceLines": [],
+      "newlineAtEnd": true,
+      "mergeConflictMarkers": false
+    }
+  ],
+  "indexSha256Before": "da24bb3fb27ea081afd1d6e8622e5092cfbffd50b1fae52a0cb50992e555eb51",
+  "indexSha256After": "da24bb3fb27ea081afd1d6e8622e5092cfbffd50b1fae52a0cb50992e555eb51",
+  "indexUnchanged": true,
+  "zips": [
+    {
+      "target": "darwin-arm64",
+      "bytes": 12708536,
+      "sha256": "ef76836907450e91f9df800df3ec0a5c19da73bf26d787f354b231672ac8323f",
+      "matchesOriginal": true
+    },
+    {
+      "target": "win32-x64",
+      "bytes": 13503529,
+      "sha256": "e04333459af872c628b64c95f0ca312ac102922332572de467f3d8914494d517",
+      "matchesOriginal": true
+    }
+  ],
+  "toolResultsSentinelScan": [
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/initial-open.json",
+      "bytes": 396,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/initial-status.json",
+      "bytes": 769,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/p0-codex-reopen-after-failure.json",
+      "bytes": 417,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/p0-codex-status-r3.json",
+      "bytes": 768,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/p0-status-before-process-restart.json",
+      "bytes": 768,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/status-after-restart.json",
+      "bytes": 768,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/final-open.json",
+      "bytes": 397,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/final-status.json",
+      "bytes": 770,
+      "sentinelMatches": 0
+    },
+    {
+      "file": "artifacts/report/20261028_teamsight-p0-codex_evidence/render.json",
+      "bytes": 194,
+      "sentinelMatches": 0
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+
+> @teamsight/server@0.0.0-p0 build /Users/haolin/Projects/team-sight/apps/server
+> tsc -p tsconfig.json
+
+
+> team-sight@0.1.0 p0:test /Users/haolin/Projects/team-sight
+> pnpm --filter @teamsight/server test
+
+
+> @teamsight/server@0.0.0-p0 test /Users/haolin/Projects/team-sight/apps/server
+> node --test test/probe.test.mjs
+
+TAP version 13
+# {"sqliteLockWaitMs":1058,"configuredBusyTimeoutMs":1000,"synchronousWaitBlocksEventLoop":true}
+# Subtest: runtime guard rejects incompatible Node and Node-API
+ok 1 - runtime guard rejects incompatible Node and Node-API
+  ---
+  duration_ms: 0.338875
+  type: 'test'
+  ...
+# Subtest: SQLite CAS, actual database write failure, rollback and restart persistence
+ok 2 - SQLite CAS, actual database write failure, rollback and restart persistence
+  ---
+  duration_ms: 5.092959
+  type: 'test'
+  ...
+# Subtest: SQLite lock wait is bounded and does not commit a failed write
+ok 3 - SQLite lock wait is bounded and does not commit a failed write
+  ---
+  duration_ms: 1064.016166
+  type: 'test'
+  ...
+# Subtest: HTTP two clients share process, auth guards, resources, CAS, restart and shutdown
+ok 4 - HTTP two clients share process, auth guards, resources, CAS, restart and shutdown
+  ---
+  duration_ms: 435.755833
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1608.886625
+
+> team-sight@0.1.0 p0:package /Users/haolin/Projects/team-sight
+> node scripts/package-p0.mjs darwin-arm64
+
+{"output":"/Users/haolin/Projects/team-sight/artifacts/releases/teamsight-p0-darwin-arm64","target":"darwin-arm64","files":2042,"noSymlinks":true,"nodeRuntimeBundled":false}
+
+> team-sight@0.1.0 p0:package /Users/haolin/Projects/team-sight
+> node scripts/package-p0.mjs win32-x64
+
+{"output":"/Users/haolin/Projects/team-sight/artifacts/releases/teamsight-p0-win32-x64","target":"win32-x64","files":2042,"noSymlinks":true,"nodeRuntimeBundled":false}

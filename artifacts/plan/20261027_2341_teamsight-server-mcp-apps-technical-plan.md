@@ -2,7 +2,7 @@
 
 ## Summary
 
-版本：v1.2；日期：2026-10-28；状态：单进程架构、首版发布方式与 SQLite 驱动选型已确认，其余实现待技术方案确认后实施。
+版本：v1.2；日期：2026-10-28；状态：技术方案及分阶段实施计划已确认，本轮仅实施 P0；后续阶段须逐阶段验收确认。
 
 将现有 TeamSight 从 Tauri 桌面应用演进为本地服务：Agent 通过 MCP 调用 TAPD 操作与团队分析能力，MCP Apps 承载会话内配置、甘特图、工时表和报表。宿主负责自然语言理解、工具编排与定时任务，TeamSight 负责数据、业务规则、输出和执行回执。
 
@@ -32,7 +32,7 @@ v1.2 保留 MCP 接入层与 TeamSight 应用服务同进程运行，以及“JS
 
 ### 1. 总体架构与技术选择
 
-采用 TypeScript 领域核心、Node.js 本地服务、Vue MCP Apps UI，使用官方 MCP TypeScript SDK 与 MCP Apps SDK。沿用 pnpm，TypeScript 构建为可发布的 JavaScript。存储采用 SQLite + `better-sqlite3`，首版以 Node.js 22 LTS 为基线，最低 22.14.0。P0 锁定经 macOS/Windows 验证的 Node.js 维护版本、SDK 与生产依赖版本；运行时通过宿主明确提供的入口或用户安装环境获取。
+采用 TypeScript 领域核心、Node.js 本地服务、Vue MCP Apps UI，使用官方 MCP TypeScript SDK 与 MCP Apps SDK。沿用 pnpm，TypeScript 构建为可发布的 JavaScript。存储采用 SQLite + `better-sqlite3`，首版以 Node.js 22 LTS 为基线，最低 22.14.0。P0 先锁定经当前 macOS arm64 验证的 Node.js 维护版本、SDK 与生产依赖版本，交付 Windows 执行文档；Windows 实测在 P1c 发布与退役前补齐；运行时通过宿主明确提供的入口或用户安装环境获取。
 
 ```mermaid
 flowchart TB
@@ -273,18 +273,20 @@ TeamSight 提供确定性查询与报告接口，以及日常检查、每周报�
 
 | 阶段 | 内容 | 进入下一阶段的条件 |
 | --- | --- | --- |
-| P0：宿主与运行验证 | Codex Apps 设置往返、工具/资源展示、单进程启动、外部 Node.js 22 LTS、Bundle 接入方式、凭据链路、`better-sqlite3` 与其他跨平台依赖、最小定时调用 | 有实测的 SDK/协议/宿主版本组合；配置路径成立；固定 Node.js 维护版本、来源与驱动版本；macOS/Windows 的原生模块加载及数据库读写可用 |
+| P0：宿主与运行验证 | Codex Apps 设置往返、工具/资源展示、单进程启动、外部 Node.js 22 LTS、Bundle 接入方式、凭据链路、`better-sqlite3` 与其他跨平台依赖、最小定时调用 | 当前 macOS arm64 的 SDK/协议/宿主配置闭环成立，Node.js、原生模块和数据库实测可用；交付可运行验证包、macOS 报告及 Windows 验收执行文档。Windows 实测标记待执行，在 P1c 发布与退役前补齐 |
 | P1a：核心与配置 | 提取核心、服务传输、统一存储、配置导入、Apps 设置、基础查询 | 不依赖 Tauri 可计算；新旧输入口径一致；配置保存与恢复可靠 |
 | P1b：首版能力 | 需求/任务写入、复合分析、风险、Apps 图表、静态输出、固定报告 | Codex 完整场景通过，写入与数据不完整情况可解释 |
-| P1c：首版发布与退役 | JS 代码 + 依赖发布包、两系统 Node.js 版本与 Node-API 检查、原生模块交付、安装与迁移、宿主定时工作流、使用诊断、旧 App 对照验收 | 发布包不含 Node.js 运行时，使用声明的外部 Node.js 与随包 SQLite 驱动完成首版验收后退役旧 App |
+| P1c：首版发布与退役 | JS 代码 + 依赖发布包、两系统 Node.js 版本与 Node-API 检查、原生模块交付、安装与迁移、宿主定时工作流、使用诊断、旧 App 对照验收 | 发布包不含 Node.js 运行时，使用声明的外部 Node.js 与随包 SQLite 驱动完成 macOS/Windows 实际验收；补齐 P0 延后的 Windows 实测及首版功能/迁移/定时验收后，才可发布并退役旧 App |
 | 后续1 | Deepseek Harness 的实际版本适配 | 分别记录工具、Apps、产物、认证与定时能力边界 |
 | 后续2 | Linux、更多 TAPD 对象，以及按新需求启动的插队协作 | 各自形成独立范围与验收，不提前增加首版依赖 |
+
+P0 当前固定验证起点为 Node.js 22.23.4、pnpm 10.12.4；MCP core/server/client 2.4.0、Node adapter 2.1.2、Apps 2.0.4、better-sqlite3 13.0.3、keyring 2.1.2、resvg 2.6.2。原型仅使用隔离目录、测试凭据和 `teamsight_probe_*`，不提前冻结正式业务接口。Windows 交接见 [P0 验收执行文档](../../docs/validation/teamsight-p0-windows.md)。
 
 P0 出现宿主 UI 缺口时，先形成可复查结果并收敛适配方案，再继续依赖该能力的实现；不把未验证假设留到发布末期。未经原型与范围量测，不承诺固定工期。
 
 ## Test Plan
 
-本方案尚未实施或运行功能测试。未来验证采用以下场景，并迁移现有有效测试；新增测试覆盖新的契约和失败边界。
+本轮仅实施 P0，实测结果与未通过项以 P0 测试报告为准。下表为完整首版的验收范围，未实施阶段不能据此记为已测试；后续迁移现有有效测试，并覆盖新的契约和失败边界。
 
 | 对象 | 验证内容 |
 | --- | --- |
@@ -301,7 +303,7 @@ P0 出现宿主 UI 缺口时，先形成可复查结果并收敛适配方案，�
 
 ## Assumptions
 
-- 产品范围依据已确认的[头脑风暴讨论稿 v0.4](/Users/haolin/Projects/team-sight/artifacts/plan/20261027_2316_teamsight-brainstorm-mcp-apps.md)。产品方向确认不等同于技术方案已批准实施。
+- 产品范围依据已确认的[头脑风暴讨论稿 v0.4](/Users/haolin/Projects/team-sight/artifacts/plan/20261027_2316_teamsight-brainstorm-mcp-apps.md)。技术方案及分阶段实施计划已确认，本轮授权范围仅为 P0。
 - 首版面向单个本机用户与多个本机可达 Agent 客户端；团队共享服务和云端访问另行设计。
 - 已确认采用单个 Node.js 进程承载 MCP 与应用服务，首版发布“JS 代码 + 依赖”。Node.js 由宿主或用户环境提供；自带运行时与 SEA 不纳入首次版本。
 - 已确认 SQLite 使用 `better-sqlite3`；首版 Node.js 基线为 22 LTS，最低 22.14.0。驱动、SQLite 引擎与目标平台原生模块随生产依赖交付，具体驱动补丁及 Node.js 维护版本经 P0 验证后固定。

@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-28T04:00:34.677Z",
+  "sources": [
+    {
+      "url": "https://learn.chatgpt.com/docs/extend/mcp",
+      "finding": "Documents STDIO command configuration and Streamable HTTP URL configuration, including bearer_token_env_var and http_headers."
+    },
+    {
+      "url": "https://developers.openai.com/plugins/build/plugins",
+      "finding": "Documents plugin manifests and MCP configuration files. This is a plugin package mechanism and does not establish .mcpb direct import support."
+    }
+  ],
+  "currentHostObserved": {
+    "modelTools": [
+      "teamsight_status",
+      "teamsight_probe_open_settings",
+      "teamsight_probe_render"
+    ],
+    "transport": "Streamable HTTP",
+    "configuration": "teamsight_p0_probe in local config.toml; actual tools and Apps calls succeeded",
+    "mcpbImport": {
+      "source": "user manual inspection of native Codex MCP settings",
+      "userReply": "只有命令／URL 配置，未看到文件导入",
+      "visibleFileImportEntry": false,
+      "fileInstallPerformed": false,
+      "scope": "Current app version and MCP settings page only; no universal product support claim"
+    }
+  },
+  "release": "JS + production dependencies + self-contained Apps HTML; no Node runtime; no .mcpb generated",
+  "updatedAt": "2026-10-28T04:06:59.006Z",
+  "acceptance": "Documented current entry limitation; delivered and actually connected through JS package + Streamable HTTP as permitted in the P0 plan.",
+  "restartUserConfirmation": "已执行并看到 ready"
+}

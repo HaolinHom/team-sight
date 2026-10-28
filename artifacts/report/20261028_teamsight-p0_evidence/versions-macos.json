@@ -1,0 +1,142 @@
+{
+  "version": "0.0.0-p0",
+  "phase": "P0",
+  "target": "darwin-arm64",
+  "builtAt": "2026-10-28T03:39:20.291Z",
+  "sourceHead": "6c8e1aa3ec66f6dc64e0b34c97f6f3e7849d22be",
+  "sourceState": "working tree; source hashes identify the exact implementation",
+  "sourceHashes": {
+    "apps/mcp-ui/index.html": "5a6127cf87b0a1857f475ba0f4d94da283a27331d3be92da3a9f4eb3631c40ce",
+    "apps/mcp-ui/package.json": "2f44d023bb689e4f0d8584e8a7d3c722f6a5da0614f2af5be6958964a21a6560",
+    "apps/mcp-ui/src/Settings.vue": "af67df2321dd7b75c68aa4841f59897102567bfe4ee0d5528e51ba734ba875d9",
+    "apps/mcp-ui/src/main.ts": "4141022ebf4b7d1192030137b5e39ae52d1224e3c3ec3ececf0c04750bd547d0",
+    "apps/mcp-ui/tsconfig.json": "9e8ea3b5391eb2bd50ab4b7e16dcd0ba7607706804a3ef825a0f37696b535945",
+    "apps/mcp-ui/vite.config.ts": "65643b2445075c0994f5824a21a488e9b91e9792ddae1031b91636b4962b7f62",
+    "apps/server/README.md": "5a56490fdbc04b19d520090b1f70b89e6fa4fcc2899faae5aeb9718a042eeec8",
+    "apps/server/launch.ps1": "a3b3b7014c68947fd4de8712c50f5e9839de2073307fd0a26612c7326eaabc8b",
+    "apps/server/launch.sh": "53c972d593ad92fec945212ca1f8eae04e301c9117ec011fde8535ffca7d49b5",
+    "apps/server/package.json": "e3fc39462c6188a3fb88d5b20cf8b20736471604a314b8f51163e569777c8f91",
+    "apps/server/src/cli.ts": "d47ebf931fc2564cbd6b542e1fd78826d8a9454bce4c4466885cfebce416a6e7",
+    "apps/server/src/render.ts": "340d907ddcdbede73719072c72bbbd884ee67b53f5808cce87f16da4943dc616",
+    "apps/server/src/runtime.ts": "f25bc542a14e112d8f7f71f55b77fa85902e99f56dbbb23c7633600a140d6efc",
+    "apps/server/src/server.ts": "7c74c4323be049b03899a78e35a732b772d8ca154dd7cf0e502a8c6510f56dd7",
+    "apps/server/src/storage.ts": "89317daab042e6589178850c6da9516df45c83ed81a8b8fd50763c5c5c6b70e7",
+    "apps/server/status-mcp.mjs": "744cd758472afaf53a3f4c36e3f185f14da8b9eb456f5c598483e4d1b17b32a4",
+    "apps/server/test/probe.test.mjs": "2405de7d2fad3ef86fb531b5b30eb6614295fbd06d79b2bd891f6ecb209ae8f9",
+    "apps/server/tsconfig.json": "9a2d825a6b06c4091076319557fc45d8cfb27dc909e2f7428520c874b13921d5",
+    "apps/server/verify.mjs": "f5f5626eec74c5e0690c067024da6a23f40b8c4897431ced73c577983b102203",
+    "docs/validation/teamsight-p0-windows.md": "e07667204269a4682d7ce34586cc052ab7dcc0933aa96e50d4a4c6b15b3e6896",
+    "package.json": "7d84a2dc89970b7ac0c88188cda4cb6c17146975c6db308852b285448c77277f",
+    "pnpm-lock.yaml": "8890bfdcbfcc6ae3c1f637e7423a909c5ed3b8a3d31d526a4e5c7368ac13b9d5",
+    "pnpm-workspace.yaml": "59d8c363d3edb29e184d75ac9292ac98505e841bb3865ab3ae6858f8937a3e3f",
+    "scripts/package-p0.mjs": "c9e3240f0f728ff17e2380d4f23ca5a1e0bb60622c6db86858189c3979d77207"
+  },
+  "buildNode": "22.23.4",
+  "validatedNode": "22.23.4",
+  "pnpm": "10.12.4",
+  "runtimeBundled": false,
+  "dependencies": [
+    {
+      "name": "@hono/node-server",
+      "version": "2.1.5"
+    },
+    {
+      "name": "@modelcontextprotocol/client",
+      "version": "2.4.0"
+    },
+    {
+      "name": "@modelcontextprotocol/core",
+      "version": "2.4.0"
+    },
+    {
+      "name": "@modelcontextprotocol/ext-apps",
+      "version": "2.0.4"
+    },
+    {
+      "name": "@modelcontextprotocol/node",
+      "version": "2.1.2"
+    },
+    {
+      "name": "@modelcontextprotocol/server",
+      "version": "2.4.0"
+    },
+    {
+      "name": "@napi-rs/keyring",
+      "version": "2.1.2"
+    },
+    {
+      "name": "@napi-rs/keyring-darwin-arm64",
+      "version": "2.1.2"
+    },
+    {
+      "name": "@resvg/resvg-js",
+      "version": "2.6.2"
+    },
+    {
+      "name": "@resvg/resvg-js-darwin-arm64",
+      "version": "2.6.2"
+    },
+    {
+      "name": "@standard-schema/spec",
+      "version": "1.1.0"
+    },
+    {
+      "name": "better-sqlite3",
+      "version": "13.0.3"
+    },
+    {
+      "name": "cross-spawn",
+      "version": "7.0.6"
+    },
+    {
+      "name": "eventsource",
+      "version": "3.0.7"
+    },
+    {
+      "name": "eventsource-parser",
+      "version": "3.1.1"
+    },
+    {
+      "name": "hono",
+      "version": "4.13.14"
+    },
+    {
+      "name": "isexe",
+      "version": "2.0.0"
+    },
+    {
+      "name": "jose",
+      "version": "6.2.13"
+    },
+    {
+      "name": "node-addon-api",
+      "version": "8.9.2"
+    },
+    {
+      "name": "path-key",
+      "version": "3.1.1"
+    },
+    {
+      "name": "pkce-challenge",
+      "version": "5.0.1"
+    },
+    {
+      "name": "shebang-command",
+      "version": "2.0.0"
+    },
+    {
+      "name": "shebang-regex",
+      "version": "3.0.0"
+    },
+    {
+      "name": "which",
+      "version": "2.0.2"
+    },
+    {
+      "name": "zod",
+      "version": "4.6.7"
+    }
+  ],
+  "windowsRuntimeAcceptance": "pending",
+  "codexAppsAcceptance": "pending"
+}

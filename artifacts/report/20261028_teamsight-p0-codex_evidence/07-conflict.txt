@@ -1,0 +1,24 @@
+- main:
+  - text: P0 · 原型
+  - heading "TeamSight 配置验证" [level=1]
+  - paragraph: 配置保存在本地服务，界面通过宿主通信桥读取和提交。
+  - text: 团队名称
+  - textbox "团队名称": 旧卡片覆盖尝试，不应保存
+  - text: 每日目标（小时）
+  - spinbutton "每日目标（小时）": "7.5"
+  - text: 业务时区
+  - combobox "业务时区":
+    - option "Asia/Shanghai"
+    - option "UTC" [selected]
+  - text: 测试哨兵值
+  - textbox "测试哨兵值":
+    - /placeholder: TEAMSIGHT_P0_SENTINEL_…
+  - generic: 仅填测试值，勿填真实 TAPD 凭据。宿主可能记录工具参数；P0 会核对其可见范围。已存测试凭据：有。
+  - checkbox "模拟保存失败（验证事务回滚）"
+  - text: 模拟保存失败（验证事务回滚）
+  - button "保存配置"
+  - button "重新读取"
+  - button "核对测试凭据" [disabled]
+  - button "清理测试凭据"
+  - status: 配置已被另一会话修改，当前修订 3。请先重新读取再编辑。
+  - generic: 当前表单修订 2 · 此原型不调用 TAPD

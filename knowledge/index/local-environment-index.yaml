@@ -10,3 +10,10 @@ items:
     summary: "rustup 官方源在本网络极慢、切 USTC 镜像后秒级完成；crates.io 首次索引约 15 分钟；Tauri 2 必须有 src-tauri/icons/icon.png 才能编译；应用配置目录位置与本地凭据（0600、原子写入、令牌解析顺序）；macOS 打包配置（bundle.active/targets）、未签名产物分发方式、dmg 挂载验证、打包后可绑定窗口做端到端验证；令牌泄漏审计脚本写法。"
     tags: ["environment", "toolchain", "rust", "tauri", "packaging", "security"]
     verifiedAt: "2026-10-11"
+
+  - id: teamsight-server-runtime-notes
+    title: "TeamSight Server / MCP Apps 运行与验收边界"
+    path: "knowledge/teamsight-server-runtime-notes.md"
+    summary: "P0 单进程 HTTP 服务与 Vue Apps、固定 SDK/原生依赖、SQLite 同步锁等待及系统凭据、无 Node 的分平台 JS 验证包、Codex 真实配置闭环/冲突/重启；保留 app-only 保密、Bundle 入口、定时精度与 Windows 待验边界。"
+    tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "validation"]
+    verifiedAt: "2026-10-28"

@@ -1,0 +1,23 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"phase\":\"P0\",\"version\":\"0.0.0-p0\",\"pid\":44258,\"instanceId\":\"4a0a63ea-031e-48b1-bdc3-e09600f05013\",\"startedAt\":\"2026-10-28T04:01:09.924Z\",\"node\":\"22.23.4\",\"napi\":\"10\",\"platform\":\"darwin\",\"arch\":\"arm64\",\"revision\":5,\"credentialPresent\":false,\"sessions\":1,\"tapdEnabled\":false}"
+    }
+  ],
+  "structuredContent": {
+    "phase": "P0",
+    "version": "0.0.0-p0",
+    "pid": 44258,
+    "instanceId": "4a0a63ea-031e-48b1-bdc3-e09600f05013",
+    "startedAt": "2026-10-28T04:01:09.924Z",
+    "node": "22.23.4",
+    "napi": "10",
+    "platform": "darwin",
+    "arch": "arm64",
+    "revision": 5,
+    "credentialPresent": false,
+    "sessions": 1,
+    "tapdEnabled": false
+  }
+}

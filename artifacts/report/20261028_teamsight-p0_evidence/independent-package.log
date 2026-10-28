@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "node": "22.23.4",
+  "napi": "10",
+  "platform": "darwin",
+  "arch": "arm64",
+  "firstInstance": "ed3f03ef-c4ef-4f6b-b29f-f49270ff90fd",
+  "restartedInstance": "06fd7dec-9d4c-4c81-b497-4a18c6658574",
+  "sharedPid": 36972,
+  "tools": [
+    "teamsight_status",
+    "teamsight_probe_open_settings",
+    "teamsight_probe_read_config",
+    "teamsight_probe_save_config",
+    "teamsight_probe_check_credential",
+    "teamsight_probe_clear_credential",
+    "teamsight_probe_render"
+  ],
+  "resourceBytes": 306058,
+  "pngBytes": 7281,
+  "sqlitePersistence": true,
+  "credentialPersistence": true,
+  "outputsAndLogsRedacted": true,
+  "codexAppsRoundTrip": "NOT_TESTED_BY_THIS_SCRIPT",
+  "hostScheduler": "NOT_TESTED_BY_THIS_SCRIPT"
+}
+{"target":"darwin-arm64","verifiedFiles":2042,"sourceHashesMatch":true,"nativePaths":["node_modules/@napi-rs/keyring-darwin-arm64/keyring.darwin-arm64.node","node_modules/@resvg/resvg-js-darwin-arm64/resvgjs.darwin-arm64.node","node_modules/better-sqlite3/prebuilds/darwin-arm64.node"],"runtimeBundled":false,"windowsExecution":"not applicable"}
+{"target":"win32-x64","verifiedFiles":2042,"sourceHashesMatch":true,"nativePaths":["node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node","node_modules/@resvg/resvg-js-win32-x64-msvc/resvgjs.win32-x64-msvc.node","node_modules/better-sqlite3/prebuilds/win32-x64.node"],"runtimeBundled":false,"windowsExecution":"pending"}
