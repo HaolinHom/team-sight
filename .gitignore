@@ -18,6 +18,10 @@ yarn-error.log*
 # Dependencies
 /node_modules
 /dist
+/apps/*/dist
+/apps/*/node_modules
+/artifacts/releases
+/artifacts/validation
 /bin
 /.local
 application.json
