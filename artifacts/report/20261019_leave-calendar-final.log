@@ -1,0 +1,189 @@
+
+ RUN  v3.2.7 /Users/haolin/Projects/team-sight
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 待安排任务使用最新配置名称，不读取旧快照名称，未知项目回退ID
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 展示默认自然月矩阵，过去实际与今天预计分别标记
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 点击格子查看实际来源，明细筛选不修改汇总，可打开TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 目标保存后即时重算，不重新请求数据
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 目标保存后即时重算，不重新请求数据
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 部分失败显示待确认，不出现确定不足结论
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 日期切换失败隐藏不同范围的旧数据，失败提示保留
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 成员筛选和预计不足筛选作用于矩阵，打开失败明确反馈
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 大矩阵限制DOM数量，滚动可显示后续成员和日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 大矩阵限制DOM数量，滚动可显示后续成员和日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 预计充足与待确认同时展示，待确认汇总和筛选仍包含达标日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 今天实际已达标时明确显示实际达标并保留完整性提示
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 未来休息日只显示豁免，不显示零工时或预测异常，汇总不包含这些日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 休息日实际填报保留，实际记录异常与预测异常分别处理
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 四项缺日期任务留在成员待安排中，不复制到后续零工时日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 周末加班显示预计工时和非工作日，不显示不足或超额
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 截止周末的跨日任务显示周末预计值，截止周一则周末无工时
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 截止周末的跨日任务显示周末预计值，截止周一则周末无工时
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时6 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时6 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时8 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时8 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时10 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时10 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时6 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时6 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时8 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时8 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时10 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时10 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时6 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时6 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时8 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时8 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时10 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时10 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.499
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.499
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.5
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.5
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.501
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.501
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 今天实际2h加分配6h为绿色，合计6h为橙色
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 不完整数据不足按已知数值着色，确定不足统计仍不计入
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 非工作日与18h加班仍为灰色，图例解释四种颜色
+[hours-performance] { calculationMs: 0 }
+
+ ✓ src/pages/HoursPage.spec.ts (41 tests) 450ms
+
+ Test Files  1 passed (1)
+      Tests  41 passed (41)
+   Start at  17:58:04
+   Duration  1.05s (transform 158ms, setup 0ms, collect 217ms, tests 450ms, environment 218ms, prepare 35ms)
+
+
+> team-sight@0.1.0 tauri /Users/haolin/Projects/team-sight
+> tauri build --bundles app
+
+        Info Looking up installed tauri packages to check mismatched versions...
+     Running beforeBuildCommand `pnpm build`
+
+> team-sight@0.1.0 build /Users/haolin/Projects/team-sight
+> vue-tsc --noEmit && vite build
+
+vite v6.4.4 building for production...
+transforming...
+✓ 87 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                             0.42 kB │ gzip:  0.32 kB
+dist/assets/hours.worker-Ceoj3Xb8.js        7.83 kB
+dist/assets/index-CrH7CVkS.css              1.08 kB │ gzip:  0.53 kB
+dist/assets/HoursPage-BbKC_-Md.css          4.95 kB │ gzip:  1.35 kB
+dist/assets/BoardPage-D_7-Yb62.css          6.85 kB │ gzip:  1.50 kB
+dist/assets/SettingsPage-DQI4wqO_.css       8.06 kB │ gzip:  1.93 kB
+dist/assets/core-DV6XEvTN.js                0.10 kB │ gzip:  0.11 kB
+dist/assets/index-DdXGR97A.js               0.14 kB │ gzip:  0.14 kB
+dist/assets/externalLink-D7UyK1uw.js        1.75 kB │ gzip:  1.03 kB
+dist/assets/useChinaCalendar-CKRyVmi3.js   21.70 kB │ gzip:  8.58 kB
+dist/assets/SettingsPage-By8rROyC.js       24.26 kB │ gzip:  9.19 kB
+dist/assets/BoardPage-BhayZcGP.js          27.69 kB │ gzip: 10.27 kB
+dist/assets/HoursPage-BVoR-JNB.js          29.33 kB │ gzip: 10.99 kB
+dist/assets/index-BROVZ-L8.js             100.59 kB │ gzip: 39.42 kB
+✓ built in 524ms
+   Compiling team-sight v0.1.0 (/Users/haolin/Projects/team-sight/src-tauri)
+    Finished `release` profile [optimized] target(s) in 10.52s
+       Built application at: /Users/haolin/Projects/team-sight/src-tauri/target/release/team-sight
+    Bundling TeamSight.app (/Users/haolin/Projects/team-sight/src-tauri/target/release/bundle/macos/TeamSight.app)
+    Finished 1 bundle at:
+        /Users/haolin/Projects/team-sight/src-tauri/target/release/bundle/macos/TeamSight.app (12.89 MiB)
+
+TEST_EXIT=0 DESKTOP_BUILD_EXIT=0 DIFF_EXIT=0

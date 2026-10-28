@@ -1,0 +1,335 @@
+
+ RUN  v3.2.7 /Users/haolin/Projects/team-sight
+
+ ✓ src/hours/settings.spec.ts (17 tests) 7ms
+ ✓ src/hours/statistics.spec.ts (51 tests) 41ms
+ ❯ src/components/hours/LeaveCalendar.spec.ts (11 tests | 11 failed) 9ms
+   × 成员请假月历 > 使用北京时间今天、周一开头，支持跨年、闰年和返回本月 4ms
+     → showModal does not exist
+   × 成员请假月历 > 配置多成员、默认8h、小数和说明，确认仅上报草稿，按成员顺序展示 1ms
+     → showModal does not exist
+   × 成员请假月历 > 工时 0 阻止确认并保留弹窗 0ms
+     → showModal does not exist
+   × 成员请假月历 > 工时 -1 阻止确认并保留弹窗 0ms
+     → showModal does not exist
+   × 成员请假月历 > 工时  阻止确认并保留弹窗 0ms
+     → showModal does not exist
+   × 成员请假月历 > 校验重复成员，编辑移除仅替换当天记录 0ms
+     → showModal does not exist
+   × 成员请假月历 > 取消 放弃弹窗修改并恢复日期焦点 0ms
+     → showModal does not exist
+   × 成员请假月历 > 关闭 放弃弹窗修改并恢复日期焦点 0ms
+     → showModal does not exist
+   × 成员请假月历 > Esc 放弃弹窗修改并恢复日期焦点 0ms
+     → showModal does not exist
+   × 成员请假月历 > Tab与Shift+Tab在弹窗内循环 0ms
+     → showModal does not exist
+   × 成员请假月历 > 无成员提示，保存期间不可编辑 0ms
+     → showModal does not exist
+ ❯ src/components/hours/HoursSettingsCard.spec.ts (7 tests | 7 failed) 5ms
+   × 工时设置 > 默认8，保存小数成功才提交状态，重新加载后保留 3ms
+     → showModal does not exist
+   × 工时设置 > 非法输入 0 不写配置 0ms
+     → showModal does not exist
+   × 工时设置 > 非法输入 -1 不写配置 0ms
+     → showModal does not exist
+   × 工时设置 > 非法输入  不写配置 0ms
+     → showModal does not exist
+   × 工时设置 > 保存失败恢复确认值，错误保留，后续写入仍可成功 0ms
+     → showModal does not exist
+   × 工时设置 > 移除手动日期，豁免、项目终态仍可编辑并持久化 0ms
+     → showModal does not exist
+   × 工时设置 > 请假保存失败恢复已保存日历，再次编辑可成功保存 0ms
+     → showModal does not exist
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 待安排任务使用最新配置名称，不读取旧快照名称，未知项目回退ID
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 展示默认自然月矩阵，过去实际与今天预计分别标记
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 点击格子查看实际来源，明细筛选不修改汇总，可打开TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 目标保存后即时重算，不重新请求数据
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 目标保存后即时重算，不重新请求数据
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 部分失败显示待确认，不出现确定不足结论
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 日期切换失败隐藏不同范围的旧数据，失败提示保留
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 成员筛选和预计不足筛选作用于矩阵，打开失败明确反馈
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 大矩阵限制DOM数量，滚动可显示后续成员和日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 预测完整区间按需获取跨年日历，未发布年份降级提示，切页不重复失败请求
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 预测完整区间按需获取跨年日历，未发布年份降级提示，切页不重复失败请求
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 大矩阵限制DOM数量，滚动可显示后续成员和日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 从设置保存项目名称后统一更新保活页面，保留详情筛选折叠滚动且不查询或重算
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 预计充足与待确认同时展示，待确认汇总和筛选仍包含达标日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 今天实际已达标时明确显示实际达标并保留完整性提示
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 未来休息日只显示豁免，不显示零工时或预测异常，汇总不包含这些日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 休息日实际填报保留，实际记录异常与预测异常分别处理
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 四项缺日期任务留在成员待安排中，不复制到后续零工时日期
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 周末加班显示预计工时和非工作日，不显示不足或超额
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 截止周末的跨日任务显示周末预计值，截止周一则周末无工时
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 截止周末的跨日任务显示周末预计值，截止周一则周末无工时
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时6 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时6 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时8 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时8 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时10 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 反复切页保留实例、数据、详情、筛选和滚动，超过缓存期限仍不取数
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时10 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时6 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时6 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时8 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时8 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时10 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 工时加载在隐藏期间继续完成，返回不重复请求
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时10 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时6 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时6 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 后台计算离开后完成，返回不重算
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时8 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时8 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 隐藏时项目配置多次变化不请求，返回分别按最新配置更新一次
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时10 完整性异常false
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时10 完整性异常true
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 隐藏时规则变化延后重算，项目展示信息和成员变更不重拉看板
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.499
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.499
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 隐藏时规则变化延后重算，项目展示信息和成员变更不重拉看板
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.5
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.5
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 成员变化只重拉工时，返回看板复用原任务
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.501
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.501
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 成员变化只重拉工时，返回看板复用原任务
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 今天实际2h加分配6h为绿色，合计6h为橙色
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 旧账号请求在隐藏时完成不会作为新账号结果展示
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 不完整数据不足按已知数值着色，确定不足统计仍不计入
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 跨日返回工时更新一次，手动刷新仍可取数
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/app/App.spec.ts > 路由保活 > 跨日返回工时更新一次，手动刷新仍可取数
+[hours-performance] { calculationMs: 0 }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 非工作日与18h加班仍为灰色，图例解释四种颜色
+[hours-performance] { calculationMs: 0 }
+
+ ✓ src/pages/HoursPage.spec.ts (41 tests) 484ms
+stdout | src/app/App.spec.ts > 路由保活 > 凭据清除隐藏旧数据，卸载释放后台资源
+[hours-performance] { calculationMs: 0 }
+
+ ❯ src/app/App.spec.ts (15 tests | 1 failed) 422ms
+   × 路由保活 > 日历草稿统一保存后更新保活工时，复用快照重算且不重新查询 4ms
+     → showModal does not exist
+   ✓ 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD 86ms
+   ✓ 路由保活 > 预测完整区间按需获取跨年日历，未发布年份降级提示，切页不重复失败请求 21ms
+   ✓ 路由保活 > 从设置保存项目名称后统一更新保活页面，保留详情筛选折叠滚动且不查询或重算 77ms
+   ✓ 路由保活 > 设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数 57ms
+   ✓ 路由保活 > 反复切页保留实例、数据、详情、筛选和滚动，超过缓存期限仍不取数 53ms
+   ✓ 路由保活 > 工时加载在隐藏期间继续完成，返回不重复请求 9ms
+   ✓ 路由保活 > 看板未完成请求离开后继续，返回显示结果 7ms
+   ✓ 路由保活 > 后台计算离开后完成，返回不重算 9ms
+   ✓ 路由保活 > 隐藏时项目配置多次变化不请求，返回分别按最新配置更新一次 20ms
+   ✓ 路由保活 > 隐藏时规则变化延后重算，项目展示信息和成员变更不重拉看板 19ms
+   ✓ 路由保活 > 成员变化只重拉工时，返回看板复用原任务 20ms
+   ✓ 路由保活 > 旧账号请求在隐藏时完成不会作为新账号结果展示 9ms
+   ✓ 路由保活 > 跨日返回工时更新一次，手动刷新仍可取数 15ms
+   ✓ 路由保活 > 凭据清除隐藏旧数据，卸载释放后台资源 16ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 19 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/app/App.spec.ts > 路由保活 > 日历草稿统一保存后更新保活工时，复用快照重算且不重新查询
+Error: showModal does not exist
+ ❯ src/app/App.spec.ts:38:8
+     36| describe('路由保活', () => {
+     37|   it('日历草稿统一保存后更新保活工时，复用快照重算且不重新查询', async () => {
+     38|     vi.spyOn(HTMLDialogElement.prototype,'showModal').mockImplementati…
+       |        ^
+     39|     vi.spyOn(HTMLDialogElement.prototype,'close').mockImplementation(f…
+     40|     const go=await start('/hours',true);await go('/settings');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/19]⎯
+
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 默认8，保存小数成功才提交状态，重新加载后保留
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 非法输入 0 不写配置
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 非法输入 -1 不写配置
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 非法输入  不写配置
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 保存失败恢复确认值，错误保留，后续写入仍可成功
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 移除手动日期，豁免、项目终态仍可编辑并持久化
+ FAIL  src/components/hours/HoursSettingsCard.spec.ts > 工时设置 > 请假保存失败恢复已保存日历，再次编辑可成功保存
+Error: showModal does not exist
+ ❯ src/components/hours/HoursSettingsCard.spec.ts:11:5
+      9| beforeEach(async()=>{
+     10|  vi.useFakeTimers({toFake:['Date']});vi.setSystemTime(new Date('2026-1…
+     11|  vi.spyOn(HTMLDialogElement.prototype,'showModal').mockImplementation(…
+       |     ^
+     12|  vi.spyOn(HTMLDialogElement.prototype,'close').mockImplementation(func…
+     13|  const settings=createEmptySettings();settings.projects=[{id:'p',name:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/19]⎯
+
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 使用北京时间今天、周一开头，支持跨年、闰年和返回本月
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 配置多成员、默认8h、小数和说明，确认仅上报草稿，按成员顺序展示
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 工时 0 阻止确认并保留弹窗
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 工时 -1 阻止确认并保留弹窗
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 工时  阻止确认并保留弹窗
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 校验重复成员，编辑移除仅替换当天记录
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 取消 放弃弹窗修改并恢复日期焦点
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 关闭 放弃弹窗修改并恢复日期焦点
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > Esc 放弃弹窗修改并恢复日期焦点
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > Tab与Shift+Tab在弹窗内循环
+ FAIL  src/components/hours/LeaveCalendar.spec.ts > 成员请假月历 > 无成员提示，保存期间不可编辑
+Error: showModal does not exist
+ ❯ src/components/hours/LeaveCalendar.spec.ts:12:6
+     10|   vi.useFakeTimers({ toFake: ['Date'] });
+     11|   vi.setSystemTime(new Date('2026-10-18T17:00:00Z'));
+     12|   vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementatio…
+       |      ^
+     13|   vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(fu…
+     14| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/19]⎯
+
+
+ Test Files  3 failed | 3 passed (6)
+      Tests  19 failed | 123 passed (142)
+   Start at  17:52:14
+   Duration  1.46s (transform 661ms, setup 0ms, collect 1.50s, tests 967ms, environment 1.47s, prepare 328ms)
+
+
+> team-sight@0.1.0 build /Users/haolin/Projects/team-sight
+> vue-tsc --noEmit && vite build
+
+src/app/App.spec.ts(38,85): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/app/App.spec.ts(39,81): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/components/hours/HoursSettingsCard.spec.ts(11,82): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/components/hours/HoursSettingsCard.spec.ts(12,78): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/components/hours/LeaveCalendar.spec.ts(12,87): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/components/hours/LeaveCalendar.spec.ts(13,83): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/components/hours/LeaveCalendar.spec.ts(50,26): error TS2345: Argument of type '"modelValue"' is not assignable to parameter of type 'never'.
+ ELIFECYCLE  Command failed with exit code 2.
