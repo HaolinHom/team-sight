@@ -1,6 +1,6 @@
 {
   "name": "@teamsight/server",
-  "version": "0.0.0-p0",
+  "version": "0.1.0-p1a",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22.14.0 <23" },
@@ -10,6 +10,8 @@
     "test": "node --test test/probe.test.mjs"
   },
   "dependencies": {
+    "@teamsight/core": "workspace:*",
+    "@teamsight/tapd": "workspace:*",
     "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/core": "2.4.0",
     "@modelcontextprotocol/server": "2.4.0",

@@ -1,9 +1,9 @@
 {
   "name": "@teamsight/mcp-ui",
-  "version": "0.0.0-p0",
+  "version": "0.1.0-p1a",
   "private": true,
   "type": "module",
-  "scripts": { "build": "vue-tsc --noEmit && vite build" },
+  "scripts": { "build": "vue-tsc --noEmit && node build.mjs" },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "2.0.4",
     "@modelcontextprotocol/core": "2.4.0",

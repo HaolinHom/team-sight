@@ -19,6 +19,8 @@
     "p0:test": "pnpm --filter @teamsight/server test",
     "p0:serve": "node apps/server/dist/cli.js serve",
     "p0:package": "node scripts/package-p0.mjs"
+    ,"p1a:build": "pnpm --filter @teamsight/core build && pnpm --filter @teamsight/tapd build && pnpm --filter @teamsight/server build && pnpm --filter @teamsight/mcp-ui build"
+    ,"p1a:test": "pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",

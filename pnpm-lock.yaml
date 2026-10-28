@@ -109,6 +109,12 @@ importers:
       '@resvg/resvg-js':
         specifier: 2.6.2
         version: 2.6.2
+      '@teamsight/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@teamsight/tapd':
+        specifier: workspace:*
+        version: link:../../packages/tapd
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3
@@ -125,6 +131,14 @@ importers:
       typescript:
         specifier: 5.7.3
         version: 5.7.3
+
+  packages/core: {}
+
+  packages/tapd:
+    dependencies:
+      '@teamsight/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

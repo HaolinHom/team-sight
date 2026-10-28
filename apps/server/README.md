@@ -1,6 +1,6 @@
-# TeamSight P0 服务原型
+# TeamSight P1a 本地服务
 
-本目录只验证技术方案 v1.2 的 P0，不实现 TAPD 查询或写入，不读取旧 App 配置。正式业务工具留待后续阶段确认。
+本目录保留 P0 原型兼容入口，并实现技术方案 v1.2 的 P1a：核心包、统一 SQLite 配置、旧配置导入、正式 MCP Apps 设置页和 TAPD 基础只读查询。P1a 不执行 TAPD 创建/修改，不实现风险、图表、报表或宿主定时工作流。
 
 ## 从源码运行
 
@@ -8,8 +8,8 @@
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm p0:build
-pnpm p0:test
+pnpm p1a:build
+pnpm p1a:test
 node apps/server/verify.mjs --evidence-dir artifacts/validation/p0-local
 node apps/server/dist/cli.js serve --data-dir .local/teamsight-p0 --port 43127
 ```
@@ -36,9 +36,9 @@ url = "http://127.0.0.1:43127/mcp"
 bearer_token_env_var = "TEAMSIGHT_P0_BEARER"
 ```
 
-为 **Codex 进程**提供该变量，值从隔离数据目录的 `access-token` 读取。仅给当前终端设置环境变量，不能证明已经运行的桌面宿主拿到了变量。也可在本机配置中使用 `http_headers = { Authorization = "Bearer <本机测试令牌>" }`；不要将带令牌的配置提交进仓库。配置后按宿主要求重新连接 MCP，再在目标会话调用 `teamsight_status` 与 `teamsight_probe_open_settings`。
+为 **Codex 进程**提供该变量，值从隔离数据目录的 `access-token` 读取。仅给当前终端设置环境变量，不能证明已经运行的桌面宿主拿到了变量。也可在本机配置中使用 `http_headers = { Authorization = "Bearer <本机测试令牌>" }`；不要将带令牌的配置提交进仓库。配置后按宿主要求重新连接 MCP，再在目标会话调用 `teamsight_status` 与 `teamsight_open_settings`。P0 的 `teamsight_probe_*` 工具仍保留用于旧验收记录。
 
-Apps 验证：读取修订 → 修改保存 → 新修订 → 重开；两张卡片以同一旧修订提交，第二张必须显示冲突；模拟失败必须保留输入与数据库原值；重启服务后重新连接并读取。凭据仅接受 `TEAMSIGHT_P0_SENTINEL_...` 测试值，写入系统凭据库，读取仅返回布尔状态。`visibility: ['app']` 只是展示元信息，不能视为保密或授权保证。
+P1a Apps 验证：读取设置修订 → 修改项目/成员/TAPD 连接 → 保存 → 重新读取；旧 JSON 导入时凭据字段被忽略；基础查询在服务端执行，UI 不直连 TAPD。Token 写入系统凭据库，读取仅返回是否存在；`visibility: ['app']` 只是展示元信息，不能视为保密或授权保证。
 
 ## 生成验证包
 
