@@ -5,6 +5,7 @@ import type { HoursSnapshot, MemberHours } from './hoursTypes.js'
 import type { DateRange, TeamSightSettings } from './types.js'
 
 export const RULES_VERSION = 'teamsight-hours-v1.2'
+export const MCP_RULES_VERSION = 'teamsight-mcp-hours-v2'
 export interface AnalysisContext {
   range: DateRange
   analysisDate: string
@@ -42,11 +43,11 @@ export function validateAnalysisInput(range: DateRange, analysisDate: string): v
   if (!isValidDateKey(analysisDate)) throw new RangeError('INVALID_ANALYSIS_DATE')
 }
 
-export function checkRisks(snapshot: HoursSnapshot, members: MemberHours[], settings: TeamSightSettings, today: string): RiskFinding[] {
+export function checkRisks(snapshot: HoursSnapshot, members: MemberHours[], settings: TeamSightSettings, today: string, policy: 'legacy' | 'mcp' = 'legacy'): RiskFinding[] {
   const findings: RiskFinding[] = []
   for (const { member, days } of members) for (const day of days) {
     // The open business day reports progress; uncertain sources cannot prove a deficit.
-    if (day.state !== 'short' || day.reasons.length || day.date === today) continue
+    if (day.state !== 'short' || day.reasons.length || policy === 'legacy' && day.date === today) continue
     const historical = day.date < today
     findings.push({ code: historical ? 'HISTORICAL_HOURS_SHORT' : 'FORECAST_SHORT',
       message: `${member.name} ${day.date} ${historical ? '已填报' : '预计'}工时不足，差 ${day.deficit} 小时`,

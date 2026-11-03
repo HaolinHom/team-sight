@@ -26,6 +26,16 @@ export declare const searchInput: z.ZodObject<{
     }>;
     keyword: z.ZodOptional<z.ZodString>;
     status: z.ZodOptional<z.ZodString>;
+    owner: z.ZodOptional<z.ZodString>;
+    storyId: z.ZodOptional<z.ZodString>;
+    range: z.ZodOptional<z.ZodObject<{
+        start: z.ZodString;
+        end: z.ZodString;
+    }, z.core.$strict>>;
+    modified: z.ZodOptional<z.ZodObject<{
+        start: z.ZodString;
+        end: z.ZodString;
+    }, z.core.$strict>>;
     limit: z.ZodOptional<z.ZodNumber>;
     page: z.ZodOptional<z.ZodNumber>;
     offset: z.ZodOptional<z.ZodNumber>;

@@ -8,7 +8,7 @@ export interface OperationDefinition {
     path: string;
     kind: 'read' | 'write';
     encoding: 'query' | 'form';
-    pagination: 'page-200-max-50' | 'none';
+    pagination: 'page-200-max-50' | 'page-100-max-50' | 'none';
     responseKey: string;
     documentation: string;
     support: 'implemented';

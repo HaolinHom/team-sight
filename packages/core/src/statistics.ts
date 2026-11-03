@@ -21,7 +21,7 @@ export function formatHours(value: number): string {
 interface Allocation { task: ScheduleTask; key: string; remaining: number; dates: string[]; overtimeDates: string[]; explanation: string }
 
 export function calculateHours(input: {
-  snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string; calendar?: WorkingCalendar;
+  snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string; calendar?: WorkingCalendar; policy?: 'legacy' | 'mcp';
 }): MemberHours[] {
   const { snapshot, members, settings, range, today } = input;
   const dates = eachDateKey(range);
@@ -43,7 +43,7 @@ export function calculateHours(input: {
   const taskIssues = new Set(snapshot.issues.filter(issue => issue.taskKey && issue.affects !== 'actual').map(issue => issue.taskKey));
   for (const task of tasks) {
     if (isHoursCompleted(task, settings)) continue;
-    const key = hoursTaskKey(task), estimate = parseHours(task.effort);
+    const key = hoursTaskKey(task), estimate = (parseHours(task.effort) ?? (input.policy === 'mcp' && (task.effort === undefined || !String(task.effort).trim()) ? 0 : null));
     const remaining = estimate === null ? null : Math.max(estimate - (totals.get(key) ?? 0), 0);
     const share = estimate === null ? 0 : estimate / task.assigneeIds.length;
     const deficits = task.assigneeIds.map(id => Math.max(share - (personal.get(key + ':' + id) ?? 0), 0));

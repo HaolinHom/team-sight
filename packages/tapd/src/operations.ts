@@ -11,13 +11,15 @@ export interface OperationDefinition {
   path: string
   kind: 'read' | 'write'
   encoding: 'query' | 'form'
-  pagination: 'page-200-max-50' | 'none'
+  pagination: 'page-200-max-50' | 'page-100-max-50' | 'none'
   responseKey: string
   documentation: string
   support: 'implemented'
   inputSchema: Record<string, unknown>
 }
 export const operations: OperationDefinition[] = [
+  { id: 'users.current', path: '/users/info', responseKey: 'User', documentation: docs + 'user/get_users_info.html', inputSchema: operationJsonSchema('users.current') },
+  { id: 'workspace.members', path: '/workspaces/users', responseKey: 'UserWorkspace', documentation: docs + 'workspace/get_workspace_users.html', inputSchema: operationJsonSchema('workspace.members') },
   { id: 'workspaces.list', path: '/workspaces/user_participant_projects', responseKey: 'Workspace', documentation: docs + 'workspace/get_user_participant_projects.html', inputSchema: operationJsonSchema('workspaces.list') },
   { id: 'workspace.schema', path: '/stories/get_fields_info + /tasks/custom_fields_settings + /workspaces/users', responseKey: 'metadata', documentation: docs + 'story/get_story_fields_info.html', inputSchema: operationJsonSchema('workspace.schema') },
   ...(['story', 'task', 'bug'] as EntityType[]).flatMap(type => [
@@ -25,6 +27,12 @@ export const operations: OperationDefinition[] = [
     { id: `${type}.get`, path: entityPath(type), responseKey: entityKey(type), documentation: docs + `${type === 'story' ? 'story/get_stories' : type === 'task' ? 'task/get_tasks' : 'bug/get_bugs'}.html`, inputSchema: operationJsonSchema(`${type}.get`) },
   ]),
 ].map(entry => ({ ...entry, method: 'GET', kind: 'read', encoding: 'query', pagination: entry.id.endsWith('.search') ? 'page-200-max-50' : 'none', support: 'implemented' })) as OperationDefinition[]
+operations.push({ id: 'story.history', method: 'GET', path: '/story_changes', kind: 'read', encoding: 'query', pagination: 'page-100-max-50', responseKey: 'WorkitemChange', documentation: docs + 'story/get_story_changes.html', support: 'implemented', inputSchema: operationJsonSchema('story.history') })
+for (const [id,path,key,page,doc] of [
+  ['task.history','/task_changes','WorkitemChange','page-100-max-50','task/get_task_changes.html'],
+  ['attachments.list','/attachments','Attachment','page-200-max-50','attachment/get_attachments.html'],
+  ['attachments.download_link','/attachments/down','Attachment','none','attachment/get_one_attachment.html'],
+] as const) operations.push({id,path,responseKey:key,method:'GET',kind:'read',encoding:'query',pagination:page,documentation:docs+doc,support:'implemented',inputSchema:operationJsonSchema(id)})
 operations.push({ id: 'timesheets.search', method: 'GET', path: '/timesheets', kind: 'read', encoding: 'query', pagination: 'page-200-max-50', responseKey: 'Timesheet', documentation: docs + 'timesheet/get_timesheets.html', support: 'implemented',
   inputSchema: operationJsonSchema('timesheets.search') })
 for (const type of ['story', 'task', 'bug', 'timesheets'] as const) operations.push({ id: `${type}.count`, method: 'GET', path: type === 'timesheets' ? '/timesheets/count' : `${entityPath(type)}/count`, kind: 'read', encoding: 'query', pagination: 'none', responseKey: 'count', documentation: docs, support: 'implemented', inputSchema: operationJsonSchema(`${type}.count`) })

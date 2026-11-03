@@ -14,12 +14,12 @@ function option(key: string, fallback: string) {
   return args[index + 1]
 }
 async function main() {
-  const dataDir = resolve(option('--data-dir', process.env.TEAMSIGHT_P0_DATA_DIR ?? '.local/teamsight-p0'))
+  const dataDir = resolve(option('--data-dir', process.env.TEAMSIGHT_DATA_DIR ?? process.env.TEAMSIGHT_P0_DATA_DIR ?? '.local/teamsight-p0'))
   if (command === 'serve') {
     const port = Number(option('--port', '43127'))
     if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('INVALID_PORT')
     const { startServer } = await import('./server.js')
-    const service = await startServer({ dataDir, port, uiPath: process.env.TEAMSIGHT_P0_UI_PATH })
+    const service = await startServer({ dataDir, port, uiPath: process.env.TEAMSIGHT_UI_PATH ?? process.env.TEAMSIGHT_P0_UI_PATH })
     console.log(JSON.stringify({ event: 'ready', ...service.info }))
   } else if (command === 'status' || command === 'stop') {
     const info = JSON.parse(readFileSync(join(dataDir, 'instance.json'), 'utf8'))
@@ -44,7 +44,7 @@ async function main() {
       console.log(JSON.stringify({ ok: true, node: process.versions.node, napi: process.versions.napi, platform: process.platform, arch: process.arch, sqlite: store.db.prepare('SELECT sqlite_version() AS version').get(), revision: saved.revision, keyringMatches: true, pngBytes: png.png.length, pngSha256: png.sha256 }))
     } finally { cleanup?.(); rmSync(dir, { recursive: true, force: true }) }
   } else {
-    console.log('TeamSight P1b: serve [--data-dir PATH] [--port PORT] | status | stop | doctor. Requires external Node.js 22.14.0+ (<23). TAPD writes require an explicit project, action and field scope in settings.')
+    console.log('TeamSight MCP: serve [--data-dir PATH] [--port PORT] | status | stop | doctor. Requires external Node.js 22.14.0+ (<23). TAPD writes require an explicit project, action and field scope in settings.')
   }
 }
 main().catch(error => {

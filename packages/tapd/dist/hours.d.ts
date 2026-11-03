@@ -7,6 +7,7 @@ export interface HoursQuery {
     today: string;
     settings: HoursSettings;
     credentialRevision?: number;
+    accountIdentities?: boolean;
 }
 export interface HoursLoadOptions {
     signal?: AbortSignal;

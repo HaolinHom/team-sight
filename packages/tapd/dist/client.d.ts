@@ -19,11 +19,25 @@ export declare class TapdClient {
     searchRaw(workspaceId: string, type: EntityType, options?: {
         keyword?: string;
         status?: string;
+        owner?: string;
+        storyId?: string;
+        range?: import('@teamsight/core').DateRange;
+        modified?: import('@teamsight/core').DateRange;
         limit?: number;
         page?: number;
         offset?: number;
     }, signal?: AbortSignal): Promise<RawRow[]>;
-    pages(path: '/tasks' | '/bugs' | '/stories' | '/timesheets' | '/workspaces/users', params: Record<string, string>, key: string, signal?: AbortSignal): Promise<PageResult>;
+    pages(path: '/tasks' | '/bugs' | '/stories' | '/timesheets' | '/workspaces/users' | '/story_changes' | '/task_changes' | '/attachments', params: Record<string, string>, key: string, signal?: AbortSignal, pageSize?: number): Promise<PageResult>;
+    currentUser(): Promise<RawRow>;
+    members(workspaceId: string): Promise<PageResult>;
+    storyHistory(workspaceId: string, id: string): Promise<PageResult>;
+    taskHistory(workspaceId: string, ids: string[]): Promise<PageResult>;
+    attachments(workspaceId: string, entryId: string): Promise<PageResult>;
+    attachmentLink(workspaceId: string, id: string): Promise<{
+        attachment: RawRow;
+        fetchedAt: string;
+        expiresAfterSeconds: number;
+    }>;
     workspaceSchema(workspaceId: string, type: 'story' | 'task', workitemTypeId?: string): Promise<{
         workspaceId: string;
         entityType: "task" | "story";
@@ -31,7 +45,7 @@ export declare class TapdClient {
             user: string;
         }[];
         fields: unknown;
-        writableFields: ("status" | "name" | "description" | "owner" | "begin" | "due" | "effort" | "story_id" | "iteration_id" | "workitem_type_id")[];
+        writableFields: ("status" | "owner" | "name" | "description" | "begin" | "due" | "effort" | "story_id" | "iteration_id" | "workitem_type_id")[];
         statuses: {};
         statusSource: string;
         fetchedAt: string;

@@ -13,7 +13,7 @@ const analysisId = JSON.parse(readFileSync(join(root, 'artifacts/report/20261028
 const client = new Client({ name: 'p1b-browser-host', version: '1' })
 const transport = new StreamableHTTPClientTransport(new URL(info.url), { requestInit: { headers: { Authorization: `Bearer ${token}` } } })
 await client.connect(transport)
-const allowed = new Set(['teamsight_open_analysis', 'teamsight_read_analysis', 'teamsight_analyze_hours', 'teamsight_get_job', 'teamsight_cancel_job', 'teamsight_render_gantt', 'teamsight_generate_report', 'teamsight_read_artifact', 'teamsight_open_settings'])
+const allowed = new Set(['teamsight_get_config', 'teamsight_open_analysis', 'teamsight_read_analysis', 'teamsight_analyze_hours', 'teamsight_get_job', 'teamsight_cancel_job', 'teamsight_render_gantt', 'teamsight_generate_report', 'teamsight_read_artifact', 'teamsight_open_settings'])
 const server = createServer(async (req, res) => {
   try {
     if (req.headers.host !== '127.0.0.1:43130') { res.writeHead(403); res.end(); return }

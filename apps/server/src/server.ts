@@ -12,6 +12,8 @@ import { renderProbe } from './render.js'
 import { type TapdTransport } from '@teamsight/tapd'
 import { createBusiness } from './business.js'
 import { registerBusinessTools } from './business-tools.js'
+import { createScenarios } from './scenarios.js'
+import { registerScenarioTools } from './scenario-tools.js'
 import type { Vault } from './storage.js'
 import { type TeamSightSettings } from '@teamsight/core'
 
@@ -53,15 +55,16 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     store = openStore(dataDir, options.vault)
     const shared = store
     const business = createBusiness(shared, dataDir, options.tapdTransport)
+    const scenarios = createScenarios(business, shared)
     const analysisHtml = readFileSync(options.analysisUiPath ?? defaultAnalysisUiPath, 'utf8')
     const startedAt = new Date().toISOString()
-    const status = () => ({ phase: 'P1b', version: '0.1.0-p1b', pid: process.pid, instanceId, startedAt, node: process.versions.node,
+    const status = () => ({ phase: 'MCP', version: '0.2.0', pid: process.pid, instanceId, startedAt, node: process.versions.node,
       napi: process.versions.napi, platform: process.platform, arch: process.arch,
       revision: shared.read().revision, credentialPresent: shared.read().credentialPresent,
       settingsRevision: shared.readSettings().revision, sessions: transports.size, tapdEnabled: true })
     function mcp() {
-      const server = new McpServer({ name: 'TeamSight', version: '0.1.0-p1b' }, {
-        instructions: 'TeamSight P1b provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Configure project and write scopes first. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
+      const server = new McpServer({ name: 'TeamSight', version: '0.2.0' }, {
+        instructions: 'When CONFIG_REQUIRED, immediately call teamsight_open_settings in this conversation. After Apps reports configuration completion, continue the original read request; never request a token in chat. Use currentUser for self and default owners. Team defaults use exactly the default group, not every cached identity. Use context and scheduling tools for scenario data; urgent tools only simulate. Dependencies are rebuilt from TAPD and current conversation. TeamSight provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Configure project and write scopes first. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
       })
       server.registerTool('teamsight_status', { description: 'Read-only TeamSight service status; includes the shared process and instance identity.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false } }, () => result(status()))
       const ui = { resourceUri: UI_URI }
@@ -92,13 +95,15 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
         timeZone: z.enum(['Asia/Shanghai', 'UTC']).optional(),
         projects: z.array(z.unknown()).optional(),
         members: z.array(z.unknown()).optional(),
+        groups: z.array(z.unknown()).optional(),
+        defaultGroupId: z.string().optional(),
         hours: z.unknown().optional(),
         chinaCalendar: z.unknown().optional(),
         tapd: z.unknown().optional(),
       }).strict()
       const settingsResult = (value: unknown) => result(value)
-      const settingsSafely = (fn: () => unknown) => {
-        try { return settingsResult(fn()) }
+      const settingsSafely = async (fn: () => unknown) => {
+        try { return settingsResult(await fn()) }
         catch (error) {
           const code = error instanceof ProbeError ? error.code : 'SETTINGS_FAILED'
           return { ...settingsResult({ code, current: shared.readSettings() }), isError: true }
@@ -110,14 +115,19 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
         description: 'Save a validated settings patch using an expected revision. A TAPD token, when supplied by the Apps UI, is stored in the OS credential vault and never returned.',
         inputSchema: z.object({ expectedRevision: z.number().int().min(0), patch: settingsPatchSchema, tapdToken: z.string().min(1).optional() }).strict(),
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } },
-      }, args => settingsSafely(() => shared.saveSettings({ expectedRevision: args.expectedRevision, patch: args.patch as Partial<TeamSightSettings>, credential: args.tapdToken })))
+      }, args => settingsSafely(async () => {
+        const saved = shared.saveSettings({ expectedRevision: args.expectedRevision, patch: args.patch as Partial<TeamSightSettings>, credential: args.tapdToken })
+        if (!args.tapdToken) return saved
+        try { return await scenarios.syncProjects() } catch { return { ...shared.readSettings(), bootstrap: { status: 'partial', code: 'BOOTSTRAP_FAILED', next: 'teamsight_sync_projects' } } }
+      }))
       registerAppTool(server, 'teamsight_import_settings', {
         description: 'Import an old TeamSight settings JSON snapshot. Credential fields are ignored and must be entered separately in the settings Apps UI.',
         inputSchema: z.object({ expectedRevision: z.number().int().min(0), settingsJson: z.string().min(2).max(1_000_000), source: z.string().min(1).max(200).default('legacy-settings.json') }).strict(),
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } },
       }, args => settingsSafely(() => shared.importSettings({ expectedRevision: args.expectedRevision, raw: JSON.parse(args.settingsJson), source: args.source })))
 
-      registerBusinessTools(server, business, shared, analysisHtml)
+      registerBusinessTools(server, business, shared, analysisHtml, scenarios)
+      registerScenarioTools(server, scenarios)
       registerAppResource(server, 'TeamSight settings', SETTINGS_UI_URI, { description: 'Self-contained Vue settings and basic query UI', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri: SETTINGS_UI_URI, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
       return server
     }

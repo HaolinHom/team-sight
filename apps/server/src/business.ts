@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { calculateHours, checkRisks, validateAnalysisInput, businessDate, mergeCalendar, parseHolidayYear, calendarYearsForRanges, calendarTaskRanges, RULES_VERSION,
+import { calculateHours, checkRisks, validateAnalysisInput, businessDate, mergeCalendar, parseHolidayYear, calendarYearsForRanges, calendarTaskRanges, RULES_VERSION, MCP_RULES_VERSION, resolveMemberScope, parseHours, isHoursCompleted,
   mapScheduleRow, dedupeScheduleTasks, hoursTaskKey, isValidDateKey, type AnalysisContext, type TeamAnalysis, type TeamSightSettings, type WorkItemType, type RawRow } from '@teamsight/core'
 import { TapdClient, TapdError, RequestQueue, fetchHoursSnapshot, entityPath, entityKey, fieldsFor, writableFields, type EntityType, type TapdTransport } from '@teamsight/tapd'
 import type { TeamSightStore, SettingsSnapshot } from './storage.js'
@@ -16,8 +16,9 @@ export interface WriteInput {
   actor: string
   id?: string
   expectedDigest?: string
+  batch?: Pick<OperationReceipt, 'batchId' | 'itemKey' | 'attempt' | 'intentHash'>
 }
-export interface AnalysisInput { start: string; end: string; analysisDate?: string; projectIds?: string[]; memberIds?: string[]; refresh?: boolean }
+export interface AnalysisInput { start: string; end: string; analysisDate?: string; projectIds?: string[]; memberIds?: string[]; groupIds?: string[]; scope?: 'self' | 'team'; refresh?: boolean }
 const rowDigest = (row: RawRow) => digest(Object.fromEntries(Object.keys(row).sort().map(key => [key, row[key]])))
 const knownCode = (error: unknown) => error instanceof BusinessError ? error.code : 'TAPD_REQUEST_FAILED'
 
@@ -95,7 +96,7 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     const canonical = { workspaceId: input.workspaceId, entityType: input.entityType, action, id: input.id ?? null, fields: fieldHashes(input.fields), expectedDigest: input.expectedDigest ?? null, actor: input.actor,
       subject: digest([snapshot.settings.tapd.baseUrl, store.getCredential()]) }
     const reserved = files.reserveOperation({ idempotencyKey: input.idempotencyKey, requestHash: digest(canonical), workspaceId: input.workspaceId, entityType: input.entityType, action,
-      actor: `local-user:${input.actor}`, expectedHashes: fieldHashes(input.fields), remoteId: input.id })
+      actor: `local-user:${input.actor}`, expectedHashes: fieldHashes(input.fields), remoteId: input.id, ...input.batch })
     if (!reserved.fresh) return { ...reserved.receipt, replayed: true }
     const id = reserved.receipt.operationId
     let sent = false
@@ -163,14 +164,15 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     const today = input.analysisDate ?? businessDate(snapshot.settings.timeZone)
     const range = { start: input.start, end: input.end }
     validateAnalysisInput(range, today)
-    const projects = input.projectIds ?? snapshot.settings.projects.filter(project => project.enabled).map(project => project.id)
+    const projects = input.projectIds ?? snapshot.settings.projects.filter(project => project.enabled && project.available !== false).map(project => project.id)
     for (const id of projects) assertProject(snapshot.settings, id)
-    if (input.memberIds?.some(id => !snapshot.settings.members.some(member => member.staffId === id))) throw new BusinessError('MEMBER_NOT_CONFIGURED')
+    let selectedMembers: TeamSightSettings['members']
+    try { selectedMembers = resolveMemberScope(snapshot.settings, input) } catch(error) { throw new BusinessError((error as Error).message, { next: 'teamsight_open_settings' }) }
     const settings = { ...snapshot.settings, projects: snapshot.settings.projects.filter(project => projects.includes(project.id)).map(project => ({ ...project, enabled: true })),
-      members: snapshot.settings.members.filter(member => !input.memberIds || input.memberIds.includes(member.staffId)) }
+      members: selectedMembers }
     if (!settings.projects.length || !settings.members.length) throw new BusinessError('CONFIG_REQUIRED', { next: 'teamsight_open_settings' })
     const context: AnalysisContext = { range, analysisDate: today, timeZone: settings.timeZone, projectIds: settings.projects.map(project => project.id), memberIds: settings.members.map(member => member.staffId),
-      configRevision: snapshot.revision, calendarVersion: digest(settings.chinaCalendar), rulesVersion: RULES_VERSION }
+      configRevision: snapshot.revision, calendarVersion: digest(settings.chinaCalendar), rulesVersion: MCP_RULES_VERSION }
     return { snapshot, settings, today, range, context }
   }
   async function analyze(input: AnalysisInput, signal?: AbortSignal): Promise<TeamAnalysis> {
@@ -184,14 +186,14 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     const generation = cacheGeneration
     const api = client(snapshot)
     // Source identity excludes aliases, member order and computational rules.
-    const key = `hours-v1.2:${digest({ baseUrl: settings.tapd.baseUrl, credential: digest(store.getCredential()), authorized: settings.tapd.workspaceIds,
+    const key = `hours-v2:${digest({ baseUrl: settings.tapd.baseUrl, credential: digest(store.getCredential()), authorized: settings.tapd.workspaceIds,
       projects: settings.projects.map(project => project.id).sort(), members: settings.members.map(member => member.staffId).sort(), completedStates: settings.hours.completedStates, range, today })}`
     const cached = input.refresh ? null : store.getCache(key)
     const source = cached && Date.now() - Date.parse(cached.fetchedAt) <= 60_000
       ? cached.value as { snapshotId: string }
       : null
     const hoursSnapshot = source ? files.getJson<Awaited<ReturnType<typeof fetchHoursSnapshot>>>(source.snapshotId)
-      : await fetchHoursSnapshot({ projects: settings.projects, members: settings.members, range, today, settings: settings.hours }, api, { signal })
+      : await fetchHoursSnapshot({ projects: settings.projects, members: settings.members, range, today, settings: settings.hours, accountIdentities: true }, api, { signal })
     signal?.throwIfAborted()
     const snapshotId = source?.snapshotId ?? randomUUID()
     const fetchedAt = new Date(hoursSnapshot.fetchedAt ?? Date.now()).toISOString()
@@ -200,15 +202,16 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
       if (hoursSnapshot.status === 'complete' && generation === cacheGeneration) store.putCache(key, fetchedAt, 'complete', { snapshotId })
     }
     const aliases = new Map(settings.projects.map(project => [project.id, project]))
-    const currentSnapshot = { ...hoursSnapshot, tasks: hoursSnapshot.tasks.map(task => ({ ...task, projectName: aliases.get(task.projectId)!.name, projectColor: aliases.get(task.projectId)!.color })) }
+    const currentSnapshot = { ...hoursSnapshot, tasks: hoursSnapshot.tasks.map(task => ({ ...task, projectName: aliases.get(task.projectId)!.alias || aliases.get(task.projectId)!.name, projectColor: aliases.get(task.projectId)!.color })) }
     if (settings.chinaCalendar.enabled) {
       for (const year of calendarYearsForRanges(calendarTaskRanges(currentSnapshot.tasks, today)).sources) { signal?.throwIfAborted(); await refreshCalendar(year, false) }
       const latest = store.readSettings()
       settings = { ...settings, chinaCalendar: { ...settings.chinaCalendar, years: { ...settings.chinaCalendar.years, ...latest.settings.chinaCalendar.years } } }
       context = { ...context, calendarVersion: digest(settings.chinaCalendar) }
     }
-    const members = calculateHours({ snapshot: currentSnapshot, members: settings.members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar) })
-    const limitations = ['工作项覆盖配置成员，未扫描无负责人对象。', '工时单位为小时；需求不与子任务重复汇总。', '当前未结束日仅报告进度。', '没有历史快照时不推断排期变化或期间完成量。']
+    const members = calculateHours({ snapshot: currentSnapshot, members: settings.members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar), policy: 'mcp' })
+    for (const member of members) for (const day of member.days) day.available = Math.max(day.target - day.actual - day.allocated, 0)
+    const limitations = ['工作项覆盖配置成员，未扫描无负责人对象。', '工时单位为小时；需求不与子任务重复汇总。', '当天及未来按实际与剩余分配计算，缺预估有效值为0。', '没有历史快照时不推断排期变化或期间完成量。']
     let calendarIncomplete = false
     if (settings.chinaCalendar.enabled) {
       const required = calendarYearsForRanges([range, ...calendarTaskRanges(currentSnapshot.tasks, today)]).sources
@@ -225,8 +228,14 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
       }
     }
     if (currentSnapshot.status !== 'complete') limitations.push('数据不完整，未知量不补零；缺口不能解释为没有任务或风险。')
+    for(const task of currentSnapshot.tasks) {
+      const key=hoursTaskKey(task),estimate=parseHours(task.effort)??(!task.effort?0:null),completed=isHoursCompleted(task,settings.hours)
+      const unknown=currentSnapshot.issues.some(issue=>issue.taskKey===key&&issue.affects!=='actual')
+      const actual=unknown?null:currentSnapshot.records.filter(record=>[record.projectId,record.entityType,record.entityId].join(':')===key&&record.spentDate<=today).reduce((sum,record)=>sum+record.hours,0)
+      task.hours={estimate,estimateMissing:!task.effort,actual,actualCoverage:completed?'period':'cumulative',remaining:completed?0:estimate===null||actual===null?null:Math.max(estimate-actual,0)}
+    }
     const analysis: TeamAnalysis = { analysisId: randomUUID(), snapshotId, createdAt: new Date().toISOString(), fetchedAt, context, status: currentSnapshot.status === 'failed' ? 'failed' : calendarIncomplete ? 'partial' : currentSnapshot.status, unit: 'hours',
-      snapshot: currentSnapshot, members, risks: checkRisks(currentSnapshot, members, settings, today), limitations }
+      snapshot: currentSnapshot, members, risks: checkRisks(currentSnapshot, members, settings, today, 'mcp'), limitations }
     files.putFile('analysis', JSON.stringify(analysis), 'json', 'application/json', { snapshotId, analysisId: analysis.analysisId }, analysis.analysisId)
     return analysis
   }
@@ -238,7 +247,7 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     const snapshot = store.readSettings(), api = client(snapshot), generation = cacheGeneration
     const range = { start: input.start, end: input.end }
     validateAnalysisInput(range, businessDate(snapshot.settings.timeZone))
-    const projects = snapshot.settings.projects.filter(project => project.enabled)
+    const projects = snapshot.settings.projects.filter(project => project.enabled && project.available !== false)
     if (!projects.length) throw new BusinessError('CONFIG_REQUIRED')
     const types = input.types ?? snapshot.settings.tapd.defaultTypes
     if (!types.length) throw new BusinessError('CONFIG_REQUIRED')

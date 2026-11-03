@@ -6,12 +6,13 @@ import { operations, describeOperation, TapdError, schemaInput, searchInput, get
 import { BusinessError, type TeamSightBusiness } from './business.js'
 import type { TeamSightStore } from './storage.js'
 import { generateReport, renderGantt } from './outputs.js'
+import type { TeamSightScenarios } from './scenarios.js'
 import type { FileRecord } from './business-storage.js'
 
 export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-p1b.html'
 const id = z.string().min(1).max(100)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const analysisInput = z.object({ start: date, end: date, analysisDate: date.optional(), projectIds: z.array(id).min(1).max(100).optional(), memberIds: z.array(id).min(1).max(100).optional(), refresh: z.boolean().optional() }).strict()
+const analysisInput = z.object({ start: date, end: date, analysisDate: date.optional(), projectIds: z.array(id).min(1).max(100).optional(), memberIds: z.array(id).min(1).max(100).optional(), groupIds: z.array(id).min(1).optional(), scope: z.enum(['self','team']).optional(), refresh: z.boolean().optional() }).strict()
 const result = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value) }], structuredContent: value })
 const artifactLinks = (artifacts: FileRecord[]) => artifacts.map(artifact => ({ type: 'resource_link' as const, uri: artifact.resourceUri, name: artifact.filename, mimeType: artifact.mimeType, size: artifact.size }))
 
@@ -21,7 +22,7 @@ export function analysisSummary(analysis: TeamAnalysis) {
     risks: analysis.risks.slice(0, 30), risksTruncated: analysis.risks.length > 30, limitations: analysis.limitations, resourceUri: `teamsight://artifacts/${analysis.analysisId}` }
 }
 
-export function registerBusinessTools(server: McpServer, business: TeamSightBusiness, store: TeamSightStore, html: string) {
+export function registerBusinessTools(server: McpServer, business: TeamSightBusiness, store: TeamSightStore, html: string, scenarios: TeamSightScenarios) {
   const handlers = new Map<string, { schema: z.ZodType; run: (args: unknown) => unknown }>()
   async function safe(fn: () => unknown) {
     try {
@@ -54,6 +55,8 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     const snapshot = store.readSettings()
     const api = business.client(snapshot)
     business.assertProject(snapshot.settings, args.workspaceId)
+    if(args.range) assertRange(args.range)
+    if(args.modified) assertRange(args.modified)
     if (args.entityType === 'story') {
       const items = await api.searchRaw(args.workspaceId, 'story', args)
       return { items, partial: items.length >= (args.limit ?? 50), fetchedAt: new Date().toISOString() }
@@ -78,6 +81,13 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
   add('tapd_call_operation', 'Call a catalog operation through the same validation and authorization as the corresponding common tool. Never accepts arbitrary paths or headers.', z.object({ operationId: id, parameters: z.record(z.string(), z.unknown()) }).strict(), args => {
     let definition
     try { definition = describeOperation(args.operationId) } catch { throw new BusinessError('OPERATION_NOT_REGISTERED') }
+    if (args.operationId === 'users.current') { operationInput(args.operationId).parse(args.parameters); return business.client(store.readSettings()).currentUser() }
+    if (['workspace.members','story.history','task.history','attachments.list','attachments.download_link'].includes(args.operationId)) {
+      const input = operationInput(args.operationId).parse(args.parameters) as unknown as {workspaceId:string;id?:string;entryId?:string}
+      business.assertProject(store.readSettings().settings,input.workspaceId)
+      const api=business.client(store.readSettings())
+      switch(args.operationId){case 'workspace.members':return api.members(input.workspaceId);case 'story.history':return api.storyHistory(input.workspaceId,input.id!);case 'task.history':return api.taskHistory(input.workspaceId,[input.id!]);case 'attachments.list':return api.attachments(input.workspaceId,input.entryId!);default:return api.attachmentLink(input.workspaceId,input.id!)}
+    }
     const [type, action] = definition.id.split('.')
     let name: string
     let parameters = operationInput(args.operationId).parse(args.parameters) as Record<string, unknown>
@@ -123,21 +133,32 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
   })
   add('teamsight_cancel_job', 'Cancel queued or in-progress reads for an analysis job. Mutations cannot be cancelled through this tool.', z.object({ jobId: id }).strict(), args => business.cancelJob(args.jobId), false)
   add('teamsight_refresh_calendar', 'Refresh one China-calendar source year from the fixed official project mirrors; preserves existing cached data on failure.', z.object({ year: z.number().int().min(1000).max(9999) }).strict(), args => business.refreshCalendar(args.year), false)
-  add('teamsight_read_analysis', 'Read a bounded analysis view. Page members/tasks and narrow dates as needed; full facts are also available from the analysis JSON resource.', z.object({ analysisId: id, memberOffset: z.number().int().min(0).optional(), taskOffset: z.number().int().min(0).optional(), start: date.optional(), end: date.optional() }).strict(), args => {
-    const analysis = business.getAnalysis(args.analysisId)
+  add('teamsight_read_analysis', 'Read a bounded analysis view. Page members/tasks and narrow dates as needed; full facts are also available from the analysis JSON resource.', z.object({ analysisId: id.optional(), calculationId: id.optional(), candidateId: z.string().optional(), projectIds: z.array(id).optional(), memberIds: z.array(id).optional(), riskOffset: z.number().int().min(0).optional(), memberOffset: z.number().int().min(0).optional(), taskOffset: z.number().int().min(0).optional(), start: date.optional(), end: date.optional() }).strict(), args => {
+    if(!args.analysisId && !args.calculationId) throw new BusinessError('ANALYSIS_REQUIRED')
+    const source = args.calculationId ? scenarios.calculationView(args.calculationId,args.candidateId) : business.getAnalysis(args.analysisId!)
+    const analysis = structuredClone(source)
+    if(args.projectIds?.length) {
+      analysis.snapshot.tasks = analysis.snapshot.tasks.filter(task=>args.projectIds!.includes(task.projectId))
+      for(const member of analysis.members) {member.pending=member.pending.filter(row=>args.projectIds!.includes(row.task.projectId));for(const day of member.days) {day.contributions=day.contributions.filter(row=>args.projectIds!.includes(row.projectId));day.actual=day.contributions.reduce((sum,row)=>sum+row.actual,0);day.allocated=day.contributions.reduce((sum,row)=>sum+row.allocated,0);day.total=day.actual+(day.basis==='forecast'?day.allocated:0);day.deficit=Math.max(day.target-day.total,0)}}
+    }
+    if(args.memberIds?.length) {analysis.members=analysis.members.filter(member=>args.memberIds!.includes(member.member.staffId));analysis.snapshot.tasks=analysis.snapshot.tasks.filter(task=>task.assigneeIds.some(id=>args.memberIds!.includes(id)))}
     const memberOffset = args.memberOffset ?? 0, taskOffset = args.taskOffset ?? 0
     const start = args.start ?? analysis.context.range.start, end = args.end ?? analysis.context.range.end
     assertRange({ start, end })
     if (start < analysis.context.range.start || end > analysis.context.range.end || start > end) throw new BusinessError('VIEW_OUTSIDE_ANALYSIS')
-    return { ...analysisSummary(analysis), members: analysis.members.slice(memberOffset, memberOffset + 20).map(member => ({ ...member, days: member.days.filter(day => day.date >= start && day.date <= end), pending: member.pending.slice(0, 50), pendingCount: member.pending.length, pendingTruncated: member.pending.length > 50 })),
+    analysis.snapshot.tasks=analysis.snapshot.tasks.filter(task=>!task.startDate||!task.dueDate||task.startDate>task.dueDate||task.startDate<=end&&task.dueDate>=start)
+    analysis.risks=analysis.risks.filter(risk=>(!risk.date||risk.date>=start&&risk.date<=end)&&(!args.memberIds?.length||!risk.staffId||args.memberIds.includes(risk.staffId))&&(!args.projectIds?.length||!risk.taskKey||args.projectIds.some(project=>risk.taskKey!.startsWith(project+':'))))
+    analysis.context={...analysis.context,range:{start,end}}
+    return { ...analysisSummary(analysis), risks:analysis.risks.slice(args.riskOffset??0,(args.riskOffset??0)+30),risksTruncated:analysis.risks.length>(args.riskOffset??0)+30,sourceContext:source.context, viewFilters:{projectIds:args.projectIds,memberIds:args.memberIds,start,end}, calculationId: args.calculationId, candidateId: args.candidateId, members: analysis.members.slice(memberOffset, memberOffset + 20).map(member => ({ ...member, days: member.days.filter(day => day.date >= start && day.date <= end), pending: member.pending.slice(0, 50), pendingCount: member.pending.length, pendingTruncated: member.pending.length > 50 })),
       tasks: analysis.snapshot.tasks.slice(taskOffset, taskOffset + 200), issues: analysis.snapshot.issues.slice(0, 100),
       nextMemberOffset: analysis.members.length > memberOffset + 20 ? memberOffset + 20 : null, nextTaskOffset: analysis.snapshot.tasks.length > taskOffset + 200 ? taskOffset + 200 : null }
   })
-  add('teamsight_check_risks', 'Read explainable risk findings from one saved analysis. The open day is progress only; partial sources and unscanned unassigned items remain explicit.', z.object({ analysisId: id, offset: z.number().int().min(0).optional() }).strict(), args => {
+  add('teamsight_check_risks', 'Read explainable risk findings from one saved analysis. Includes the open day under MCP hours rules; partial sources and unscanned unassigned items remain explicit.', z.object({ analysisId: id, offset: z.number().int().min(0).optional() }).strict(), args => {
     const analysis = business.getAnalysis(args.analysisId), offset = args.offset ?? 0
     return { ...analysisSummary(analysis), risks: analysis.risks.slice(offset, offset + 100), nextOffset: analysis.risks.length > offset + 100 ? offset + 100 : null }
   })
-  add('teamsight_open_analysis', 'Open the TeamSight Apps schedule, daily hours and risk evidence view. Supply an existing analysisId to keep all outputs on the same snapshot.', z.object({ analysisId: id.optional() }).strict(), args => {
+  add('teamsight_open_analysis', 'Open the TeamSight Apps schedule, daily hours and risk evidence view. Supply an existing analysisId to keep all outputs on the same snapshot.', z.object({ analysisId: id.optional(), calculationId: id.optional(), candidateId: z.string().optional() }).strict(), args => {
+    if(args.calculationId) {const calculation=scenarios.getCalculation(args.calculationId);return {...analysisSummary(scenarios.calculationView(args.calculationId,args.candidateId)),calculationId:args.calculationId,candidateId:args.candidateId,simulation:{mode:calculation.mode,candidates:calculation.result.candidates,affectedTaskKeys:calculation.affectedTaskKeys}}}
     if (args.analysisId) return analysisSummary(business.getAnalysis(args.analysisId))
     const snapshot = store.readSettings(), today = businessDate(snapshot.settings.timeZone), range = currentMonthRange(new Date(`${today}T12:00:00Z`))
     return { defaults: { ...range, analysisDate: today }, configured: snapshot.credentialPresent && snapshot.settings.members.length > 0 && snapshot.settings.projects.some(project => project.enabled) }

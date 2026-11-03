@@ -11,3 +11,5 @@ export * from './ganttTypes.js';
 export * from './filters.js';
 export * from './layout.js';
 export * from './analysis.js';
+export * from './planner.js';
+export * from './memberScope.js';

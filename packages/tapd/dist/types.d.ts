@@ -20,6 +20,9 @@ export interface SearchInput {
     entityType: WorkItemType;
     keyword?: string;
     status?: string;
+    owner?: string;
+    storyId?: string;
+    modified?: DateRange;
     limit?: number;
     offset?: number;
     page?: number;

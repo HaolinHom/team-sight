@@ -88,3 +88,19 @@ test('operation directory records the documented POST update endpoints and schem
   }
   assert.ok(!operations.some(entry => /delete|permissions/.test(entry.id)))
 })
+
+test('documented histories use WorkitemChange at 100 rows and attachments use 200 without unsupported count calls',async()=>{
+ const calls=[];let denied=false
+ const client=new TapdClient({baseUrl:'https://api.tapd.cn',getToken:()=> 'fixture',transport:async(path,params)=>{
+  calls.push({path,params})
+  if(path==='/attachments')return denied?{status:0,httpStatus:403,data:null}:ok([{Attachment:{id:'a1',workspace_id:'1',entry_id:'s1',filename:'spec.pdf'}}])
+  if(path==='/attachments/down')return ok({Attachment:{id:'a1',workspace_id:'1',download_url:'https://files.example/spec.pdf'}})
+  return ok([{WorkitemChange:{id:'h1',story_id:'s1',task_id:'t1',created:'2026-11-02 10:00:00',changes:'[]'}}])
+ }})
+ assert.equal((await client.storyHistory('1','s1')).complete,true);assert.equal((await client.taskHistory('1',['t1'])).complete,true)
+ assert.equal(calls[0].params.limit,'100');assert.equal(calls[1].params.limit,'100');assert.equal((await client.attachments('1','s1')).rows[0].filename,'spec.pdf')
+ assert.equal(calls[2].params.limit,'200');assert.equal((await client.attachmentLink('1','a1')).expiresAfterSeconds,300)
+ assert.equal((await client.storyHistory('1','different')).complete,false)
+ denied=true;const unavailable=await client.attachments('1','s1');assert.equal(unavailable.complete,false);assert.equal(unavailable.httpStatus,403)
+ assert.ok(!calls.some(call=>call.path.endsWith('/count')))
+})

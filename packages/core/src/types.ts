@@ -9,9 +9,13 @@ export interface ProjectConfig {
   name: string
   enabled: boolean
   color: string
+  alias?: string
+  order?: number
+  available?: boolean
 }
 
-export interface MemberEntry { staffId: string; name: string }
+export interface MemberEntry { staffId: string; name: string; account?: string; enabled?: boolean; order?: number }
+export interface MemberGroup { id: string; name: string; memberIds: string[]; testing?: boolean }
 
 export interface LeaveExemption {
   staffId: string
@@ -42,6 +46,9 @@ export interface TeamSightSettings {
   timeZone: 'Asia/Shanghai' | 'UTC'
   projects: ProjectConfig[]
   members: MemberEntry[]
+  groups?: MemberGroup[]
+  defaultGroupId?: string
+  currentUser?: MemberEntry
   hours: HoursSettings
   chinaCalendar: ChinaCalendarSettings
   tapd: TapdSettings
@@ -65,6 +72,12 @@ export interface ScheduleTask {
   priority?: string
   effort?: string
   tapdUrl: string
+  hours?: { estimate: number | null; estimateMissing: boolean; actual: number | null; actualCoverage: 'cumulative' | 'period'; remaining: number | null }
+  storyId?: string
+  description?: string
+  createdAt?: string
+  modifiedAt?: string
+  completedAt?: string
   rawStatus?: string
 }
 

@@ -2,17 +2,18 @@ import { assertRange, isValidDateKey } from './date.js';
 import { isHoursCompleted } from './hoursSettings.js';
 import { hoursTaskKey, parseHours } from './statistics.js';
 export const RULES_VERSION = 'teamsight-hours-v1.2';
+export const MCP_RULES_VERSION = 'teamsight-mcp-hours-v2';
 export function validateAnalysisInput(range, analysisDate) {
     assertRange(range);
     if (!isValidDateKey(analysisDate))
         throw new RangeError('INVALID_ANALYSIS_DATE');
 }
-export function checkRisks(snapshot, members, settings, today) {
+export function checkRisks(snapshot, members, settings, today, policy = 'legacy') {
     const findings = [];
     for (const { member, days } of members)
         for (const day of days) {
             // The open business day reports progress; uncertain sources cannot prove a deficit.
-            if (day.state !== 'short' || day.reasons.length || day.date === today)
+            if (day.state !== 'short' || day.reasons.length || policy === 'legacy' && day.date === today)
                 continue;
             const historical = day.date < today;
             findings.push({ code: historical ? 'HISTORICAL_HOURS_SHORT' : 'FORECAST_SHORT',

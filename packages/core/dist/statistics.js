@@ -37,7 +37,7 @@ export function calculateHours(input) {
     for (const task of tasks) {
         if (isHoursCompleted(task, settings))
             continue;
-        const key = hoursTaskKey(task), estimate = parseHours(task.effort);
+        const key = hoursTaskKey(task), estimate = (parseHours(task.effort) ?? (input.policy === 'mcp' && (task.effort === undefined || !String(task.effort).trim()) ? 0 : null));
         const remaining = estimate === null ? null : Math.max(estimate - (totals.get(key) ?? 0), 0);
         const share = estimate === null ? 0 : estimate / task.assigneeIds.length;
         const deficits = task.assigneeIds.map(id => Math.max(share - (personal.get(key + ':' + id) ?? 0), 0));

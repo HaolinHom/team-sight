@@ -73,6 +73,9 @@ export class TapdClient {
     }
     if (input.keyword?.trim()) params[input.entityType === 'task' ? 'name' : 'title'] = input.keyword.trim()
     if (input.status?.trim()) params.status = input.status.trim()
+    if (input.owner) params[input.entityType === 'task' ? 'owner' : 'current_owner'] = input.owner
+    if (input.storyId) params.story_id = input.storyId
+    if (input.modified) params.modified = input.modified.start + '~' + input.modified.end
     if (input.range) {
       params.begin = `1970-01-01~${input.range.end}`
       params.due = `${input.range.start}~2999-12-31`
@@ -97,22 +100,26 @@ export class TapdClient {
     return matches[0]
   }
 
-  async searchRaw(workspaceId: string, type: EntityType, options: { keyword?: string; status?: string; limit?: number; page?: number; offset?: number } = {}, signal?: AbortSignal) {
+  async searchRaw(workspaceId: string, type: EntityType, options: { keyword?: string; status?: string; owner?: string; storyId?: string; range?: import('@teamsight/core').DateRange; modified?: import('@teamsight/core').DateRange; limit?: number; page?: number; offset?: number } = {}, signal?: AbortSignal) {
     const limit = options.limit ?? 50
     const params: Record<string, string> = { workspace_id: workspaceId, limit: String(limit), page: String(options.page ?? (options.offset ? Math.floor(options.offset / limit) + 1 : 1)) }
     if (options.keyword) params[type === 'bug' ? 'title' : 'name'] = options.keyword
     if (options.status) params.status = options.status
+    if (options.owner) params[type === 'bug' ? 'current_owner' : 'owner'] = options.owner
+    if (options.storyId) params.story_id = options.storyId
+    if (options.range) { params.begin = '1970-01-01~' + options.range.end; params.due = options.range.start + '~2999-12-31' }
+    if (options.modified) params.modified = options.modified.start + '~' + options.modified.end
     const envelope = await this.request(entityPath(type), params, signal)
     if (!Array.isArray(envelope.data)) throw new TapdError('INVALID_LIST_RESPONSE', 0, envelope.httpStatus, envelope.status)
     return envelope.data.map(item => (item as RawRow)?.[entityKey(type)]).filter((row): row is RawRow => !!row && typeof row === 'object')
   }
 
-  async pages(path: '/tasks' | '/bugs' | '/stories' | '/timesheets' | '/workspaces/users', params: Record<string, string>, key: string, signal?: AbortSignal): Promise<PageResult> {
+  async pages(path: '/tasks' | '/bugs' | '/stories' | '/timesheets' | '/workspaces/users' | '/story_changes' | '/task_changes' | '/attachments', params: Record<string, string>, key: string, signal?: AbortSignal, pageSize = path.endsWith('_changes') ? 100 : 200): Promise<PageResult> {
     const rows: RawRow[] = [], seen = new Set<string>()
     let expected = Infinity, fetchedAt = Infinity
     for (let page = 1; page <= 50; page++) {
       try {
-        const envelope = await this.request(path, { ...params, limit: '200', page: String(page), order: 'id asc' }, signal)
+        const envelope = await this.request(path, { ...params, limit: String(pageSize), page: String(page), ...(path==='/attachments'?{}:{order: 'id asc'}) }, signal)
         fetchedAt = Math.min(fetchedAt, Date.now())
         if (!Array.isArray(envelope.data)) throw new Error('INVALID_LIST_RESPONSE')
         const entries = envelope.data.map(item => (item as RawRow)?.[key])
@@ -122,15 +129,15 @@ export class TapdClient {
           if (!id || seen.has(id)) throw new Error('REPEATED_OR_MISSING_PAGE_ID')
           seen.add(id); rows.push(entry)
         }
-        if (page === 1 && entries.length === 200 && path !== '/workspaces/users') {
+        if (page === 1 && entries.length === pageSize && !['/workspaces/users','/story_changes','/task_changes','/attachments'].includes(path)) {
           try {
             const count = await this.request(`${path}/count`, params, signal)
             const value = Number((count.data as RawRow)?.count)
             if (Number.isSafeInteger(value) && value >= rows.length) expected = value
           } catch { signal?.throwIfAborted() }
         }
-        if (entries.length < 200 && Number.isFinite(expected) && rows.length < expected) return { rows, complete: false, fetchedAt, error: 'COUNT_MISMATCH_OR_TRUNCATED_PAGE' }
-        if (entries.length < 200 || rows.length >= expected) return { rows, complete: true, fetchedAt }
+        if (entries.length < pageSize && Number.isFinite(expected) && rows.length < expected) return { rows, complete: false, fetchedAt, error: 'COUNT_MISMATCH_OR_TRUNCATED_PAGE' }
+        if (entries.length < pageSize || rows.length >= expected) return { rows, complete: true, fetchedAt }
       } catch (error) {
         signal?.throwIfAborted()
         return { rows, complete: false, fetchedAt: Number.isFinite(fetchedAt) ? fetchedAt : Date.now(), error: error instanceof Error ? error.message : 'TAPD_REQUEST_FAILED',
@@ -138,6 +145,29 @@ export class TapdClient {
       }
     }
     return { rows, complete: false, fetchedAt, error: 'PAGE_BUDGET_EXCEEDED_50' }
+  }
+
+  async currentUser() {
+    const value = await this.request('/users/info', {})
+    if (!value.data || typeof value.data !== 'object' || Array.isArray(value.data)) throw new TapdError('INVALID_USER_INFO', 0)
+    return value.data as RawRow
+  }
+  async members(workspaceId: string) { return this.pages('/workspaces/users', { workspace_id: workspaceId }, 'UserWorkspace') }
+  async storyHistory(workspaceId: string, id: string) {
+    const result=await this.pages('/story_changes', { workspace_id: workspaceId, story_id: id }, 'WorkitemChange')
+    return result.rows.some(row=>String(row.story_id)!==id)?{...result,complete:false,error:'HISTORY_FILTER_MISMATCH',rows:result.rows.filter(row=>String(row.story_id)===id)}:result
+  }
+
+  async taskHistory(workspaceId: string, ids: string[]) {
+    const result=await this.pages('/task_changes', { workspace_id: workspaceId, task_id: ids.join(',') }, 'WorkitemChange')
+    return result.rows.some(row=>!ids.includes(String(row.task_id)))?{...result,complete:false,error:'HISTORY_FILTER_MISMATCH',rows:result.rows.filter(row=>ids.includes(String(row.task_id)))}:result
+  }
+  async attachments(workspaceId: string, entryId: string) { return this.pages('/attachments', { workspace_id: workspaceId, entry_id: entryId }, 'Attachment') }
+  async attachmentLink(workspaceId: string, id: string) {
+    const response=await this.request('/attachments/down',{workspace_id:workspaceId,id})
+    const row=(response.data as RawRow)?.Attachment as RawRow|undefined
+    if(!row || String(row.id)!==id || String(row.workspace_id)!==workspaceId || typeof row.download_url!=='string') throw new TapdError('INVALID_ATTACHMENT_RESPONSE',0)
+    return {attachment:row,fetchedAt:new Date().toISOString(),expiresAfterSeconds:300}
   }
 
   async workspaceSchema(workspaceId: string, type: 'story' | 'task', workitemTypeId?: string) {

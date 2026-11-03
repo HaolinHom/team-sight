@@ -1,8 +1,8 @@
 import { buildTapdUrl, mapScheduleRow, type ProjectConfig, type RawRow, type ScheduleTask, type WorkItemType } from '@teamsight/core'
 
 export const fieldsFor = (type: WorkItemType) => type === 'task'
-  ? 'id,name,workspace_id,owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,completed'
-  : 'id,title,workspace_id,current_owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,closed'
+  ? 'id,name,story_id,description,workspace_id,owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,completed'
+  : 'id,title,story_id,description,workspace_id,current_owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,closed'
 
 export function rowsOf(data: unknown, type: WorkItemType): RawRow[] {
   if (!Array.isArray(data)) return []

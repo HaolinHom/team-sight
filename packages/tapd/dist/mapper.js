@@ -1,7 +1,7 @@
 import { buildTapdUrl, mapScheduleRow } from '@teamsight/core';
 export const fieldsFor = (type) => type === 'task'
-    ? 'id,name,workspace_id,owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,completed'
-    : 'id,title,workspace_id,current_owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,closed';
+    ? 'id,name,story_id,description,workspace_id,owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,completed'
+    : 'id,title,story_id,description,workspace_id,current_owner,creator,status,priority_label,effort,begin,due,iteration_id,created,modified,closed';
 export function rowsOf(data, type) {
     if (!Array.isArray(data))
         return [];

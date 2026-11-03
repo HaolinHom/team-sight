@@ -18,6 +18,7 @@ export interface HoursQuery {
   today: string;
   settings: HoursSettings;
   credentialRevision?: number;
+  accountIdentities?: boolean;
 }
 
 export interface HoursLoadOptions {
@@ -27,6 +28,7 @@ export interface HoursLoadOptions {
 /** 按已配置成员查询工作项，完整覆盖跨窗、缺日期、逾期任务，不扫描项目全量工作项。 */
 export async function fetchHoursSnapshot(query: HoursQuery, client: TapdClient, options: HoursLoadOptions = {}): Promise<HoursSnapshot> {
   const { signal } = options;
+  const identity = (value: unknown) => parseAssignees(value)[0]?.id ?? (query.accountIdentities && String(value ?? '').trim() ? 'user:' + String(value).trim() : null);
   const started = performance.now();
   let requests = 0, cacheHits = 0;
   let fetchedAt = Infinity;
@@ -55,10 +57,10 @@ export async function fetchHoursSnapshot(query: HoursQuery, client: TapdClient, 
       const result = await pages('/workspaces/users', { workspace_id: project.id }, 'UserWorkspace');
       if (!result.complete) throw new Error(result.error);
       const users = result.rows;
-      const ids = users.map(user => parseAssignees(user.user)[0]?.id).filter(Boolean);
+      const ids = users.map(user => identity(user.user)).filter(Boolean);
       if (new Set(ids).size !== ids.length) throw new Error('AMBIGUOUS_MEMBER_DIRECTORY');
       directories.set(project.id, new Map(users.flatMap(user => {
-        const id = parseAssignees(user.user)[0]?.id;
+        const id = identity(user.user);
         return id ? [[id, String(user.user)] as [string, string]] : [];
       })));
       knownUsers.set(project.id, new Set(users.map(user => String(user.user))));
@@ -82,7 +84,7 @@ export async function fetchHoursSnapshot(query: HoursQuery, client: TapdClient, 
         issues.push({ projectId: project.id, affects, taskKey, message: '工时关联工作项筛选不匹配' });
         continue;
       }
-      const staffId = parseAssignees(owner)[0]?.id;
+      const staffId = identity(owner);
       const invalidOwner = !staffId && !knownUsers.get(project.id)?.has(owner);
       if (!date || hours === null || !owner || !id || !entityId || invalidOwner) {
         issues.push({ projectId: project.id, affects, taskKey, date: date ?? undefined, staffId: staffId ?? undefined, message: '存在无法解析日期、工时或填报人的记录' });
@@ -115,11 +117,15 @@ export async function fetchHoursSnapshot(query: HoursQuery, client: TapdClient, 
     taskDone();
     for (const row of result.rows) {
       const task = mapRow(row, project, type);
+      if (task && query.accountIdentities) {
+        const owners = String(type === 'task' ? row.owner ?? '' : row.current_owner ?? '').split(';').map(value=>value.trim()).filter(Boolean);
+        task.assigneeIds = [...new Set(owners.map(identity).filter((id): id is string=>!!id))]; task.assigneeId = task.assigneeIds[0] ?? null;
+      }
       if (!task) {
         issues.push({ projectId: project.id, staffId: member.staffId, affects: 'forecast', message: '存在缺少 ID 的工作项' });
       } else if (task.assigneeIds.includes(member.staffId)) {
         tasks.set(hoursTaskKey(task), task);
-        if (parseAssignees(type === 'task' ? row.owner : row.current_owner).some(owner => !owner.id)) {
+        if (!query.accountIdentities && parseAssignees(type === 'task' ? row.owner : row.current_owner).some(owner => !owner.id)) {
           issues.push({ projectId: project.id, affects: 'forecast', taskKey: hoursTaskKey(task), message: '多人工作项存在无法识别工号的负责人，份额待确认' });
         }
       } else {

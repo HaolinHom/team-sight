@@ -31,7 +31,7 @@ export function mapScheduleRow(row: RawRow, project: ProjectConfig, type: WorkIt
     sourceType: type,
     title: text(type === 'task' ? row.name : row.title) || '(无标题)',
     projectId: project.id,
-    projectName: project.name,
+    projectName: project.alias || project.name,
     projectColor: project.color,
     assigneeId: primary.id,
     assigneeName: primary.id ? members[primary.id] || primary.name : primary.name,
@@ -42,6 +42,11 @@ export function mapScheduleRow(row: RawRow, project: ProjectConfig, type: WorkIt
     priority: text(row.priority_label) || undefined,
     effort: text(row.effort) || undefined,
     tapdUrl: buildTapdUrl(project.id, type, id),
+    storyId: text(row.story_id) || undefined,
+    description: text(row.description) || undefined,
+    createdAt: text(row.created) || undefined,
+    modifiedAt: text(row.modified) || undefined,
+    completedAt: text(row.completed ?? row.closed) || undefined,
     rawStatus: text(row.status),
   }
 }

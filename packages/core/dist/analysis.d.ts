@@ -1,6 +1,7 @@
 import type { HoursSnapshot, MemberHours } from './hoursTypes.js';
 import type { DateRange, TeamSightSettings } from './types.js';
 export declare const RULES_VERSION = "teamsight-hours-v1.2";
+export declare const MCP_RULES_VERSION = "teamsight-mcp-hours-v2";
 export interface AnalysisContext {
     range: DateRange;
     analysisDate: string;
@@ -33,4 +34,4 @@ export interface TeamAnalysis {
     limitations: string[];
 }
 export declare function validateAnalysisInput(range: DateRange, analysisDate: string): void;
-export declare function checkRisks(snapshot: HoursSnapshot, members: MemberHours[], settings: TeamSightSettings, today: string): RiskFinding[];
+export declare function checkRisks(snapshot: HoursSnapshot, members: MemberHours[], settings: TeamSightSettings, today: string, policy?: 'legacy' | 'mcp'): RiskFinding[];

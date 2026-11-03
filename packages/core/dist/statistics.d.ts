@@ -13,4 +13,5 @@ export declare function calculateHours(input: {
     range: DateRange;
     today: string;
     calendar?: WorkingCalendar;
+    policy?: 'legacy' | 'mcp';
 }): MemberHours[];

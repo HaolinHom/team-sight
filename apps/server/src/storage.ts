@@ -62,7 +62,7 @@ export function openStore(dir: string, vault?: Vault): TeamSightStore {
       const version = db.pragma('user_version', { simple: true }) as number
       if (version > 3) throw new ProbeError('SCHEMA_TOO_NEW')
       db.exec('CREATE TABLE IF NOT EXISTS config (id INTEGER PRIMARY KEY CHECK (id=1), revision INTEGER NOT NULL, value TEXT NOT NULL, credential_account TEXT)')
-      db.prepare('INSERT OR IGNORE INTO config VALUES (1, 0, ?, NULL)').run(JSON.stringify({ teamName: 'TeamSight P0', dailyHours: 8, timeZone: 'Asia/Shanghai' }))
+      db.prepare('INSERT OR IGNORE INTO config VALUES (1, 0, ?, NULL)').run(JSON.stringify({ teamName: 'TeamSight', dailyHours: 8, timeZone: 'Asia/Shanghai' }))
       db.exec('CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id=1), revision INTEGER NOT NULL, value TEXT NOT NULL, imported_from TEXT, updated_at TEXT NOT NULL)')
       db.exec('CREATE TABLE IF NOT EXISTS tapd_cache (cache_key TEXT PRIMARY KEY, fetched_at TEXT NOT NULL, status TEXT NOT NULL, value TEXT NOT NULL)')
       const existing = db.prepare('SELECT revision, value FROM config WHERE id=1').get() as { revision: number; value: string }
@@ -85,6 +85,10 @@ export function openStore(dir: string, vault?: Vault): TeamSightStore {
       ); CREATE TABLE IF NOT EXISTS jobs (
         id TEXT PRIMARY KEY, status TEXT NOT NULL, value TEXT NOT NULL
       )`)
+      const stored = db.prepare('SELECT value FROM settings WHERE id=1').get() as {value:string}
+      const storedSettings = JSON.parse(stored.value)
+      if(Number(storedSettings.schemaVersion)>5) throw new ProbeError('SETTINGS_SCHEMA_TOO_NEW')
+      if(Number(storedSettings.schemaVersion)!==5) db.prepare('UPDATE settings SET value=? WHERE id=1').run(JSON.stringify(normalizeSettings(storedSettings).settings))
       db.pragma('user_version = 3')
     })()
   } catch (error) { db.close(); throw error }

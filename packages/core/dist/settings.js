@@ -1,5 +1,5 @@
 import { isValidDateKey } from './date.js';
-export const SETTINGS_SCHEMA_VERSION = 4;
+export const SETTINGS_SCHEMA_VERSION = 5;
 export const DEFAULT_TAPD_BASE_URL = 'https://api.tapd.cn';
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#6366f1', '#ec4899'];
 export function createDefaultSettings(now = new Date()) {
@@ -9,6 +9,8 @@ export function createDefaultSettings(now = new Date()) {
         timeZone: 'Asia/Shanghai',
         projects: [],
         members: [],
+        groups: [{ id: 'default', name: '默认分组', memberIds: [] }],
+        defaultGroupId: 'default',
         hours: { dailyRequiredHours: 8, exemptions: [], completedStates: [] },
         chinaCalendar: { enabled: false, years: {} },
         tapd: { baseUrl: DEFAULT_TAPD_BASE_URL, workspaceIds: [], defaultTypes: ['task', 'bug'] },
@@ -82,7 +84,7 @@ export function normalizeSettings(raw, now = new Date()) {
                 continue;
             const color = text(value.color) || colors.find(candidate => !used.has(candidate)) || colors[projects.length % colors.length];
             used.add(color);
-            projects.push({ id, name: text(value.name) || `项目 ${id}`, enabled: value.enabled === true, color });
+            projects.push({ id, name: text(value.name) || `项目 ${id}`, enabled: value.enabled === true, color, alias: text(value.alias) || undefined, order: Number.isFinite(value.order) ? Number(value.order) : projects.length, available: value.available !== false });
         }
     const members = [];
     const seenMembers = new Set();
@@ -95,8 +97,20 @@ export function normalizeSettings(raw, now = new Date()) {
             if (!staffId || seenMembers.has(staffId))
                 continue;
             seenMembers.add(staffId);
-            members.push({ staffId, name: text(value.name) || staffId });
+            members.push({ staffId, name: text(value.name) || staffId, account: text(value.account) || undefined, enabled: value.enabled !== false, order: Number.isFinite(value.order) ? Number(value.order) : members.length });
         }
+    const groups = Array.isArray(record.groups) ? record.groups.flatMap(item => {
+        if (!item || typeof item !== 'object')
+            return [];
+        const value = item;
+        const id = text(value.id);
+        return id ? [{ id, name: text(value.name) || id, memberIds: Array.isArray(value.memberIds) ? [...new Set(value.memberIds.map(text))].filter(id => seenMembers.has(id)) : [], testing: value.testing === true }] : [];
+    }).filter((group, index, list) => list.findIndex(other => other.id === group.id) === index) : [{ id: 'default', name: '默认分组', memberIds: members.map(member => member.staffId), testing: false }];
+    if (!groups.length)
+        groups.push({ id: 'default', name: '默认分组', memberIds: [], testing: false });
+    const defaultGroupId = groups.some(group => group.id === text(record.defaultGroupId)) ? text(record.defaultGroupId) : groups[0].id;
+    const userRaw = record.currentUser && typeof record.currentUser === 'object' ? record.currentUser : undefined;
+    const currentUser = userRaw && text(userRaw.staffId) && text(userRaw.account) ? { staffId: text(userRaw.staffId), name: text(userRaw.name), account: text(userRaw.account), enabled: true } : undefined;
     const tapdRaw = record.tapd && typeof record.tapd === 'object' ? record.tapd : {};
     const workspaceIds = Array.isArray(tapdRaw.workspaceIds) ? tapdRaw.workspaceIds.map(text).filter(Boolean) : [];
     const defaultTypes = Array.isArray(tapdRaw.defaultTypes)
@@ -116,7 +130,7 @@ export function normalizeSettings(raw, now = new Date()) {
             teamName: text(record.teamName) || defaults.teamName,
             timeZone: record.timeZone === 'UTC' ? 'UTC' : 'Asia/Shanghai',
             projects,
-            members,
+            members, groups, defaultGroupId, currentUser,
             hours: normalizeHours(record.hours),
             chinaCalendar: normalizeCalendar(record.chinaCalendar),
             tapd: { baseUrl: text(tapdRaw.baseUrl) || DEFAULT_TAPD_BASE_URL, workspaceIds, defaultTypes, writeAccess },

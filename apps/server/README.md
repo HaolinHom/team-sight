@@ -1,101 +1,70 @@
-# TeamSight P1b 本地服务
+# TeamSight MCP 本地服务
 
-本目录实现技术方案 v1.2 的 P1b：需求/任务基础读写、操作目录、共享排期/工时分析、可解释风险、MCP Apps 和静态报告。MCP、业务、SQLite 与资源共用一个本机服务进程，保留 P0/P1a 兼容入口。当前停在 P1b 验收点，P1c 的发行、Windows 实机、宿主定时和旧 App 退役尚未实施。
+版本0.2.0，提供非敏感配置管理、令牌用户与成员范围、TAPD基础操作、需求／期间工作上下文、工时／容量、普通排期、紧急模拟、批量任务写入及双层甘特图。具体能力、参数示例及恢复流程见[能力与使用说明](../../docs/TeamSight-MCP-能力与使用说明.md)。skills、Linux、DeepSeek Harness和旧App退役不在本轮范围内。
 
 ## 从源码运行
 
-使用外部 Node.js **22.23.4**、pnpm **10.12.4**。兼容门槛为 Node.js 22.14.0+（<23）和 Node-API 10；其他 Node 主版本尚未纳入验收。
+使用外部Node.js 22.14+且低于23、Node-API10，pnpm10.12.4。本轮macOS验证使用22.23.2；历史运行基线22.23.4。
 
-```sh
+~~~sh
 pnpm install --frozen-lockfile
-pnpm p1b:build
-pnpm p1b:test
-node apps/server/verify.mjs --evidence-dir artifacts/validation/p0-local
-node apps/server/dist/cli.js serve --data-dir .local/teamsight-p0 --port 43127
-```
-
-`verify.mjs` 创建临时目录和测试凭据，通过两个 MCP 客户端验证共享进程、资源、配置修订、失败回滚、图像和进程重启，然后清理测试凭据与目录。`doctor` 单独验证三个原生模块。两个入口均不证明目标 Codex Apps 或宿主定时验收通过。
-
-```sh
+pnpm mcp:build
+pnpm mcp:test
 node apps/server/dist/cli.js doctor
-node apps/server/dist/cli.js status --data-dir .local/teamsight-p0
-node apps/server/dist/cli.js stop --data-dir .local/teamsight-p0
-```
+node apps/server/verify-mcp.mjs --evidence-dir artifacts/validation/mcp-local
+node apps/server/dist/cli.js serve --data-dir .local/teamsight-mcp --port 43127
+~~~
 
-服务只监听 `127.0.0.1`，`/mcp` 为 Streamable HTTP。`/health` 和 `/_p0/stop` 是需要同一身份校验的生命周期诊断入口。拒绝未知 Host、Origin、缺失或错误 Bearer；无 Origin 的本机 MCP 客户端可连接。Apps 不直接访问 HTTP，所有调用经宿主桥接。
+doctor验证原生SQLite、系统凭据库和PNG渲染；verify-mcp使用真实MCP传输、原生存储和隔离TAPD接口，不写业务TAPD。旧verify.mjs、p0／p1a／p1b脚本和工具保留用于兼容。verify-p1b.mjs带execute-writes会写真实TAPD，不能当作普通离线验证运行。
 
-数据目录内 `access-token` 为本地 MCP 身份；`instance.json` 提供 URL、PID、实例 ID 和令牌文件路径。令牌不等同于 TAPD 凭据，不要贴到对话或公开日志。异常退出留下锁文件时，先核对实例 PID、进程命令和健康检查；确认原进程已退出后才移除该隔离目录中的 `instance.lock`，不能结束未知进程。
+~~~sh
+node apps/server/dist/cli.js status --data-dir .local/teamsight-mcp
+node apps/server/dist/cli.js stop --data-dir .local/teamsight-mcp
+~~~
 
-## 连接 Codex
+服务只监听127.0.0.1，/mcp使用Streamable HTTP，Host、Origin和Bearer均校验。数据目录的instance.json记录实例信息，access-token为本机MCP令牌，不能贴到对话。TAPD令牌存系统凭据库，SQLite仅保存引用。Apps通过宿主桥调用工具，不直连TAPD。
 
-在 Codex 的 MCP 配置中登记服务（配置文件为 `~/.codex/config.toml`，通过宿主实际支持的入口编辑）：
+支持TEAMSIGHT_DATA_DIR、TEAMSIGHT_UI_PATH，并兼容原TEAMSIGHT_P0_*变量。未显式指定目录时仍使用原.local/teamsight-p0，避免隐藏已有配置。内部凭据库服务名和生命周期路径保留兼容；不应据此将新工具能力称为P0。不要结束未知进程或删除未确认实例的锁。
 
-```toml
-[mcp_servers.teamsight_p1b]
+## Codex接入与配置
+
+在宿主实际支持的MCP配置入口登记本机URL及访问令牌环境变量，例如：
+
+~~~toml
+[mcp_servers.teamsight]
 url = "http://127.0.0.1:43127/mcp"
-bearer_token_env_var = "TEAMSIGHT_P1B_BEARER"
-```
+bearer_token_env_var = "TEAMSIGHT_BEARER"
+~~~
 
-为 **Codex 进程**提供该变量，值从隔离数据目录的 `access-token` 读取。仅给当前终端设置环境变量，不能证明已经运行的桌面宿主拿到了变量。也可在本机配置中使用 `http_headers = { Authorization = "Bearer <本机测试令牌>" }`；不要将带令牌的配置提交进仓库。配置后按宿主要求重新连接 MCP，再在目标会话调用 `teamsight_status` 与 `teamsight_open_settings`。P0 的 `teamsight_probe_*` 工具仍保留用于旧验收记录。
+变量必须提供给Codex进程，值来自该实例access-token；仅给终端设置不证明桌面宿主拿到变量。配置后重新连接并调用teamsight_status、teamsight_open_settings。真实令牌在设置卡片填写，保存后自动同步项目和当前用户。项目全新同步默认启用；身份缓存不自动扩大默认团队。卡片支持多分组、测试人员组、默认组、排序、别名、日历和请假。
 
-Apps 设置：读取设置修订 → 修改项目/成员/TAPD 连接、工时与小时请假、中国日历及写入范围 → 保存 → 重新读取。旧 JSON 导入时凭据字段被忽略；查询与写入均在服务端执行，UI 不直连 TAPD。Token 写入系统凭据库，读取仅返回是否存在；`visibility: ['app']` 只是展示元信息，不能视为保密或授权保证。设置与分析资源分别为 `ui://teamsight/settings-p1b.html`、`ui://teamsight/analysis-p1b.html`，随构建自包含交付。
+只读配置通过teamsight_get_config获取，修改非敏感设置用teamsight_update_config和expectedRevision。缺令牌返回CONFIG_REQUIRED和设置入口；初始化缺口明确返回，不自动代填凭据。Apps仅可见元信息不是权限或保密保证。旧资源URI settings-p1b.html、analysis-p1b.html保留。
 
-## TAPD 读取与写入
+## TAPD操作与恢复
 
-先调用 `tapd_list_workspaces` 和 `tapd_get_workspace_schema` 获取项目、精确成员账号、字段与状态。`tapd_search_items`、`tapd_get_item` 支持 `story/task/bug`；仅需求和任务支持写入。ID 始终使用字符串。`tapd_list_operations`、`tapd_describe_operation` 公开固定方法、编码、参数、分页及文档依据；`tapd_call_operation` 使用同一参数契约和权限校验，不接受任意 URL、Header、删除或权限变更。
+tapd_list_operations／tapd_describe_operation公开白名单、参数契约、分页和文档；tapd_call_operation与专用工具共用校验，不接受任意URL、Header、删除或权限变更。完整账号是稳定身份，ID始终用字符串。读取范围受tapd.workspaceIds约束；写入还需在卡片设置tapd.writeAccess的项目、create/update操作和字段，自动项目同步不扩大写授权。
 
-读取范围由 `tapd.workspaceIds` 限定，未填写时采用配置项目。写入还必须显式设置 `tapd.writeAccess` 的项目、`create/update` 操作及字段，迁移默认禁用写入。例如：
+普通批量创建和补排期使用teamsight_write_tasks；日期修改需普通排期calculationId，新建需story_id，更新需id及expectedDigest。紧急结果只模拟，不能传给写入工具。回执在发送前保存批次关联，unknown先查teamsight_get_task_batch并只读核对，不换幂等键重发。部分成功不会自动删除或远端回滚；TAPD不提供跨任务事务和原子CAS。
 
-```json
-{
-  "tapd": {
-    "writeAccess": {
-      "workspaceIds": ["62119705"],
-      "operations": ["create", "update"],
-      "fields": ["name", "description", "owner", "begin", "due", "effort", "status", "story_id"]
-    }
-  }
-}
-```
+## 分析与Apps
 
-通过 `teamsight_save_settings` 的 `patch` 提交并携带当前 `expectedRevision`。允许字段仍受具体对象元数据限制。`owner` 要求项目成员目录中的完整账号，多人以 `;` 分隔；仅名称或工号会返回候选，不能静默选人。任务状态使用 TAPD 文档的 `open/progressing/done`，需求状态从项目元数据读取。
+teamsight_analyze_hours、teamsight_start_analysis支持人员／分组／项目及业务日期。长查询返回jobId，可查询或取消；重启作业标记interrupted。analysisId引用不可变快照；calculationId引用当前进程临时模拟结果，30分钟或重启后失效。
 
-`tapd_create_item` 需要 `workspaceId`、`entityType`、`fields`、稳定的 `idempotencyKey` 和 `actor`；创建时必须有标题，使用远端初始状态。修改先 `tapd_get_item`，再向 `tapd_update_item` 传入 `id`、`expectedDigest` 及同样的写入参数。通用目录的 `task.create` 等操作由 `operationId` 决定对象类型，`parameters` 不再包含 `entityType`。
+新MCP工时规则将缺预估按0处理，保留缺失标记；取数失败仍未知。过去按实际，当天及未来按实际加剩余预计，包含当天不足。容量按规定工时、日历、请假、实际和其他预计扣减；旧App默认规则保留。数据不完整时不声称零工时或确定可行。
 
-写入使用 POST 表单、持久回执及读回核对；不自动重试。相同幂等键复用回执，参数不同返回 `IDEMPOTENCY_KEY_CONFLICT`。`tapd_get_operation` 读取状态；`unknown` 时使用 `tapd_verify_operation` 只读核对，远端 ID 不明时先搜索标记对象，再提供 `candidateId`。服务重启把已发在途写入转为 `unknown`，不能据此重新创建对象。本地幂等不保证 TAPD 远端恰好一次，字段摘要也不是原子 CAS。服务只保存字段哈希，不在回执中记录敏感正文。
+Apps提供任务／工时前后层切换、点击／悬浮／详情、完整范围筛选与模拟前后对比。背景无交互，不支持拖拽写入。静态png/svg/html与固定markdown/html/csv/json导出仍基于保存分析；它们不是业务周报模板。文件通过teamsight://artifacts资源或teamsight_read_artifact读取。模拟卡片不导出基线冒充模拟。
 
-## 分析、Apps 与文件
+SQLite user_version保持3，业务配置v5；旧成员迁到默认组。回执、配置、作业、文件索引和缓存沿用现有表，不新增协作或计划表。未知写入回执不能为重试而清空。
 
-`teamsight_analyze_hours` 输入 `start/end`，可显式指定 `analysisDate`、项目、成员和 `refresh`。服务按业务时区确定分析日，超过两秒返回 `jobId`；用 `teamsight_get_job` 查询，或 `teamsight_cancel_job` 取消读取。`teamsight_start_analysis` 可直接创建作业。重启后的运行作业标记 `interrupted`，需重新开始分析。
+## 运行包与验收
 
-得到 `analysisId` 后，在 `teamsight_open_analysis`、`teamsight_read_analysis`、`teamsight_check_risks`、`teamsight_render_gantt` 和 `teamsight_generate_report` 中复用该 ID。Apps 提供日期、成员、甘特、每日贡献明细、风险依据和工作项链接；分页及截断均有提示，完整事实可通过 JSON 导出读取。导出使用完整分析范围。
+~~~sh
+pnpm mcp:package darwin-arm64
+pnpm mcp:package win32-x64
+~~~
 
-每日实际与未结束工作项累计花费独立读取；保留成员顺序、项目别名、小时请假扣减及中国节假日/调休。需求不参与 task/bug 工时汇总。覆盖只包含配置成员，未扫描无负责人对象；当前未结束日仅报告进度。`partial/failed` 和未知量必须连同结论呈现，不能解释成零工时或无风险。中国日历按年度持久缓存并使用固定双源，`teamsight_refresh_calendar` 可手动刷新；缺源时标出限制并抑制确定的不足结论。
+输出artifacts/releases/teamsight-mcp-目标，包含生产依赖、共享包源码／产物、全部Apps资源、离线验收脚本和校验清单，不含Node及TAPD配置。原p0:package转发到新打包器，已有输出目录拒绝覆盖。Windows optional native依赖在构建时从npm下载并校验完整性。
 
-完整取数缓存为 60 秒，命中保留原始来源时间；规则/别名变化可重新计算并复用原快照。写入使缓存失效，已保存分析和报告保持不可变。所有 TAPD 请求共享并发上限 3，读取有界重试，完整分页上限为每页 200、50 页；count 不一致、重复页或截断会降为部分数据。
+包内运行node dist/cli.js doctor和node verify-mcp.mjs。使用及真实Codex／Windows验收步骤见[平台说明](../../docs/validation/teamsight-mcp-platforms.md)。自动测试、浏览器SDK宿主、真实Codex卡片和Windows实机分别验收。隔离浏览器宿主为test/preview-mcp.mjs（端口43129、虚构数据、不发布），原test/preview-p1b.mjs仅保留旧验收兼容。
 
-甘特支持 `png/svg/html`，固定报告支持 `markdown/html/csv/json`。静态甘特按 30 天、30 个实际成员任务行分页，上限 200 页并检查像素预算；超预算会报错，应缩小分析范围。HTML/SVG 转义外部文本，CSV 防止公式注入。产物返回 MIME、大小、SHA-256、分析/快照 ID 和 `teamsight://artifacts/{id}` 资源引用；`teamsight_read_artifact` 支持分段文本及 PNG 图片，宿主无需访问本机文件路径。
-
-SQLite schema v3 保存配置、缓存索引、操作回执、作业和文件元信息；快照/分析/产物保存在数据目录 `files/`，文件权限 0600。数据目录是服务持久状态，保留未完成及未知操作回执，不能为重试而清空。
-
-## P1b 验证边界
-
-指定项目 `62119705` 的需求与任务各一次创建、修改及读回验证已通过，证据见 [P1b 报告](../../artifacts/report/20261028_teamsight-p1b_测试报告.md)。验收对象和隔离目录 `.local/teamsight-p1b-live` 保留，服务使用端口 `43129`，未改写已有 Codex MCP 配置。`verify-p1b.mjs --workspace 62119705 --execute-writes` 是明确执行真实写入的专项脚本；现有回执会复用，不能删除目录后随意重跑。
-
-`test/preview-p1b.mjs` 与 `apps/mcp-ui/test` 仅供官方 AppBridge 浏览器验证，不在生产构建或发布包中。浏览器检查不证明 Codex 原生卡片通过。当前原生界面工具禁止操作 Codex，仍需人工验证卡片打开、筛选、明细和导出；Windows、宿主定时及首版发行属于 P1c。
-
-## P0 验证包（保留入口）
-
-以下仍生成历史 P0 验证包，不作为 P1b 发行物；P1c 再固定首版依赖、全部 Apps 资源及两系统交付。
-
-```sh
-pnpm p0:build
-pnpm p0:package darwin-arm64
-pnpm p0:package win32-x64
-```
-
-输出到 `artifacts/releases/teamsight-p0-<目标>/`。包是普通 JS、生产依赖、`ui/index.html`、启动脚本、自动验证脚本、版本与校验清单，没有 Node 运行时，没有外部符号链接。Windows 原生 optional 包在打包时从 npm 获取并校验完整性；不要求安装者下载或编译。原目录存在时拒绝覆盖，重新打包前须保存或移走原产物。
-
-包内执行 `node dist/cli.js doctor`、`node verify.mjs --evidence-dir ./evidence`、`node dist/cli.js serve --data-dir ./data --port 43127`，不执行 `pnpm install`。不生成未经宿主验收的 `.mcpb` 或 STDIO 包；当前交付以显式启动 HTTP 服务和 MCP 地址配置为路径。Bundle 直装、Codex Apps 真闭环和定时任务单列记录，不能用本脚本替代。
-
-Windows 验收与接力提示词见 [交接文档](../../docs/validation/teamsight-p0-windows.md)。旧 Vue/Tauri 入口保留，根目录 `pnpm build` 与 `pnpm tauri build` 仍用于旧 App。
+旧Vue/Tauri入口保留，根pnpm test与pnpm build继续用于旧App回归。此前P1b真实写入证据见[历史报告](../../artifacts/report/20261028_teamsight-p1b_测试报告.md)，不能作为新增批量逻辑的真实远端验收。

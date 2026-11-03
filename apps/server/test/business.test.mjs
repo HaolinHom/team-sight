@@ -60,7 +60,7 @@ function fixture() {
     throw new Error('unexpected endpoint ' + path)
   }
   let store = openStore(dir, vault)
-  store.saveSettings({ expectedRevision: 0, credential: 'ISOLATED_TEST_CREDENTIAL', patch: { projects: [project], members: [{ staffId: '200', name: '李四' }, { staffId: '100', name: '张三' }],
+  store.saveSettings({ expectedRevision: 0, credential: 'ISOLATED_TEST_CREDENTIAL', patch: { projects: [project], groups: [{id:'default',name:'团队',memberIds:['200','100']}],defaultGroupId:'default', members: [{ staffId: '200', name: '李四' }, { staffId: '100', name: '张三' }],
     tapd: { baseUrl: 'https://api.tapd.cn', workspaceIds: [project.id], defaultTypes: ['task', 'bug'], writeAccess: { workspaceIds: [project.id], operations: ['create', 'update'], fields } } } })
   let business = createBusiness(store, dir, transport)
   return { dir, vault, calls, rows, task, transport, get store() { return store }, get business() { return business }, setMode(value) { mode = value }, writes: () => writeCount,
@@ -137,7 +137,7 @@ test('analysis separates actual/cumulative reads, preserves source time/order an
     assert.ok(f.calls.some(call => call.path === '/timesheets' && call.params.entity_id === f.task.id && call.params.spentdate === '1970-01-01~2026-10-28' && !call.params.owner))
     assert.equal(analysis.members[1].days[0].actual, 5)
     assert.ok(analysis.risks.some(risk => risk.code === 'HISTORICAL_HOURS_SHORT'))
-    assert.ok(!analysis.risks.some(risk => risk.date === query.analysisDate && risk.code.includes('SHORT')))
+    assert.ok(analysis.risks.some(risk => risk.date === query.analysisDate && risk.code === 'FORECAST_SHORT'))
     const count = f.calls.length
     const current = f.store.readSettings()
     f.store.saveSettings({ expectedRevision: current.revision, patch: { hours: { ...current.settings.hours, exemptions: [{ staffId: '100', date: '2026-10-27', hours: 4, note: '' }] }, projects: [{ ...project, name: '新名称' }] } })

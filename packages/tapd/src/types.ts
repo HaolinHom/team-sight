@@ -8,7 +8,7 @@ export class TapdError extends Error {
   }
 }
 export type TapdTransport = (path: string, params: Record<string, string>, signal?: AbortSignal, request?: { method: 'GET' | 'POST' }) => Promise<TapdEnvelope>
-export interface SearchInput { workspaceId: string; entityType: WorkItemType; keyword?: string; status?: string; limit?: number; offset?: number; page?: number; range?: DateRange }
+export interface SearchInput { workspaceId: string; entityType: WorkItemType; keyword?: string; status?: string; owner?: string; storyId?: string; modified?: DateRange; limit?: number; offset?: number; page?: number; range?: DateRange }
 export interface TapdQueryError { status: number; message: string }
 export interface SearchResult { tasks: ScheduleTask[]; total?: number; partial: boolean; errors: TapdQueryError[] }
 export interface TapdClientOptions { baseUrl: string; getToken: () => string | null; transport?: TapdTransport; queue?: RequestQueue }

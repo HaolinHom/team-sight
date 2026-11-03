@@ -13,6 +13,10 @@ export const fieldHashes = (fields: Record<string, unknown>): Record<string, str
 }))
 export type OperationStatus = 'pending' | 'in_flight' | 'succeeded' | 'failed' | 'unknown'
 export interface OperationReceipt {
+  batchId?: string
+  itemKey?: string
+  attempt?: number
+  intentHash?: string
   operationId: string
   idempotencyKey: string
   requestHash: string
