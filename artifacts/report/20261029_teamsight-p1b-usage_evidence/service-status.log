@@ -1,0 +1,4 @@
+v22.23.2
+START_OR_NATIVE_FAILED: check Node.js 22, platform-native modules, isolated directory permissions and Apps resource path.
+
+TASK_EXIT=1

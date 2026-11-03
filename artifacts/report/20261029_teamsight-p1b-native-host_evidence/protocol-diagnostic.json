@@ -1,0 +1,16 @@
+{
+  "protocolCheckPassed": true,
+  "phase": "P1b",
+  "version": "0.1.0-p1b",
+  "analysisId": "ec2f9653-5e90-4cf1-9e8a-f95c89886fe4",
+  "counts": {
+    "tasks": 8,
+    "members": 1,
+    "risks": 5,
+    "issues": 0
+  },
+  "uiResource": "ui://teamsight/analysis-p1b.html",
+  "nativeCardOpened": false,
+  "nativeHostConnectionError": "HTTP 502 during MCP initialize",
+  "remoteWritesSent": 0
+}

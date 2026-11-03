@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-29T01:27:04.303Z",
+  "instance": {
+    "phase": "P1b",
+    "version": "0.1.0-p1b",
+    "pid": 3523,
+    "instanceId": "e172efd0-e464-4544-976a-ce62e5344cdc",
+    "startedAt": "2026-10-28T15:42:05.557Z",
+    "node": "22.23.4",
+    "napi": "10",
+    "platform": "darwin",
+    "arch": "arm64",
+    "revision": 3,
+    "credentialPresent": true,
+    "settingsRevision": 3,
+    "sessions": 0,
+    "tapdEnabled": true,
+    "url": "http://127.0.0.1:43129/mcp",
+    "dataDir": "/Users/haolin/Projects/team-sight/.local/teamsight-p1b-live",
+    "tokenFile": "/Users/haolin/Projects/team-sight/.local/teamsight-p1b-live/access-token"
+  },
+  "health": {
+    "error": "TypeError",
+    "message": "fetch failed",
+    "cause": "ECONNREFUSED"
+  },
+  "credentialPrinted": false
+}
