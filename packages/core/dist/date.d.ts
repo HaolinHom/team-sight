@@ -1,7 +1,14 @@
 import type { DateRange } from './types.js';
+export type { DateRange } from './types.js';
 export declare function isValidDateKey(value: unknown): value is string;
 export declare function dateDiffInDays(from: string, to: string): number;
 export declare function addDays(value: string, days: number): string;
 export declare function eachDateKey(range: DateRange): string[];
 export declare function currentMonthRange(now?: Date): DateRange;
 export declare function isWeekend(value: string): boolean;
+export declare const compareDateKeys: (left: string | null, right: string | null) => number;
+export declare const maxDateKey: (left: string, right: string) => string;
+export declare const minDateKey: (left: string, right: string) => string;
+export declare function todayKey(now?: Date): string;
+export declare function businessDate(timeZone: string, now?: Date): string;
+export declare function assertRange(range: DateRange): void;

@@ -44,12 +44,12 @@ async function main() {
       console.log(JSON.stringify({ ok: true, node: process.versions.node, napi: process.versions.napi, platform: process.platform, arch: process.arch, sqlite: store.db.prepare('SELECT sqlite_version() AS version').get(), revision: saved.revision, keyringMatches: true, pngBytes: png.png.length, pngSha256: png.sha256 }))
     } finally { cleanup?.(); rmSync(dir, { recursive: true, force: true }) }
   } else {
-    console.log('TeamSight P0: serve [--data-dir PATH] [--port PORT] | status | stop | doctor. Requires external Node.js 22.14.0+ (<23). No TAPD operations.')
+    console.log('TeamSight P1b: serve [--data-dir PATH] [--port PORT] | status | stop | doctor. Requires external Node.js 22.14.0+ (<23). TAPD writes require an explicit project, action and field scope in settings.')
   }
 }
 main().catch(error => {
   // Do not print native error objects: they can contain secret arguments.
   const known = /^(NODE_|INVALID_|INSTANCE_|KEYRING_|SCHEMA_|STORAGE_|PORT_)/.test(error?.message ?? '')
-  console.error(known ? error.message : 'P0_START_OR_NATIVE_FAILED: check Node.js 22, platform-native modules, isolated directory permissions and Apps resource path.')
+  console.error(known ? error.message : 'START_OR_NATIVE_FAILED: check Node.js 22, platform-native modules, isolated directory permissions and Apps resource path.')
   process.exitCode = 1
 })

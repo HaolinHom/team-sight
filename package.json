@@ -15,6 +15,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "p1b:build": "pnpm p1a:build",
+    "p1b:test": "pnpm p1a:test",
     "p0:build": "pnpm --filter @teamsight/mcp-ui build && pnpm --filter @teamsight/server build",
     "p0:test": "pnpm --filter @teamsight/server test",
     "p0:serve": "node apps/server/dist/cli.js serve",

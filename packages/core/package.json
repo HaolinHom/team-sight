@@ -1,6 +1,6 @@
 {
   "name": "@teamsight/core",
-  "version": "0.1.0-p1a",
+  "version": "0.1.0-p1b",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -13,6 +13,6 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test test/core.test.mjs"
+    "test": "node --test test/*.test.mjs"
   }
 }

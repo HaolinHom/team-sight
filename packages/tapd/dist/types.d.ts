@@ -3,12 +3,18 @@ export interface TapdEnvelope<T = unknown> {
     status: number;
     data: T;
     info: string;
+    httpStatus?: number;
 }
 export declare class TapdError extends Error {
     readonly status: number;
-    constructor(message: string, status: number);
+    readonly httpStatus?: number | undefined;
+    readonly businessStatus?: number | undefined;
+    readonly code: string;
+    constructor(message: string, status: number, httpStatus?: number | undefined, businessStatus?: number | undefined, code?: string);
 }
-export type TapdTransport = (path: string, params: Record<string, string>, signal?: AbortSignal) => Promise<TapdEnvelope>;
+export type TapdTransport = (path: string, params: Record<string, string>, signal?: AbortSignal, request?: {
+    method: 'GET' | 'POST';
+}) => Promise<TapdEnvelope>;
 export interface SearchInput {
     workspaceId: string;
     entityType: WorkItemType;
@@ -33,7 +39,25 @@ export interface TapdClientOptions {
     baseUrl: string;
     getToken: () => string | null;
     transport?: TapdTransport;
+    queue?: RequestQueue;
 }
 export type Project = ProjectConfig & {
     tapdStatus?: string;
 };
+/** Shared by every connection and adapter in a service instance. */
+export declare class RequestQueue {
+    private readonly concurrency;
+    private active;
+    private waiting;
+    constructor(concurrency?: number);
+    run<T>(fn: () => Promise<T>): Promise<T>;
+}
+export interface PageResult {
+    rows: import('@teamsight/core').RawRow[];
+    complete: boolean;
+    fetchedAt: number;
+    error?: string;
+    httpStatus?: number;
+    businessStatus?: number;
+}
+export type EntityType = 'story' | 'task' | 'bug';

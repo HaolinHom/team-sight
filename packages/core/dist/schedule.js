@@ -42,7 +42,7 @@ export function mapScheduleRow(row, project, type, members = {}) {
 export function dedupeScheduleTasks(tasks) {
     const seen = new Set();
     return tasks.filter(task => {
-        const key = `${task.sourceType}:${task.id}`;
+        const key = `${task.projectId}:${task.sourceType}:${task.id}`;
         if (seen.has(key))
             return false;
         seen.add(key);

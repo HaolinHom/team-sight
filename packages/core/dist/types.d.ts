@@ -1,3 +1,4 @@
+export type DateIssue = 'missing-both' | 'missing-start' | 'missing-due' | 'reversed';
 export type WorkItemType = 'task' | 'bug';
 export interface DateRange {
     start: string;
@@ -28,22 +29,17 @@ export interface HoursSettings {
         values: string[];
     }>;
 }
-export interface ChinaCalendarSettings {
-    enabled: boolean;
-    years: Record<string, {
-        year: number;
-        days: Record<string, {
-            working: boolean;
-            name: string;
-        }>;
-        papers: string[];
-        fetchedAt: string;
-    }>;
-}
+export type { ChinaCalendarSettings } from './calendar.js';
+import type { ChinaCalendarSettings } from './calendar.js';
 export interface TapdSettings {
     baseUrl: string;
     workspaceIds: string[];
     defaultTypes: WorkItemType[];
+    writeAccess?: {
+        workspaceIds: string[];
+        operations: Array<'create' | 'update'>;
+        fields: string[];
+    };
 }
 export interface TeamSightSettings {
     schemaVersion: number;
@@ -68,6 +64,7 @@ export interface ScheduleTask {
     assigneeIds: string[];
     startDate: string | null;
     dueDate: string | null;
+    dateIssue?: DateIssue;
     status: string;
     priority?: string;
     effort?: string;

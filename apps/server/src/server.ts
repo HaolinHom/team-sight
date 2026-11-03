@@ -9,21 +9,25 @@ import { registerAppTool, registerAppResource, RESOURCE_MIME_TYPE } from '@model
 import { z } from 'zod'
 import { openStore, configSchema, ProbeError } from './storage.js'
 import { renderProbe } from './render.js'
-import { TapdClient, TapdError, type TapdTransport } from '@teamsight/tapd'
+import { type TapdTransport } from '@teamsight/tapd'
+import { createBusiness } from './business.js'
+import { registerBusinessTools } from './business-tools.js'
 import type { Vault } from './storage.js'
-import { dedupeScheduleTasks, type TeamSightSettings, type WorkItemType } from '@teamsight/core'
+import { type TeamSightSettings } from '@teamsight/core'
 
 export const UI_URI = 'ui://teamsight/p0-settings.html'
-export const SETTINGS_UI_URI = 'ui://teamsight/settings-p1a.html'
+export const SETTINGS_UI_URI = 'ui://teamsight/settings-p1b.html'
 export const sentinelSchema = z.string().regex(/^TEAMSIGHT_P0_SENTINEL_[A-Za-z0-9_-]{1,80}$/)
 const here = fileURLToPath(new URL('.', import.meta.url))
 export const defaultUiPath = existsSync(resolve(here, '../ui/index.html'))
   ? resolve(here, '../ui/index.html') : resolve(here, '../../mcp-ui/dist/index.html')
 export const defaultSettingsUiPath = existsSync(resolve(here, '../ui/settings.html'))
   ? resolve(here, '../ui/settings.html') : resolve(here, '../../mcp-ui/dist/settings.html')
+export const defaultAnalysisUiPath = existsSync(resolve(here, '../ui/analysis.html'))
+  ? resolve(here, '../ui/analysis.html') : resolve(here, '../../mcp-ui/dist/analysis.html')
 const result = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value) }], structuredContent: value })
 
-export async function startServer(options: { dataDir: string; port: number; uiPath?: string; settingsUiPath?: string; vault?: Vault; tapdTransport?: TapdTransport }) {
+export async function startServer(options: { dataDir: string; port: number; uiPath?: string; settingsUiPath?: string; analysisUiPath?: string; vault?: Vault; tapdTransport?: TapdTransport }) {
   const dataDir = resolve(options.dataDir)
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
   const lockPath = join(dataDir, 'instance.lock')
@@ -48,14 +52,16 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     const settingsHtml = readFileSync(options.settingsUiPath ?? defaultSettingsUiPath, 'utf8')
     store = openStore(dataDir, options.vault)
     const shared = store
+    const business = createBusiness(shared, dataDir, options.tapdTransport)
+    const analysisHtml = readFileSync(options.analysisUiPath ?? defaultAnalysisUiPath, 'utf8')
     const startedAt = new Date().toISOString()
-    const status = () => ({ phase: 'P1a', version: '0.1.0-p1a', pid: process.pid, instanceId, startedAt, node: process.versions.node,
+    const status = () => ({ phase: 'P1b', version: '0.1.0-p1b', pid: process.pid, instanceId, startedAt, node: process.versions.node,
       napi: process.versions.napi, platform: process.platform, arch: process.arch,
       revision: shared.read().revision, credentialPresent: shared.read().credentialPresent,
       settingsRevision: shared.readSettings().revision, sessions: transports.size, tapdEnabled: true })
     function mcp() {
-      const server = new McpServer({ name: 'TeamSight', version: '0.1.0-p1a' }, {
-        instructions: 'TeamSight P1a provides local configuration, legacy settings import and read-only TAPD basic queries. Configure the service before querying TAPD. Credentials are never returned by tools.',
+      const server = new McpServer({ name: 'TeamSight', version: '0.1.0-p1b' }, {
+        instructions: 'TeamSight P1b provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Configure project and write scopes first. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
       })
       server.registerTool('teamsight_status', { description: 'Read-only TeamSight service status; includes the shared process and instance identity.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false } }, () => result(status()))
       const ui = { resourceUri: UI_URI }
@@ -98,7 +104,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
           return { ...settingsResult({ code, current: shared.readSettings() }), isError: true }
         }
       }
-      registerAppTool(server, 'teamsight_open_settings', { description: 'Open the TeamSight P1a settings and basic query Apps UI.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: settingsUi } }, () => settingsResult(shared.readSettings()))
+      registerAppTool(server, 'teamsight_open_settings', { description: 'Open TeamSight settings, hourly leave, calendars, TAPD connection and explicit write scopes.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: settingsUi } }, () => settingsResult(shared.readSettings()))
       registerAppTool(server, 'teamsight_read_settings', { description: 'Read current TeamSight settings and revision. Secrets are represented only by credentialPresent.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } } }, () => settingsResult(shared.readSettings()))
       registerAppTool(server, 'teamsight_save_settings', {
         description: 'Save a validated settings patch using an expected revision. A TAPD token, when supplied by the Apps UI, is stored in the OS credential vault and never returned.',
@@ -111,68 +117,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } },
       }, args => settingsSafely(() => shared.importSettings({ expectedRevision: args.expectedRevision, raw: JSON.parse(args.settingsJson), source: args.source })))
 
-      const clientForSettings = () => {
-        const snapshot = shared.readSettings()
-        return { snapshot, client: new TapdClient({ baseUrl: snapshot.settings.tapd.baseUrl, getToken: () => shared.getCredential(), transport: options.tapdTransport }) }
-      }
-      const projectFor = (snapshot: ReturnType<typeof shared.readSettings>, workspaceId: string) => snapshot.settings.projects.find(item => item.id === workspaceId) ?? { id: workspaceId, name: `项目 ${workspaceId}`, enabled: true, color: '#3b82f6' }
-      const tapdSafely = async (fn: () => Promise<unknown>) => {
-        try { return await fn() }
-        catch (error) {
-          const code = error instanceof TapdError ? ([401, 422].includes(error.status) ? 'CONFIG_REQUIRED' : 'TAPD_REQUEST_FAILED') : 'TAPD_REQUEST_FAILED'
-          return { code, message: error instanceof Error ? error.message : 'TAPD 请求失败' }
-        }
-      }
-      server.registerTool('tapd_list_projects', { description: 'List projects visible to the configured TAPD account.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: true } }, async () => {
-        const { client } = clientForSettings()
-        return result(await tapdSafely(async () => ({ projects: await client.listProjects() })))
-      })
-      server.registerTool('tapd_search_items', {
-        description: 'Search TAPD tasks or bugs through the registered adapter. IDs remain strings and results are normalized to the TeamSight schedule model.',
-        inputSchema: z.object({ workspaceId: z.string().min(1), entityType: z.enum(['task', 'bug']), keyword: z.string().optional(), status: z.string().optional(), limit: z.number().int().min(1).max(200).optional(), page: z.number().int().min(1).optional(), offset: z.number().int().min(0).optional() }).strict(),
-        annotations: { readOnlyHint: true, openWorldHint: true },
-      }, async args => {
-        const { snapshot, client } = clientForSettings()
-        const project = projectFor(snapshot, args.workspaceId)
-        return result(await tapdSafely(async () => client.searchItems(args, project, Object.fromEntries(snapshot.settings.members.map(member => [member.staffId, member.name])))))
-      })
-      server.registerTool('tapd_get_item', {
-        description: 'Read one TAPD task or bug by string ID and normalize its fields.',
-        inputSchema: z.object({ workspaceId: z.string().min(1), entityType: z.enum(['task', 'bug']), id: z.string().min(1) }).strict(),
-        annotations: { readOnlyHint: true, openWorldHint: true },
-      }, async args => {
-        const { snapshot, client } = clientForSettings()
-        const project = projectFor(snapshot, args.workspaceId)
-        return result(await tapdSafely(async () => ({ item: await client.getItem(args, project, Object.fromEntries(snapshot.settings.members.map(member => [member.staffId, member.name]))) })))
-      })
-      server.registerTool('teamsight_get_schedule', {
-        description: 'Fetch the configured projects for a date range and return normalized read-only schedule tasks with partial-data errors.',
-        inputSchema: z.object({ start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), types: z.array(z.enum(['task', 'bug'])).min(1).optional(), refresh: z.boolean().optional() }).strict(),
-        annotations: { readOnlyHint: true, openWorldHint: true },
-      }, async args => {
-        const { snapshot, client } = clientForSettings()
-        const types = (args.types as WorkItemType[] | undefined) ?? snapshot.settings.tapd.defaultTypes
-        const key = `schedule:${snapshot.revision}:${args.start}:${args.end}:${types.join(',')}`
-        if (!args.refresh) {
-          const cached = shared.getCache(key)
-          if (cached) return result({ ...(cached.value as Record<string, unknown>), cacheHit: true, cachedAt: cached.fetchedAt })
-        }
-        const tasks: unknown[] = []
-        const errors: unknown[] = []
-        let partial = false
-        for (const project of snapshot.settings.projects.filter(item => item.enabled)) for (const type of types) {
-          try {
-            const search = await client.searchItems({ workspaceId: project.id, entityType: type, limit: 200, range: { start: args.start, end: args.end } }, project, Object.fromEntries(snapshot.settings.members.map(member => [member.staffId, member.name])))
-            tasks.push(...search.tasks)
-            partial ||= search.partial
-          }
-          catch (error) { errors.push({ projectId: project.id, type, status: error instanceof TapdError ? error.status : 0, message: error instanceof Error ? error.message : 'TAPD 请求失败' }) }
-        }
-        const normalizedTasks = dedupeScheduleTasks(tasks as ReturnType<typeof dedupeScheduleTasks>)
-        const value = { status: partial || (errors.length && tasks.length) ? 'partial' : errors.length ? 'failed' : 'complete', fetchedAt: new Date().toISOString(), range: { start: args.start, end: args.end }, tasks: normalizedTasks, errors }
-        if (value.status === 'complete') shared.putCache(key, value.fetchedAt, value.status, value)
-        return result(value)
-      })
+      registerBusinessTools(server, business, shared, analysisHtml)
       registerAppResource(server, 'TeamSight settings', SETTINGS_UI_URI, { description: 'Self-contained Vue settings and basic query UI', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri: SETTINGS_UI_URI, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
       return server
     }
@@ -227,7 +172,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     }
     listener = createServer((req, res) => { void handle(req, res).catch(() => {
       // Never log request bodies, authorization, keyring errors or config patches.
-      process.stderr.write('TeamSight P0: REQUEST_FAILED\n')
+      process.stderr.write('TeamSight: REQUEST_FAILED\n')
       if (!res.headersSent) answer(res, 500, { code: 'REQUEST_FAILED' })
       else res.end()
     }) })
@@ -242,6 +187,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
       closing = true
       await Promise.allSettled([...transports.values()].map(t => t.close()))
       await new Promise<void>(ok => listener!.close(() => ok()))
+      await business.close()
       shared.close()
       release()
       process.removeListener('SIGINT', onSignal)

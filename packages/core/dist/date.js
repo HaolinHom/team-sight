@@ -35,3 +35,16 @@ export function isWeekend(value) {
     const weekday = parse(value).getUTCDay();
     return weekday === 0 || weekday === 6;
 }
+export const compareDateKeys = (left, right) => left === right ? 0 : left === null ? 1 : right === null ? -1 : left < right ? -1 : 1;
+export const maxDateKey = (left, right) => left > right ? left : right;
+export const minDateKey = (left, right) => left < right ? left : right;
+export function todayKey(now = new Date()) {
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+export function businessDate(timeZone, now = new Date()) {
+    return new Intl.DateTimeFormat('sv-SE', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+export function assertRange(range) {
+    if (!isValidDateKey(range.start) || !isValidDateKey(range.end) || range.start > range.end || dateDiffInDays(range.start, range.end) > 366)
+        throw new RangeError('INVALID_RANGE: use an ordered date range of at most 367 days');
+}

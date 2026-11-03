@@ -1,4 +1,5 @@
 import type { DateRange } from './types.js'
+export type { DateRange } from './types.js'
 
 const pattern = /^(\d{4})-(\d{2})-(\d{2})$/
 const dayMs = 86_400_000
@@ -39,4 +40,17 @@ export function currentMonthRange(now = new Date()): DateRange {
 export function isWeekend(value: string): boolean {
   const weekday = parse(value).getUTCDay()
   return weekday === 0 || weekday === 6
+}
+
+export const compareDateKeys = (left: string | null, right: string | null): number => left === right ? 0 : left === null ? 1 : right === null ? -1 : left < right ? -1 : 1
+export const maxDateKey = (left: string, right: string): string => left > right ? left : right
+export const minDateKey = (left: string, right: string): string => left < right ? left : right
+export function todayKey(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+export function businessDate(timeZone: string, now = new Date()): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
+export function assertRange(range: DateRange): void {
+  if (!isValidDateKey(range.start) || !isValidDateKey(range.end) || range.start > range.end || dateDiffInDays(range.start, range.end) > 366) throw new RangeError('INVALID_RANGE: use an ordered date range of at most 367 days')
 }

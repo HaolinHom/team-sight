@@ -10,15 +10,15 @@ type Settings = {
   timeZone: 'Asia/Shanghai' | 'UTC'
   projects: Project[]
   members: Member[]
-  hours: { dailyRequiredHours: number; exemptions: unknown[]; completedStates: unknown[] }
+  hours: { dailyRequiredHours: number; exemptions: Array<{ staffId: string; date: string; hours: number; note: string }>; completedStates: Array<{ projectId: string; type: 'task' | 'bug'; values: string[] }> }
   chinaCalendar: { enabled: boolean; years: Record<string, unknown> }
-  tapd: { baseUrl: string; workspaceIds: string[]; defaultTypes: Array<'task' | 'bug'> }
+  tapd: { baseUrl: string; workspaceIds: string[]; defaultTypes: Array<'task' | 'bug'>; writeAccess?: { workspaceIds: string[]; operations: Array<'create' | 'update'>; fields: string[] } }
   updatedAt: string
 }
 type Snapshot = { revision: number; settings: Settings; credentialPresent: boolean; importedFrom?: string; warning?: string }
 type ToolResponse = { isError?: boolean; structuredContent?: unknown }
 
-const app = new App({ name: 'TeamSight settings', version: '0.1.0-p1a' }, {}, { autoResize: true })
+const app = new App({ name: 'TeamSight settings', version: '0.1.0-p1b' }, {}, { autoResize: true })
 const settings = reactive<Settings>({
   schemaVersion: 4,
   teamName: '',
@@ -27,7 +27,7 @@ const settings = reactive<Settings>({
   members: [],
   hours: { dailyRequiredHours: 8, exemptions: [], completedStates: [] },
   chinaCalendar: { enabled: false, years: {} },
-  tapd: { baseUrl: 'https://api.tapd.cn', workspaceIds: [], defaultTypes: ['task', 'bug'] },
+  tapd: { baseUrl: 'https://api.tapd.cn', workspaceIds: [], defaultTypes: ['task', 'bug'], writeAccess: { workspaceIds: [], operations: [], fields: [] } },
   updatedAt: '',
 })
 const revision = ref(0)
@@ -35,7 +35,7 @@ const credentialPresent = ref(false)
 const tapdToken = ref('')
 const legacyJson = ref('')
 const queryWorkspace = ref('')
-const queryType = ref<'task' | 'bug'>('task')
+const queryType = ref<'story' | 'task' | 'bug'>('task')
 const queryKeyword = ref('')
 const queryId = ref('')
 const queryResult = ref<unknown>(null)
@@ -54,14 +54,14 @@ function copySnapshot(snapshot: Snapshot) {
   settings.members = snapshot.settings.members.map(member => ({ ...member }))
   settings.hours = { ...snapshot.settings.hours, exemptions: [...snapshot.settings.hours.exemptions], completedStates: [...snapshot.settings.hours.completedStates] }
   settings.chinaCalendar = { ...snapshot.settings.chinaCalendar }
-  settings.tapd = { ...snapshot.settings.tapd, workspaceIds: [...snapshot.settings.tapd.workspaceIds], defaultTypes: [...snapshot.settings.tapd.defaultTypes] }
+  settings.tapd = JSON.parse(JSON.stringify({ ...snapshot.settings.tapd, writeAccess: snapshot.settings.tapd.writeAccess ?? { workspaceIds: [], operations: [], fields: [] } }))
   revision.value = snapshot.revision
   credentialPresent.value = snapshot.credentialPresent
   if (!queryWorkspace.value) queryWorkspace.value = settings.tapd.workspaceIds[0] ?? settings.projects[0]?.id ?? ''
 }
 
 async function call(name: string, args: Record<string, unknown> = {}) {
-  const response = await app.callServerTool({ name, arguments: args }) as ToolResponse
+  const response = await app.callServerTool({ name, arguments: JSON.parse(JSON.stringify(args)) }) as ToolResponse
   const data = response.structuredContent as Record<string, unknown> | undefined
   if (!data) throw new Error('响应缺少结构化结果')
   if (response.isError) {
@@ -91,6 +91,7 @@ const save = () => action(async () => {
     projects: settings.projects.map(project => ({ ...project })),
     members: settings.members.map(member => ({ ...member })),
     hours: { ...settings.hours, exemptions: [...settings.hours.exemptions], completedStates: [...settings.hours.completedStates] },
+    chinaCalendar: JSON.parse(JSON.stringify(settings.chinaCalendar)),
     tapd: { ...settings.tapd, workspaceIds: [...settings.tapd.workspaceIds].filter(Boolean), defaultTypes: [...settings.tapd.defaultTypes] },
   }
   const args: Record<string, unknown> = { expectedRevision: revision.value, patch }
@@ -107,6 +108,8 @@ const importSettings = () => action(async () => {
   message.value = `已导入旧配置，修订 ${revision.value}${imported.ignoredCredential ? '；凭据字段已忽略，请单独填写 TAPD Token' : ''}`
   legacyJson.value = ''
 })
+
+const refreshYear = (year: number) => action(async () => { await call('teamsight_refresh_calendar', { year }); copySnapshot(await call('teamsight_read_settings') as unknown as Snapshot); message.value = `已刷新日历 ${year}` })
 
 function addProject() { settings.projects.push({ id: '', name: '', enabled: true, color: '#3b82f6' }) }
 function removeProject(index: number) { settings.projects.splice(index, 1) }
@@ -141,7 +144,7 @@ onMounted(async () => {
 <template>
   <main>
     <header>
-      <span class="badge">P1a · 正式设置</span>
+      <span class="badge">P1b · 正式设置</span>
       <h1>TeamSight 设置</h1>
       <p>配置保存在本地服务；TAPD Token 只写入系统凭据库，读取结果仅显示是否已配置。</p>
     </header>
@@ -187,6 +190,30 @@ onMounted(async () => {
           <small>当前凭据：{{ credentialPresent ? '已配置' : '未配置' }}。保存后不会在设置读取、工具结果或 TeamSight 日志中返回明文。</small>
         </section>
 
+
+        <section>
+          <div class="section-title"><h2>按小时请假</h2><button type="button" @click="settings.hours.exemptions.push({ staffId: settings.members[0]?.staffId ?? '', date: '', hours: 8, note: '' })">添加请假</button></div>
+          <div v-for="(leave,index) in settings.hours.exemptions" :key="index" class="row">
+            <label>成员<select v-model="leave.staffId"><option v-for="member in settings.members" :key="member.staffId" :value="member.staffId">{{ member.name }}</option></select></label>
+            <label>日期<input v-model="leave.date" type="date" required></label><label>请假小时<input v-model.number="leave.hours" type="number" min="0.1" max="24" step="0.5" required></label><label>备注<input v-model="leave.note"></label><button type="button" @click="settings.hours.exemptions.splice(index,1)">移除请假</button>
+          </div>
+          <small>工作日目标 = max(每日目标 − 请假小时, 0)。成员显示顺序以成员列表为准。</small>
+        </section>
+        <section>
+          <div class="section-title"><h2>项目结束状态</h2><button type="button" @click="settings.hours.completedStates.push({ projectId: settings.projects[0]?.id ?? '', type: 'task', values: [] })">添加状态规则</button></div>
+          <div v-for="(rule,index) in settings.hours.completedStates" :key="index" class="row"><label>项目<select v-model="rule.projectId"><option v-for="project in settings.projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label><label>类型<select v-model="rule.type"><option value="task">任务</option><option value="bug">缺陷</option></select></label><label>状态值（逗号分隔）<input :value="rule.values.join(', ')" @input="rule.values = ($event.target as HTMLInputElement).value.split(',').map(value => value.trim()).filter(Boolean)"></label><button type="button" @click="settings.hours.completedStates.splice(index,1)">移除规则</button></div>
+        </section>
+        <section>
+          <h2>中国日历</h2><label class="inline"><input v-model="settings.chinaCalendar.enabled" type="checkbox">启用中国节假日与调休</label><small>已缓存年份永久复用，缺失年份由分析服务自动获取。点击年份可刷新已缓存数据。</small>
+          <div class="buttons"><button v-for="year in Object.keys(settings.chinaCalendar.years)" :key="year" type="button" @click="refreshYear(Number(year))">刷新 {{ year }}</button></div>
+        </section>
+        <section v-if="settings.tapd.writeAccess">
+          <h2>TAPD 写入范围</h2><small>保存范围后，工具仍会校验字段、身份、修改摘要和幂等键。创建与修改按项目单独开放。</small>
+          <label>允许写入的项目 ID（逗号分隔）<input :value="settings.tapd.writeAccess.workspaceIds.join(', ')" @input="settings.tapd.writeAccess.workspaceIds = ($event.target as HTMLInputElement).value.split(',').map(value => value.trim()).filter(Boolean)"></label>
+          <div class="buttons"><label class="inline"><input v-model="settings.tapd.writeAccess.operations" type="checkbox" value="create">创建</label><label class="inline"><input v-model="settings.tapd.writeAccess.operations" type="checkbox" value="update">修改</label></div>
+          <label>允许写入的字段（逗号分隔）<input :value="settings.tapd.writeAccess.fields.join(', ')" placeholder="name, description, owner, begin, due, effort, status" @input="settings.tapd.writeAccess.fields = ($event.target as HTMLInputElement).value.split(',').map(value => value.trim()).filter(Boolean)"></label>
+        </section>
+
         <section>
           <h2>旧配置导入</h2>
           <textarea v-model="legacyJson" rows="5" placeholder="粘贴旧 App 的 settings.json；Token 等凭据字段会被忽略"></textarea>
@@ -201,7 +228,7 @@ onMounted(async () => {
       <h2>TAPD 基础查询（只读）</h2>
       <div class="row">
         <label>Workspace ID<input v-model="queryWorkspace" placeholder="workspace ID" /></label>
-        <label>类型<select v-model="queryType"><option value="task">任务</option><option value="bug">缺陷</option></select></label>
+        <label>类型<select v-model="queryType"><option value="story">需求</option><option value="task">任务</option><option value="bug">缺陷</option></select></label>
       </div>
       <div class="row"><label>关键词<input v-model="queryKeyword" placeholder="可选" /></label><label>工作项 ID<input v-model="queryId" placeholder="读取单项时填写" /></label></div>
       <div class="buttons"><button type="button" @click="listProjects">列出项目</button><button type="button" @click="searchItems">搜索工作项</button><button type="button" @click="readItem">读取工作项</button></div>
@@ -209,7 +236,7 @@ onMounted(async () => {
     </section>
 
     <p role="status" :class="{ error: failed }">{{ message }}</p>
-    <footer>设置修订 {{ revision }} · {{ settings.updatedAt ? `最近更新 ${settings.updatedAt}` : '等待读取' }} · P1a 不执行 TAPD 写入</footer>
+    <footer>设置修订 {{ revision }} · {{ settings.updatedAt ? `最近更新 ${settings.updatedAt}` : '等待读取' }} · 写入仅允许已保存的项目、操作和字段范围</footer>
   </main>
 </template>
 

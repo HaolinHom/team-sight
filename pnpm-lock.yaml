@@ -57,6 +57,9 @@ importers:
       '@modelcontextprotocol/ext-apps':
         specifier: 2.0.4
         version: 2.0.4(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/core@2.4.0)(@modelcontextprotocol/server@2.4.0)(zod@4.6.7)
+      '@teamsight/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       vue:
         specifier: 3.5.13
         version: 3.5.13(typescript@5.7.3)
@@ -139,6 +142,9 @@ importers:
       '@teamsight/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
 packages:
 

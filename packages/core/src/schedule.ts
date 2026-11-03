@@ -49,7 +49,7 @@ export function mapScheduleRow(row: RawRow, project: ProjectConfig, type: WorkIt
 export function dedupeScheduleTasks(tasks: ScheduleTask[]): ScheduleTask[] {
   const seen = new Set<string>()
   return tasks.filter(task => {
-    const key = `${task.sourceType}:${task.id}`
+    const key = `${task.projectId}:${task.sourceType}:${task.id}`
     if (seen.has(key)) return false
     seen.add(key)
     return true

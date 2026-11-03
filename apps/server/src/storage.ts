@@ -60,7 +60,7 @@ export function openStore(dir: string, vault?: Vault): TeamSightStore {
     db.pragma('busy_timeout = 1000')
     db.transaction(() => {
       const version = db.pragma('user_version', { simple: true }) as number
-      if (version > 2) throw new ProbeError('SCHEMA_TOO_NEW')
+      if (version > 3) throw new ProbeError('SCHEMA_TOO_NEW')
       db.exec('CREATE TABLE IF NOT EXISTS config (id INTEGER PRIMARY KEY CHECK (id=1), revision INTEGER NOT NULL, value TEXT NOT NULL, credential_account TEXT)')
       db.prepare('INSERT OR IGNORE INTO config VALUES (1, 0, ?, NULL)').run(JSON.stringify({ teamName: 'TeamSight P0', dailyHours: 8, timeZone: 'Asia/Shanghai' }))
       db.exec('CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id=1), revision INTEGER NOT NULL, value TEXT NOT NULL, imported_from TEXT, updated_at TEXT NOT NULL)')
@@ -77,7 +77,15 @@ export function openStore(dir: string, vault?: Vault): TeamSightStore {
         }).settings
         db.prepare('INSERT INTO settings (id, revision, value, imported_from, updated_at) VALUES (1, ?, ?, NULL, ?)').run(existing.revision, JSON.stringify(migrated), migrated.updatedAt)
       }
-      db.pragma('user_version = 2')
+      db.exec(`CREATE TABLE IF NOT EXISTS operations (
+        operation_id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL UNIQUE, request_hash TEXT NOT NULL,
+        status TEXT NOT NULL, value TEXT NOT NULL
+      ); CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY, kind TEXT NOT NULL, value TEXT NOT NULL
+      ); CREATE TABLE IF NOT EXISTS jobs (
+        id TEXT PRIMARY KEY, status TEXT NOT NULL, value TEXT NOT NULL
+      )`)
+      db.pragma('user_version = 3')
     })()
   } catch (error) { db.close(); throw error }
   // Credential accounts use UUIDs, so isolated data directories never share entries.

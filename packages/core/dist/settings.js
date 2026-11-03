@@ -102,6 +102,12 @@ export function normalizeSettings(raw, now = new Date()) {
     const defaultTypes = Array.isArray(tapdRaw.defaultTypes)
         ? tapdRaw.defaultTypes.filter((item) => workType(item))
         : ['task', 'bug'];
+    const access = tapdRaw.writeAccess && typeof tapdRaw.writeAccess === 'object' ? tapdRaw.writeAccess : {};
+    const writeAccess = {
+        workspaceIds: Array.isArray(access.workspaceIds) ? access.workspaceIds.map(text).filter(Boolean) : [],
+        operations: Array.isArray(access.operations) ? access.operations.filter((v) => v === 'create' || v === 'update') : [],
+        fields: Array.isArray(access.fields) ? access.fields.map(text).filter(Boolean) : [],
+    };
     const version = Number(record.schemaVersion);
     const warning = Number.isFinite(version) && version !== SETTINGS_SCHEMA_VERSION ? `配置版本为 ${version}，已按当前版本读取` : undefined;
     return {
@@ -113,7 +119,7 @@ export function normalizeSettings(raw, now = new Date()) {
             members,
             hours: normalizeHours(record.hours),
             chinaCalendar: normalizeCalendar(record.chinaCalendar),
-            tapd: { baseUrl: text(tapdRaw.baseUrl) || DEFAULT_TAPD_BASE_URL, workspaceIds, defaultTypes },
+            tapd: { baseUrl: text(tapdRaw.baseUrl) || DEFAULT_TAPD_BASE_URL, workspaceIds, defaultTypes, writeAccess },
             updatedAt: text(record.updatedAt) || now.toISOString(),
         },
         warning,
