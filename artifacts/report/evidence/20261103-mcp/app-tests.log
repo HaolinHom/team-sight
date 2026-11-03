@@ -1,0 +1,259 @@
+
+> team-sight@0.1.0 test /Users/haolin/Projects/team-sight
+> vitest run
+
+
+ RUN  v3.2.7 /Users/haolin/Projects/team-sight
+
+ ✓ src/services/externalLink.spec.ts (4 tests) 10ms
+ ✓ src/services/credentials.spec.ts (5 tests) 10ms
+ ✓ src/composables/useSchedule.spec.ts (8 tests) 14ms
+ ✓ src/hours/statistics.spec.ts (51 tests) 37ms
+ ✓ src/services/tapd/hours.spec.ts (23 tests) 55ms
+ ✓ src/composables/useHours.spec.ts (5 tests) 19ms
+ ✓ src/gantt/layout.performance.spec.ts (1 test) 77ms
+ ✓ src/composables/useSettings.spec.ts (12 tests) 184ms
+ ✓ src/gantt/filters.spec.ts (15 tests) 6ms
+ ✓ src/services/settings.spec.ts (5 tests) 16ms
+ ✓ src/gantt/layout.spec.ts (13 tests) 5ms
+ ✓ src/gantt/boardState.spec.ts (6 tests) 4ms
+ ✓ src/calendar/chinaCalendar.spec.ts (11 tests) 4ms
+ ✓ src/types/settings.spec.ts (9 tests) 9ms
+ ✓ src/services/tapd/mapper.spec.ts (18 tests) 18ms
+ ✓ src/hours/workerClient.spec.ts (5 tests) 37ms
+ ✓ src/hours/matrixWindow.spec.ts (3 tests) 2ms
+ ✓ src/hours/settings.spec.ts (17 tests) 9ms
+ ✓ src/fixtures/ganttFixture.spec.ts (9 tests) 22ms
+ ✓ src/gantt/dateUtils.spec.ts (11 tests) 36ms
+ ✓ src/services/tapd/hoursCache.spec.ts (2 tests) 2ms
+ ✓ src/gantt/tooltip.spec.ts (7 tests) 3ms
+ ✓ src/services/tapd/requestQueue.spec.ts (2 tests) 4ms
+ ✓ src/utils/memberResolution.spec.ts (8 tests) 5ms
+ ✓ src/composables/useChinaCalendar.spec.ts (4 tests) 4ms
+ ✓ src/services/tapd/projects.spec.ts (3 tests) 2ms
+ ✓ src/components/gantt/GanttBoard.spec.ts (4 tests) 78ms
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 请假小时扣减目标并展示，整日请假不标为非工作日，不重新请求TAPD
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/components/hours/ChinaCalendarSettings.spec.ts (5 tests) 439ms
+stdout | src/app/App.spec.ts > 路由保活 > 日历草稿统一保存后更新保活工时，复用快照重算且不重新查询
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/components/hours/HoursSettingsCard.spec.ts (7 tests) 198ms
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 待安排任务使用最新配置名称，不读取旧快照名称，未知项目回退ID
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 展示默认自然月矩阵，过去实际与今天预计分别标记
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 点击格子查看实际来源，明细筛选不修改汇总，可打开TAPD
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 日历草稿统一保存后更新保活工时，复用快照重算且不重新查询
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 目标保存后即时重算，不重新请求数据
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 目标保存后即时重算，不重新请求数据
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/pages/BoardPage.spec.ts (13 tests) 325ms
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 部分失败显示待确认，不出现确定不足结论
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 日期切换失败隐藏不同范围的旧数据，失败提示保留
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/components/hours/LeaveCalendar.spec.ts (11 tests) 494ms
+stdout | src/app/App.spec.ts > 路由保活 > 日历开关更新保活看板与工时，复用快照不重新查询TAPD
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 每日工时页面 > 成员筛选和预计不足筛选作用于矩阵，打开失败明确反馈
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 大矩阵限制DOM数量，滚动可显示后续成员和日期
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 预测完整区间按需获取跨年日历，未发布年份降级提示，切页不重复失败请求
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 预测完整区间按需获取跨年日历，未发布年份降级提示，切页不重复失败请求
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 大矩阵限制DOM数量，滚动可显示后续成员和日期
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/pages/SettingsPage.spec.ts (14 tests) 495ms
+stdout | src/app/App.spec.ts > 路由保活 > 从设置保存项目名称后统一更新保活页面，保留详情筛选折叠滚动且不查询或重算
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 预计充足与待确认同时展示，待确认汇总和筛选仍包含达标日期
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 今天实际已达标时明确显示实际达标并保留完整性提示
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 未来休息日只显示豁免，不显示零工时或预测异常，汇总不包含这些日期
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 休息日实际填报保留，实际记录异常与预测异常分别处理
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 四项缺日期任务留在成员待安排中，不复制到后续零工时日期
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 设置排序后两个保活页面更新顺序，保留筛选详情和折叠且不重新取数
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 周末加班显示预计工时和非工作日，不显示不足或超额
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 截止周末的跨日任务显示周末预计值，截止周一则周末无工时
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 截止周末的跨日任务显示周末预计值，截止周一则周末无工时
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时6 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 反复切页保留实例、数据、详情、筛选和滚动，超过缓存期限仍不取数
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/services/chinaCalendar.spec.ts (3 tests) 3ms
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时6 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时8 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时8 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时10 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-13' 工时10 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时6 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时6 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 工时加载在隐藏期间继续完成，返回不重复请求
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时8 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时8 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时10 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 后台计算离开后完成，返回不重算
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-14' 工时10 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时6 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 隐藏时项目配置多次变化不请求，返回分别按最新配置更新一次
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时6 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时8 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时8 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 隐藏时规则变化延后重算，项目展示信息和成员变更不重拉看板
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时10 完整性异常false
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 隐藏时规则变化延后重算，项目展示信息和成员变更不重拉看板
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > '2026-10-15' 工时10 完整性异常true
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 成员变化只重拉工时，返回看板复用原任务
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.499
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 成员变化只重拉工时，返回看板复用原任务
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.499
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.5
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 旧账号请求在隐藏时完成不会作为新账号结果展示
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.5
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 跨日返回工时更新一次，手动刷新仍可取数
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.501
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 跨日返回工时更新一次，手动刷新仍可取数
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 可配置7.5h目标边界：7.501
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 今天实际2h加分配6h为绿色，合计6h为橙色
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/app/App.spec.ts > 路由保活 > 凭据清除隐藏旧数据，卸载释放后台资源
+[hours-performance] { calculationMs: [33m0[39m }
+
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 不完整数据不足按已知数值着色，确定不足统计仍不计入
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/app/App.spec.ts (15 tests) 672ms
+stdout | src/pages/HoursPage.spec.ts > 工作日单元格数值配色 > 非工作日与18h加班仍为灰色，图例解释四种颜色
+[hours-performance] { calculationMs: [33m0[39m }
+
+ ✓ src/pages/HoursPage.spec.ts (41 tests) 721ms
+ ✓ src/services/tapd/client.spec.ts (16 tests) 4013ms
+   ✓ fetchWorkspaceItems 分页 > count 失败时仍能按页收敛拉取明细  1205ms
+   ✓ 错误处理 > 网络错误重试一次后成功  302ms
+   ✓ fetchScheduleTasks > 单个项目失败不影响其它项目，并回报失败信息  2410ms
+
+ Test Files  36 passed (36)
+      Tests  386 passed (386)
+   Start at  09:59:09
+   Duration  4.30s (transform 1.56s, setup 0ms, collect 4.36s, tests 8.03s, environment 4.26s, prepare 1.78s)
+

@@ -1,0 +1,14 @@
+[
+  {
+    "target": "darwin-arm64",
+    "file": "/Users/haolin/Projects/team-sight/artifacts/releases/teamsight-mcp-darwin-arm64.zip",
+    "size": 13080304,
+    "sha256": "dc6de1189103b506517f4513ef303bc45fe660b3c8c165ee0db95db9b21bd6f2"
+  },
+  {
+    "target": "win32-x64",
+    "file": "/Users/haolin/Projects/team-sight/artifacts/releases/teamsight-mcp-win32-x64.zip",
+    "size": 13878801,
+    "sha256": "c52367fc2c47d0b916faf5eb6ab43525df822d299b5c7d4dc319388f1851116b"
+  }
+]

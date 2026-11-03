@@ -1,0 +1,6 @@
+{
+  "action": "cua.getApp(com.openai.codex)",
+  "result": "Computer Use is not allowed to use the app com.openai.codex for safety reasons.",
+  "nativeAcceptance": "not-completed",
+  "alternative": "MCP protocol and isolated browser SDK host validated"
+}

@@ -1,0 +1,1 @@
+{"results":[{"target":"darwin-arm64","files":2130,"checksums":true,"currentSourceHashes":true,"noSymlinks":true,"nativeFormat":"Mach-O","runtimeTested":false},{"target":"win32-x64","files":2130,"checksums":true,"currentSourceHashes":true,"noSymlinks":true,"nativeFormat":"PE","runtimeTested":false}],"standalone":"/tmp/TeamSight MCP Standalone 20261103"}
