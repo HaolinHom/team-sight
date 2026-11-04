@@ -29,6 +29,11 @@ export interface SettingsSnapshot {
   warning?: string
 }
 
+export type SettingsPatch = Omit<Partial<TeamSightSettings>, 'hours'|'chinaCalendar'|'tapd'> & {
+ hours?: Partial<TeamSightSettings['hours']>
+ chinaCalendar?: Partial<TeamSightSettings['chinaCalendar']>
+ tapd?: Omit<Partial<TeamSightSettings['tapd']>,'writeAccess'> & {writeAccess?:Partial<NonNullable<TeamSightSettings['tapd']['writeAccess']>>}
+}
 export interface TeamSightStore {
   db: Database.Database
   read(): { revision: number; config: ProbeConfig; credentialPresent: boolean }
@@ -37,7 +42,7 @@ export interface TeamSightStore {
   clearCredential(): void
   getCredential(): string | null
   readSettings(): SettingsSnapshot
-  saveSettings(input: { expectedRevision: number; patch: Partial<TeamSightSettings>; credential?: string }): SettingsSnapshot
+  saveSettings(input: { expectedRevision: number; patch: SettingsPatch; credential?: string }): SettingsSnapshot
   importSettings(input: { expectedRevision: number; raw: unknown; source: string }): SettingsSnapshot & { ignoredCredential: boolean }
   getCache(key: string): { fetchedAt: string; status: string; value: unknown } | null
   putCache(key: string, fetchedAt: string, status: string, value: unknown): void
@@ -165,7 +170,7 @@ export function openStore(dir: string, vault?: Vault): TeamSightStore {
     try { return secretVault.get(account) } catch { throw new ProbeError('KEYRING_READ_FAILED') }
   }
 
-  function saveSettings(input: { expectedRevision: number; patch: Partial<TeamSightSettings>; credential?: string }): SettingsSnapshot {
+  function saveSettings(input: { expectedRevision: number; patch: SettingsPatch; credential?: string }): SettingsSnapshot {
     let newAccount: string | undefined
     let previousAccount: string | null = null
     try {
@@ -178,7 +183,14 @@ export function openStore(dir: string, vault?: Vault): TeamSightStore {
       db.transaction(() => {
         const latest = readSettings()
         if (latest.revision !== input.expectedRevision) throw new ProbeError('REVISION_CONFLICT')
-        const next = normalizeSettings({ ...latest.settings, ...input.patch, hours: input.patch.hours ?? latest.settings.hours, tapd: input.patch.tapd ?? latest.settings.tapd, updatedAt: new Date().toISOString() }).settings
+        const next = normalizeSettings({
+          ...latest.settings, ...input.patch,
+          hours: { ...latest.settings.hours, ...input.patch.hours },
+          chinaCalendar: { ...latest.settings.chinaCalendar, ...input.patch.chinaCalendar },
+          tapd: { ...latest.settings.tapd, ...input.patch.tapd,
+            writeAccess: { ...latest.settings.tapd.writeAccess, ...input.patch.tapd?.writeAccess } },
+          updatedAt: new Date().toISOString(),
+        }).settings
         previousAccount = row().account
         db.prepare('UPDATE settings SET revision=revision+1, value=?, imported_from=NULL, updated_at=? WHERE id=1').run(JSON.stringify(next), next.updatedAt)
         const probe = { teamName: next.teamName, dailyHours: next.hours.dailyRequiredHours, timeZone: next.timeZone }

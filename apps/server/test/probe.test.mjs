@@ -236,3 +236,16 @@ test('P1a settings import, credential isolation, TAPD read-only queries and sche
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+ test('targeted nested settings patches preserve unrelated settings and CAS',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'teamsight-directed-')),store=openStore(dir,{put(){},get(){return null},remove(){}})
+ try{
+ const first=store.saveSettings({expectedRevision:0,patch:{hours:{dailyRequiredHours:8,exemptions:[{staffId:'100',date:'2026-11-03',hours:2}],completedStates:[]},tapd:{workspaceIds:['1'],writeAccess:{workspaceIds:['1'],operations:['create'],fields:['name']}}}})
+ const next=store.saveSettings({expectedRevision:first.revision,patch:{hours:{dailyRequiredHours:7},tapd:{writeAccess:{fields:['name','effort']}}}})
+ assert.equal(next.settings.hours.dailyRequiredHours,7)
+ assert.deepEqual(next.settings.hours.exemptions,first.settings.hours.exemptions)
+ assert.deepEqual(next.settings.tapd.workspaceIds,['1'])
+ assert.deepEqual(next.settings.tapd.writeAccess.operations,['create'])
+ assert.throws(()=>store.saveSettings({expectedRevision:first.revision,patch:{teamName:'stale'}}),/REVISION_CONFLICT/)
+ }finally{store.close();rmSync(dir,{recursive:true,force:true})}
+ })

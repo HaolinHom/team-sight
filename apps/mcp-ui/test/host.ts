@@ -7,8 +7,8 @@ bridge.oncalltool = async params => {
   return response.json()
 }
 bridge.oninitialized = async () => {
-  const initial = await fetch(new URLSearchParams(location.search).get('page')==='settings'?'/initial?page=settings':'/initial').then(response => response.json())
-  await bridge.sendToolInput({ arguments: { analysisId: initial.structuredContent.analysisId } })
+  const initial = await fetch('/initial'+location.search).then(response => response.json())
+  await bridge.sendToolInput({ arguments: { analysisId: initial.structuredContent.analysisId, target:initial.structuredContent.target, mode:initial.structuredContent.mode } })
   await bridge.sendToolResult(initial)
 }
 await bridge.connect(new PostMessageTransport(iframe.contentWindow!, iframe.contentWindow!))

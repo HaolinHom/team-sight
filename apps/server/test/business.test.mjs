@@ -260,6 +260,16 @@ test('MCP exposes catalog, analysis Apps, writes, artifacts and applies validati
       analyzed = job.structuredContent.analysis
     }
     assert.ok(analyzed.analysisId)
+    const opened=await call('teamsight_open_analysis',{analysisId:analyzed.analysisId,mode:'hours',memberIds:['100'],projectIds:[project.id],start:query.start,end:query.end})
+    assert.equal(opened.structuredContent.mode,'hours')
+    assert.deepEqual(opened.structuredContent.viewFilters.memberIds,['100'])
+    assert.equal((await call('teamsight_open_analysis',{analysisId:analyzed.analysisId,start:'2026-10-01'})).structuredContent.code,'VIEW_OUTSIDE_ANALYSIS')
+    assert.match((await client.readResource({uri:'ui://teamsight/analysis-p1b.html'})).contents[0].text,/排期与工时/)
+    const directed=await call('teamsight_open_settings',{target:'projects'})
+    assert.equal(directed.structuredContent.target,'projects')
+    const automatic=await call('teamsight_open_analysis')
+    assert.ok(automatic.structuredContent.analysisId||automatic.structuredContent.jobId)
+
     const report = await call('teamsight_generate_report', { analysisId: analyzed.analysisId, format: 'html' })
     const artifact = report.structuredContent.artifacts[0]
     assert.ok(report.content.some(content => content.type === 'resource_link'))

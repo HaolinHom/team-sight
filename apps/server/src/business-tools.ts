@@ -9,7 +9,8 @@ import { generateReport, renderGantt } from './outputs.js'
 import type { TeamSightScenarios } from './scenarios.js'
 import type { FileRecord } from './business-storage.js'
 
-export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-p1b.html'
+export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.2.1.html'
+const LEGACY_ANALYSIS_UI_URI = 'ui://teamsight/analysis-p1b.html'
 const id = z.string().min(1).max(100)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const analysisInput = z.object({ start: date, end: date, analysisDate: date.optional(), projectIds: z.array(id).min(1).max(100).optional(), memberIds: z.array(id).min(1).max(100).optional(), groupIds: z.array(id).min(1).optional(), scope: z.enum(['self','team']).optional(), refresh: z.boolean().optional() }).strict()
@@ -157,11 +158,23 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     const analysis = business.getAnalysis(args.analysisId), offset = args.offset ?? 0
     return { ...analysisSummary(analysis), risks: analysis.risks.slice(offset, offset + 100), nextOffset: analysis.risks.length > offset + 100 ? offset + 100 : null }
   })
-  add('teamsight_open_analysis', 'Open the TeamSight Apps schedule, daily hours and risk evidence view. Supply an existing analysisId to keep all outputs on the same snapshot.', z.object({ analysisId: id.optional(), calculationId: id.optional(), candidateId: z.string().optional() }).strict(), args => {
-    if(args.calculationId) {const calculation=scenarios.getCalculation(args.calculationId);return {...analysisSummary(scenarios.calculationView(args.calculationId,args.candidateId)),calculationId:args.calculationId,candidateId:args.candidateId,simulation:{mode:calculation.mode,candidates:calculation.result.candidates,affectedTaskKeys:calculation.affectedTaskKeys}}}
-    if (args.analysisId) return analysisSummary(business.getAnalysis(args.analysisId))
-    const snapshot = store.readSettings(), today = businessDate(snapshot.settings.timeZone), range = currentMonthRange(new Date(`${today}T12:00:00Z`))
-    return { defaults: { ...range, analysisDate: today }, configured: snapshot.credentialPresent && snapshot.settings.members.length > 0 && snapshot.settings.projects.some(project => project.enabled) }
+  add('teamsight_open_analysis', 'Open a focused Gantt result card with only task/hours mode switching. Set people, projects and dates in conversation. Reuse analysisId for the same facts; without an ID, automatically analyzes the default team for the current month. Simulation candidates and baseline are chosen in conversation.', z.object({ analysisId: id.optional(), calculationId: id.optional(), candidateId: z.string().optional(), baseline: z.boolean().optional(), mode: z.enum(['tasks','hours']).optional(), memberIds: z.array(id).min(1).optional(), projectIds: z.array(id).min(1).optional(), start: date.optional(), end: date.optional() }).strict(), async args => {
+    const presentation = { mode: args.mode ?? 'tasks', viewFilters: { memberIds: args.memberIds, projectIds: args.projectIds, start: args.start, end: args.end } }
+    const validateView = (analysis: TeamAnalysis) => {
+      const range = { start: args.start ?? analysis.context.range.start, end: args.end ?? analysis.context.range.end }
+      assertRange(range)
+      if(range.start < analysis.context.range.start || range.end > analysis.context.range.end) throw new BusinessError('VIEW_OUTSIDE_ANALYSIS')
+      return { ...analysisSummary(analysis), ...presentation }
+    }
+    if(args.calculationId) {
+      const calculation=scenarios.getCalculation(args.calculationId)
+      if(args.baseline) return { ...validateView(business.getAnalysis(calculation.analysisId)), baseline: true, simulation: { mode: calculation.mode } }
+      return {...validateView(scenarios.calculationView(args.calculationId,args.candidateId)), calculationId:args.calculationId,candidateId:args.candidateId,simulation:{mode:calculation.mode}}
+    }
+    if(args.analysisId) return validateView(business.getAnalysis(args.analysisId))
+    const snapshot = store.readSettings(), today = businessDate(snapshot.settings.timeZone), range = currentMonthRange(new Date(today+'T12:00:00Z'))
+    const job = await business.analyzeWithBudget({ start: args.start ?? range.start, end: args.end ?? range.end, analysisDate: today, scope:'team', memberIds:args.memberIds, projectIds:args.projectIds })
+    return job.analysisId ? validateView(business.getAnalysis(job.analysisId)) : { ...job, ...presentation }
   }, true, true)
   add('teamsight_render_gantt', 'Render a saved analysis as paginated Chinese SVG, PNG or HTML. Every output references the same analysis and snapshot.', z.object({ analysisId: id, format: z.enum(['svg', 'png', 'html']).default('png') }).strict(), args => ({ artifacts: renderGantt(business.getAnalysis(args.analysisId), business.files, args.format) }), false)
   add('teamsight_generate_report', 'Generate the fixed interval hours/current schedule/risk report from a saved analysis, as Markdown, safe HTML, CSV or complete facts JSON.', z.object({ analysisId: id, format: z.enum(['markdown', 'html', 'csv', 'json']).default('markdown') }).strict(), args => ({ artifacts: [generateReport(business.getAnalysis(args.analysisId), business.files, args.format)] }), false)
@@ -175,5 +188,5 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     const artifactId = String(variables.artifactId), meta = business.files.getFile(artifactId), bytes = business.files.readFile(artifactId)
     return { contents: [meta.mimeType === 'image/png' ? { uri: uri.href, mimeType: meta.mimeType, blob: bytes.toString('base64') } : { uri: uri.href, mimeType: meta.mimeType, text: bytes.toString('utf8') }] }
   })
-  registerAppResource(server, 'TeamSight analysis', ANALYSIS_UI_URI, { description: 'Self-contained schedule, hours and risk Apps view', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri: ANALYSIS_UI_URI, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
+  for(const uri of [ANALYSIS_UI_URI, LEGACY_ANALYSIS_UI_URI]) registerAppResource(server, 'TeamSight analysis '+uri, uri, { description: 'Focused task/hours Gantt result card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
 }
