@@ -1,6 +1,6 @@
 # TeamSight MCP 能力与使用说明
 
-版本 0.2.1，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
+版本 0.2.2，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
 
 ## 配置与人员范围
 
@@ -15,7 +15,7 @@
 
 个人工作查询默认 scope:self；团队查询传 scope:team。显式 memberIds 优先，其次 groupIds；多个组会去重，未指定团队范围时使用默认组。成员与项目顺序可在卡片调整。没有指定负责人时，普通排期及批量创建采用令牌对应的已验证当前用户；目录账号不可确认时要求补充信息，不按显示名任意选人。
 
-设置入口 teamsight_open_settings 的 target 可为 overview（分类入口）、connection、projects、members、groups、hours、calendar、leave、completed、write、general、import。明确请求“项目配置”时使用 target:projects，仅渲染项目表单。局部保存仅提交已改字段，服务端合并 hours／tapd 等子字段并校验修订；冲突保留草稿，重新读取前可保存或放弃。
+设置入口 teamsight_open_settings 的 target 可为 overview（分类入口）、connection、projects、members、groups、hours、calendar、leave、completed、write、general、import。明确请求“项目配置”时使用 target:projects，仅渲染项目表单。界面按接入与团队、工时与日历、高级设置组织分类入口；项目和成员采用对齐列表与行内编辑，启用使用开关，工时支持步进，删除需要在卡片内确认。局部保存仅提交已改字段，服务端合并 hours／tapd 等子字段并校验修订；冲突保留草稿，重新读取前可保存或放弃。
 
 ## 读取需求与期间工作事实
 
@@ -91,7 +91,7 @@ teamsight_open_analysis 接收 analysisId 或 calculationId，可传 mode:tasks�
 
 卡片操作区仅保留任务优先／工时优先切换，不提供筛选、查询、设置、风险页签或导出入口。前景可点击、悬浮及键盘查看详情；背景半透明且无点击、悬浮或键盘焦点。自动读取全部成员／任务分页后展示，图表内部滚动，固定名称列和日期表头。未排期任务的实际仍进入每日工时，任务清单通过对话查询。项目范围工时仅代表该项目贡献，不能等同全项目容量。
 
-模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。旧 settings-p1b／analysis-p1b 资源保留，新入口使用带版本 URI。
+模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。旧 settings-0.2.1／settings-p1b／analysis-p1b 资源保留，新入口使用带版本 URI。
 
 主色为 #EB732D，主按钮使用深色文字；暖中性色、青绿实际工时及橙色预计分配跟随宿主浅／深主题。固定报告与导出继续由对话调用原有工具，默认导出完整分析，不能把基线导出当作模拟结果。
 
