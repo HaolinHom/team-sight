@@ -1,10 +1,10 @@
 # TeamSight MCP 能力与使用说明
 
-版本 0.2.0，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
+版本 0.2.1，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
 
 ## 配置与人员范围
 
-首次业务调用缺少令牌时返回 CONFIG_REQUIRED 与 teamsight_open_settings 入口。Agent 打开设置卡片，用户在卡片内填写 TAPD Token。保存后自动同步项目及当前用户；初始化失败时保留已保存配置并返回 bootstrap 缺口，可重新同步后继续读取。卡片提供“继续原读取请求”按钮，宿主是否继续执行由宿主处理。令牌不通过对话填写，不从配置读取工具返回。
+首次业务调用缺少令牌时返回 CONFIG_REQUIRED 与 teamsight_open_settings 入口。Agent 打开对应类型的设置卡片，用户在卡片内填写 TAPD Token。保存后自动同步项目及当前用户；初始化失败时保留已保存配置并返回 bootstrap 缺口，可重新同步后继续读取。缺令牌时使用 target:connection、continueRead:true 打开设置；初始化成功后通知宿主继续原读取，宿主不支持时提示用户在对话中继续。令牌不通过对话填写，不从配置读取工具返回。
 
 - teamsight_get_config：读取非敏感配置和修订。
 - teamsight_update_config：携带 expectedRevision 修改非敏感设置；不会修改 TAPD 写入授权。
@@ -14,6 +14,8 @@
 成员身份目录与统计团队分开。成员可属于多个组，defaultGroupId 指向唯一默认组；testing 标记测试人员组。新安装默认组为空，新发现成员不会自动入组。v4 迁移时将旧成员加入默认组以保留原范围。删除成员只删除本地身份和分组关联。
 
 个人工作查询默认 scope:self；团队查询传 scope:team。显式 memberIds 优先，其次 groupIds；多个组会去重，未指定团队范围时使用默认组。成员与项目顺序可在卡片调整。没有指定负责人时，普通排期及批量创建采用令牌对应的已验证当前用户；目录账号不可确认时要求补充信息，不按显示名任意选人。
+
+设置入口 teamsight_open_settings 的 target 可为 overview（分类入口）、connection、projects、members、groups、hours、calendar、leave、completed、write、general、import。明确请求“项目配置”时使用 target:projects，仅渲染项目表单。局部保存仅提交已改字段，服务端合并 hours／tapd 等子字段并校验修订；冲突保留草稿，重新读取前可保存或放弃。
 
 ## 读取需求与期间工作事实
 
@@ -85,7 +87,13 @@ teamsight_get_task_batch 返回逐项回执、实际字段及 TAPD 链接。成�
 
 ## Apps、缓存与交付
 
-teamsight_open_analysis 接收 analysisId 或 calculationId。默认任务优先；工时优先交换前后层级。背景半透明且无点击、悬浮及键盘焦点；前景可点击、悬浮查看详情。成员／项目／日期筛选在完整结果上执行后分页；未排期任务在明细保留，实际仍显示在工时层。图表选择和筛选通过 updateModelContext 反馈宿主。模拟可以切换候选及查看调整前，无拖拽写入。
+teamsight_open_analysis 接收 analysisId 或 calculationId，可传 mode:tasks／hours，以及由对话确定的 memberIds、projectIds、start、end。无 ID 时自动分析业务时区本月的默认团队，必要时返回异步 job，卡片自动跟进。复用已有快照只改变展示范围，不代表刷新 TAPD。
+
+卡片操作区仅保留任务优先／工时优先切换，不提供筛选、查询、设置、风险页签或导出入口。前景可点击、悬浮及键盘查看详情；背景半透明且无点击、悬浮或键盘焦点。自动读取全部成员／任务分页后展示，图表内部滚动，固定名称列和日期表头。未排期任务的实际仍进入每日工时，任务清单通过对话查询。项目范围工时仅代表该项目贡献，不能等同全项目容量。
+
+模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。旧 settings-p1b／analysis-p1b 资源保留，新入口使用带版本 URI。
+
+主色为 #EB732D，主按钮使用深色文字；暖中性色、青绿实际工时及橙色预计分配跟随宿主浅／深主题。固定报告与导出继续由对话调用原有工具，默认导出完整分析，不能把基线导出当作模拟结果。
 
 模拟结果仅在当前进程缓存30分钟、最多50条，重启／过期需重新读取并计算；不保存协作关系或排期计划表。配置v5和批次回执沿用 SQLite v3 JSON；旧分析、资源与工具保留。固定报告和静态导出保留，不能等同于 skills 周报／月报。
 
