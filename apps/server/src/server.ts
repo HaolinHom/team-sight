@@ -18,7 +18,8 @@ import type { Vault } from './storage.js'
 import { type TeamSightSettings } from '@teamsight/core'
 
 export const UI_URI = 'ui://teamsight/p0-settings.html'
-export const SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.1.html'
+export const SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.2.html'
+const PREVIOUS_SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.1.html'
 const LEGACY_SETTINGS_UI_URI = 'ui://teamsight/settings-p1b.html'
 export const sentinelSchema = z.string().regex(/^TEAMSIGHT_P0_SENTINEL_[A-Za-z0-9_-]{1,80}$/)
 const here = fileURLToPath(new URL('.', import.meta.url))
@@ -59,12 +60,12 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     const scenarios = createScenarios(business, shared)
     const analysisHtml = readFileSync(options.analysisUiPath ?? defaultAnalysisUiPath, 'utf8')
     const startedAt = new Date().toISOString()
-    const status = () => ({ phase: 'MCP', version: '0.2.1', pid: process.pid, instanceId, startedAt, node: process.versions.node,
+    const status = () => ({ phase: 'MCP', version: '0.2.2', pid: process.pid, instanceId, startedAt, node: process.versions.node,
       napi: process.versions.napi, platform: process.platform, arch: process.arch,
       revision: shared.read().revision, credentialPresent: shared.read().credentialPresent,
       settingsRevision: shared.readSettings().revision, sessions: transports.size, tapdEnabled: true })
     function mcp() {
-      const server = new McpServer({ name: 'TeamSight', version: '0.2.1' }, {
+      const server = new McpServer({ name: 'TeamSight', version: '0.2.2' }, {
         instructions: 'When CONFIG_REQUIRED, immediately call teamsight_open_settings with target connection and continueRead true when credentials are missing; for a missing team or project scope open the relevant configuration target. After Apps reports configuration completion, continue the original read request; never request a token in chat. Use currentUser for self and default owners. Team defaults use exactly the default group, not every cached identity. Use context and scheduling tools for scenario data; urgent tools only simulate. Dependencies are rebuilt from TAPD and current conversation. TeamSight provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Configure project and write scopes first. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Open only the requested settings target; do not show unrelated configuration. Gantt cards only offer task/hour mode switching; determine people, project and dates in conversation. Analyze first then open the analysisId; exports, risk interpretation and simulation candidate comparisons are requested in conversation. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
       })
       server.registerTool('teamsight_status', { description: 'Read-only TeamSight service status; includes the shared process and instance identity.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false } }, () => result(status()))
@@ -133,7 +134,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
 
       registerBusinessTools(server, business, shared, analysisHtml, scenarios)
       registerScenarioTools(server, scenarios)
-      for (const uri of [SETTINGS_UI_URI, LEGACY_SETTINGS_UI_URI]) registerAppResource(server, 'TeamSight settings '+uri, uri, { description: 'Self-contained focused settings card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
+      for (const uri of [SETTINGS_UI_URI, PREVIOUS_SETTINGS_UI_URI, LEGACY_SETTINGS_UI_URI]) registerAppResource(server, 'TeamSight settings '+uri, uri, { description: 'Self-contained focused settings card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
       return server
     }
     const answer = (res: ServerResponse, code: number, value: unknown) => {

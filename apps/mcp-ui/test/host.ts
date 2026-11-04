@@ -1,6 +1,7 @@
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge'
 const iframe = document.querySelector<HTMLIFrameElement>('#view')!
 const bridge = new AppBridge(null, { name: 'TeamSight browser acceptance host', version: '1' }, { serverTools: {}, logging: {} })
+bridge.onsizechange = ({height}) => { iframe.style.height = Math.ceil(height)+'px' }
 bridge.oncalltool = async params => {
   const response = await fetch('/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) })
   if (!response.ok) throw new Error('PREVIEW_TOOL_REJECTED')
