@@ -1,0 +1,415 @@
+
+> team-sight@0.1.0 mcp:test /Users/haolin/Projects/team-sight
+> pnpm p1b:test && pnpm exec vitest run --config apps/mcp-ui/vitest.config.ts
+
+
+> team-sight@0.1.0 p1b:test /Users/haolin/Projects/team-sight
+> pnpm p1a:test
+
+
+> team-sight@0.1.0 p1a:test /Users/haolin/Projects/team-sight
+> pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test
+
+
+> @teamsight/core@0.2.0 test /Users/haolin/Projects/team-sight/packages/core
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: business day is explicit across timezone boundaries and invalid ranges are rejected
+ok 1 - business day is explicit across timezone boundaries and invalid ranges are rejected
+  ---
+  duration_ms: 4.743875
+  type: 'test'
+  ...
+# Subtest: shared hours/risk rules preserve leave, calendar, member order and open-day progress
+ok 2 - shared hours/risk rules preserve leave, calendar, member order and open-day progress
+  ---
+  duration_ms: 1.438167
+  type: 'test'
+  ...
+# Subtest: unknown source gaps do not become zero-hours risk findings
+ok 3 - unknown source gaps do not become zero-hours risk findings
+  ---
+  duration_ms: 0.183417
+  type: 'test'
+  ...
+# Subtest: core keeps natural-date and timezone-independent semantics
+ok 4 - core keeps natural-date and timezone-independent semantics
+  ---
+  duration_ms: 1.188709
+  type: 'test'
+  ...
+# Subtest: legacy settings import keeps business fields and ignores credential values
+ok 5 - legacy settings import keeps business fields and ignores credential values
+  ---
+  duration_ms: 0.73675
+  type: 'test'
+  ...
+# Subtest: schedule mapping matches the old TAPD field conventions
+ok 6 - schedule mapping matches the old TAPD field conventions
+  ---
+  duration_ms: 0.223459
+  type: 'test'
+  ...
+# Subtest: hours summary preserves leave deduction and missing actual as zero
+ok 7 - hours summary preserves leave deduction and missing actual as zero
+  ---
+  duration_ms: 0.182833
+  type: 'test'
+  ...
+# Subtest: v4 identities migrate into one default group; v5 discovery does not silently join it
+ok 8 - v4 identities migrate into one default group; v5 discovery does not silently join it
+  ---
+  duration_ms: 1.846708
+  type: 'test'
+  ...
+# Subtest: 4+4 and 2+6 can occupy Monday and Wednesday without imposing story adjacency
+ok 9 - 4+4 and 2+6 can occupy Monday and Wednesday without imposing story adjacency
+  ---
+  duration_ms: 1.066916
+  type: 'test'
+  ...
+# Subtest: continuity and earliest profiles expose the tradeoff, strict capacity never overflows
+ok 10 - continuity and earliest profiles expose the tradeoff, strict capacity never overflows
+  ---
+  duration_ms: 0.211417
+  type: 'test'
+  ...
+# Subtest: backward anchors, dependencies, explicit same-day and cycles are respected
+ok 11 - backward anchors, dependencies, explicit same-day and cycles are respected
+  ---
+  duration_ms: 1.223584
+  type: 'test'
+  ...
+# Subtest: incomplete data and bounded search never become false infeasibility
+ok 12 - incomplete data and bounded search never become false infeasibility
+  ---
+  duration_ms: 0.170667
+  type: 'test'
+  ...
+# Subtest: multi-person search assigns indivisible work units independently
+ok 13 - multi-person search assigns indivisible work units independently
+  ---
+  duration_ms: 0.178208
+  type: 'test'
+  ...
+# Subtest: MCP missing estimate uses zero, actuals survive missing dates, today gets shortage; legacy remains unchanged
+ok 14 - MCP missing estimate uses zero, actuals survive missing dates, today gets shortage; legacy remains unchanged
+  ---
+  duration_ms: 0.879667
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 49.591917
+
+> @teamsight/tapd@0.2.0 test /Users/haolin/Projects/team-sight/packages/tapd
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: pagination preserves all 201 records and detects repeated pages and malformed lists
+ok 1 - pagination preserves all 201 records and detects repeated pages and malformed lists
+  ---
+  duration_ms: 0.897542
+  type: 'test'
+  ...
+# Subtest: pagination budget is explicit after 50 full pages when count cannot prove convergence
+ok 2 - pagination budget is explicit after 50 full pages when count cannot prove convergence
+  ---
+  duration_ms: 2.445417
+  type: 'test'
+  ...
+# Subtest: a short page cannot claim completeness when the count still contains missing rows
+ok 3 - a short page cannot claim completeness when the count still contains missing rows
+  ---
+  duration_ms: 0.146
+  type: 'test'
+  ...
+# Subtest: story search translates an offset consistently with task search
+ok 4 - story search translates an offset consistently with task search
+  ---
+  duration_ms: 0.090833
+  type: 'test'
+  ...
+# Subtest: one global queue bounds requests from multiple clients to three
+ok 5 - one global queue bounds requests from multiple clients to three
+  ---
+  duration_ms: 25.129833
+  type: 'test'
+  ...
+# Subtest: native HTTP transport uses Bearer plus POST form encoding and never retries a lost write
+ok 6 - native HTTP transport uses Bearer plus POST form encoding and never retries a lost write
+  ---
+  duration_ms: 13.118375
+  type: 'test'
+  ...
+# Subtest: operation directory records the documented POST update endpoints and schemas
+ok 7 - operation directory records the documented POST update endpoints and schemas
+  ---
+  duration_ms: 0.156166
+  type: 'test'
+  ...
+# Subtest: documented histories use WorkitemChange at 100 rows and attachments use 200 without unsupported count calls
+ok 8 - documented histories use WorkitemChange at 100 rows and attachments use 200 without unsupported count calls
+  ---
+  duration_ms: 0.238667
+  type: 'test'
+  ...
+# Subtest: TAPD adapter uses the existing task/bug field differences and maps rows
+ok 9 - TAPD adapter uses the existing task/bug field differences and maps rows
+  ---
+  duration_ms: 1.2895
+  type: 'test'
+  ...
+# Subtest: TAPD adapter retries transient errors but does not retry 403
+ok 10 - TAPD adapter retries transient errors but does not retry 403
+  ---
+  duration_ms: 456.431959
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 531.819708
+
+> @teamsight/server@0.2.3 test /Users/haolin/Projects/team-sight/apps/server
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: writes share an idempotency receipt across concurrent clients and verify by read-back
+ok 1 - writes share an idempotency receipt across concurrent clients and verify by read-back
+  ---
+  duration_ms: 7.89925
+  type: 'test'
+  ...
+# Subtest: write scopes, identity candidates and stale field digest prevent any emitted mutation
+ok 2 - write scopes, identity candidates and stale field digest prevent any emitted mutation
+  ---
+  duration_ms: 3.48875
+  type: 'test'
+  ...
+# Subtest: an emitted timeout is unknown, survives restart and is never automatically reissued
+ok 3 - an emitted timeout is unknown, survives restart and is never automatically reissued
+  ---
+  duration_ms: 3.529209
+  type: 'test'
+  ...
+# Subtest: successful POST followed by missing read-back stays unknown, while explicit rejection fails
+ok 4 - successful POST followed by missing read-back stays unknown, while explicit rejection fails
+  ---
+  duration_ms: 2.537291
+  type: 'test'
+  ...
+# Subtest: analysis separates actual/cumulative reads, preserves source time/order and reuses facts for rule changes
+ok 5 - analysis separates actual/cumulative reads, preserves source time/order and reuses facts for rule changes
+  ---
+  duration_ms: 6.420458
+  type: 'test'
+  ...
+# Subtest: partial actual data stays unknown, failed empty sources cannot claim a complete or safe team
+ok 6 - partial actual data stays unknown, failed empty sources cannot claim a complete or safe team
+  ---
+  duration_ms: 4.439042
+  type: 'test'
+  ...
+# Subtest: HTML/SVG escape external content, CSV prevents formulas and Chinese PNG is a real resource
+ok 7 - HTML/SVG escape external content, CSV prevents formulas and Chinese PNG is a real resource
+  ---
+  duration_ms: 3203.680041
+  type: 'test'
+  ...
+# Subtest: in-flight receipts and jobs recover as unknown/interrupted without deleting analysis records
+ok 8 - in-flight receipts and jobs recover as unknown/interrupted without deleting analysis records
+  ---
+  duration_ms: 4.463625
+  type: 'test'
+  ...
+# Subtest: gantt exports paginate by rendered member rows as well as date windows
+ok 9 - gantt exports paginate by rendered member rows as well as date windows
+  ---
+  duration_ms: 7.945958
+  type: 'test'
+  ...
+# Subtest: analysis jobs cancel reads and successful writes invalidate raw caches while old analyses remain immutable
+ok 10 - analysis jobs cancel reads and successful writes invalidate raw caches while old analyses remain immutable
+  ---
+  duration_ms: 4.311833
+  type: 'test'
+  ...
+# Subtest: MCP exposes catalog, analysis Apps, writes, artifacts and applies validation to generic calls
+ok 11 - MCP exposes catalog, analysis Apps, writes, artifacts and applies validation to generic calls
+  ---
+  duration_ms: 98.958
+  type: 'test'
+  ...
+# Subtest: enabled projects override legacy lists while disabled projects remain readable and operations/fields stay enforced
+ok 12 - enabled projects override legacy lists while disabled projects remain readable and operations/fields stay enforced
+  ---
+  duration_ms: 4.485166
+  type: 'test'
+  ...
+# Subtest: disabling a project during metadata loading prevents the pending POST
+ok 13 - disabling a project during metadata loading prevents the pending POST
+  ---
+  duration_ms: 2.078625
+  type: 'test'
+  ...
+# {"sqliteLockWaitMs":1138,"configuredBusyTimeoutMs":1000,"synchronousWaitBlocksEventLoop":true}
+# Subtest: runtime guard rejects incompatible Node and Node-API
+ok 14 - runtime guard rejects incompatible Node and Node-API
+  ---
+  duration_ms: 0.371291
+  type: 'test'
+  ...
+# Subtest: SQLite CAS, actual database write failure, rollback and restart persistence
+ok 15 - SQLite CAS, actual database write failure, rollback and restart persistence
+  ---
+  duration_ms: 9.142917
+  type: 'test'
+  ...
+# Subtest: SQLite lock wait is bounded and does not commit a failed write
+ok 16 - SQLite lock wait is bounded and does not commit a failed write
+  ---
+  duration_ms: 1140.209167
+  type: 'test'
+  ...
+# Subtest: P1a settings migration, credential reference and cache survive restart
+ok 17 - P1a settings migration, credential reference and cache survive restart
+  ---
+  duration_ms: 3.926709
+  type: 'test'
+  ...
+# Subtest: HTTP two clients share process, auth guards, resources, CAS, restart and shutdown
+ok 18 - HTTP two clients share process, auth guards, resources, CAS, restart and shutdown
+  ---
+  duration_ms: 930.240209
+  type: 'test'
+  ...
+# Subtest: P1a settings import, credential isolation, TAPD read-only queries and schedule cache states
+ok 19 - P1a settings import, credential isolation, TAPD read-only queries and schedule cache states
+  ---
+  duration_ms: 521.930167
+  type: 'test'
+  ...
+# Subtest: targeted nested settings patches preserve unrelated settings and CAS
+ok 20 - targeted nested settings patches preserve unrelated settings and CAS
+  ---
+  duration_ms: 2.854084
+  type: 'test'
+  ...
+# Subtest: link parsing preserves long IDs and rejects unrelated URLs
+ok 21 - link parsing preserves long IDs and rejects unrelated URLs
+  ---
+  duration_ms: 0.84175
+  type: 'test'
+  ...
+# Subtest: project synchronization retains preferences and write scope; directory discoveries stay outside default team
+ok 22 - project synchronization retains preferences and write scope; directory discoveries stay outside default team
+  ---
+  duration_ms: 13.758458
+  type: 'test'
+  ...
+# Subtest: requirement context detects both testing rules, chooses earliest complete testing, and separates available materials/history
+ok 23 - requirement context detects both testing rules, chooses earliest complete testing, and separates available materials/history
+  ---
+  duration_ms: 9.15075
+  type: 'test'
+  ...
+# Subtest: replanning releases forecast only, retains actuals and includes occupancy from other projects
+ok 24 - replanning releases forecast only, retains actuals and includes occupancy from other projects
+  ---
+  duration_ms: 4.719834
+  type: 'test'
+  ...
+# Subtest: urgent relocation can move old work beyond the urgent deadline but before earliest testing, all modes emit zero POST
+ok 25 - urgent relocation can move old work beyond the urgent deadline but before earliest testing, all modes emit zero POST
+  ---
+  duration_ms: 7.345875
+  type: 'test'
+  ...
+# Subtest: ordinary batches default to token owner, replay safely, reject intent changes, and survive restart
+ok 26 - ordinary batches default to token owner, replay safely, reject intent changes, and survive restart
+  ---
+  duration_ms: 5.714
+  type: 'test'
+  ...
+# Subtest: partial success resumes definite failures; lost writes remain unknown until read-only verification
+ok 27 - partial success resumes definite failures; lost writes remain unknown until read-only verification
+  ---
+  duration_ms: 7.979125
+  type: 'test'
+  ...
+# Subtest: dated batch validates fresh capacity and refuses stale plans, calculations expire on restart
+ok 28 - dated batch validates fresh capacity and refuses stale plans, calculations expire on restart
+  ---
+  duration_ms: 8.347583
+  type: 'test'
+  ...
+# Subtest: source failures keep urgent conclusions unknown
+ok 29 - source failures keep urgent conclusions unknown
+  ---
+  duration_ms: 2.594834
+  type: 'test'
+  ...
+# Subtest: real MCP transport exposes new tools, enforces generic schemas, and filters all pages before slicing
+ok 30 - real MCP transport exposes new tools, enforces generic schemas, and filters all pages before slicing
+  ---
+  duration_ms: 88.597292
+  type: 'test'
+  ...
+# Subtest: rescheduling updates the existing task and durable batch metadata is present before POST
+ok 31 - rescheduling updates the existing task and durable batch metadata is present before POST
+  ---
+  duration_ms: 5.573583
+  type: 'test'
+  ...
+# Subtest: MCP ignores stored leave for ordinary and urgent capacity while testing identity remains explicit
+ok 32 - MCP ignores stored leave for ordinary and urgent capacity while testing identity remains explicit
+  ---
+  duration_ms: 3.778417
+  type: 'test'
+  ...
+# Subtest: v4 identity scope migrates durably to v5 without increasing the settings revision
+ok 33 - v4 identity scope migrates durably to v5 without increasing the settings revision
+  ---
+  duration_ms: 5.66625
+  type: 'test'
+  ...
+# Subtest: batches apply enabled project scope per item without the old write whitelist
+ok 34 - batches apply enabled project scope per item without the old write whitelist
+  ---
+  duration_ms: 3.35575
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3506.544042
+
+ RUN  v3.2.7 /Users/haolin/Projects/team-sight/apps/mcp-ui
+
+ ✓ src/Analysis.spec.ts (4 tests) 38ms
+ ✓ src/GanttLayers.spec.ts (3 tests) 40ms
+ ✓ src/FormalSettings.spec.ts (11 tests) 123ms
+
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  20:45:43
+   Duration  1.02s (transform 640ms, setup 0ms, collect 940ms, tests 201ms, environment 1.25s, prepare 119ms)
+

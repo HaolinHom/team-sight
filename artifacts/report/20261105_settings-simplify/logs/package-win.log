@@ -1,0 +1,5 @@
+
+> team-sight@0.1.0 mcp:package /Users/haolin/Projects/team-sight
+> node scripts/package-mcp.mjs win32-x64
+
+{"output":"/Users/haolin/Projects/team-sight/artifacts/releases/teamsight-mcp-win32-x64","target":"win32-x64","files":2130,"noSymlinks":true,"nodeRuntimeBundled":false}

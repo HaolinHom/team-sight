@@ -17,3 +17,10 @@ items:
     summary: "P0 单进程 HTTP 服务与 Vue Apps、固定 SDK/原生依赖、SQLite 同步锁等待及系统凭据、无 Node 的分平台 JS 验证包、Codex 真实配置闭环/冲突/重启；保留 app-only 保密、Bundle 入口、定时精度与 Windows 待验边界。"
     tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "validation"]
     verifiedAt: "2026-10-28"
+
+  - id: teamsight-mcp-config-scope
+    title: "TeamSight MCP 配置、项目范围与工时规则"
+    path: "knowledge/teamsight-mcp-config-scope.md"
+    summary: "MCP 0.2.3 七类设置与连接页合并、旧target映射、writeAccess局部保存；启用且可访问项目统一默认查询与写入范围，保留操作/字段限制；MCP v3忽略历史请假，legacy与旧快照保持。"
+    tags: ["teamsight", "mcp", "settings", "workspace", "permissions", "hours", "compatibility"]
+    verifiedAt: "2026-11-05"
