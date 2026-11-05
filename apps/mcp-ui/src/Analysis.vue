@@ -7,7 +7,7 @@ import { followHostTheme } from './host-theme'
 import './theme.css'
 type View = Pick<TeamAnalysis,'analysisId'|'snapshotId'|'status'|'fetchedAt'|'context'|'limitations'> & {members:TeamAnalysis['members'];tasks:ScheduleTask[];issues:HoursIssue[];counts:{issues:number};nextTaskOffset:number|null;nextMemberOffset:number|null}
 type Presentation = {analysisId?:string;calculationId?:string;candidateId?:string;mode?:'tasks'|'hours';viewFilters?:Record<string,unknown>;jobId?:string;status?:string;simulation?:unknown;baseline?:boolean}
-const app=new App({name:'TeamSight Gantt',version:'0.2.1'},{},{autoResize:true})
+const app=new App({name:'TeamSight Gantt',version:'0.2.4'},{},{autoResize:true})
 const view=ref<View>(),mode=ref<'tasks'|'hours'>('tasks'),busy=ref(true),error=ref(''),message=ref('正在连接…'),presentation=ref<Presentation>({})
 let generation=0,disposed=false,timer:ReturnType<typeof setTimeout>|undefined
 let input:Record<string,unknown>={}
@@ -80,7 +80,7 @@ onUnmounted(()=>{disposed=true;++generation;clearTimeout(timer)})
   <template v-if="view">
    <p v-if="view.status!=='complete'" class="warning">{{view.status==='partial'?'数据不完整，以下仅展示已知结果。':'取数失败，当前结果无法作为完整依据。'}}</p>
    <p v-if="presentation.simulation" class="notice">{{presentation.baseline?'当前 TAPD 安排':'模拟结果，尚未写入 TAPD'}} · 通过对话指定其他候选或对比范围</p>
-   <div class="legend"><span><i class="actual"></i>实际工时</span><span><i class="forecast"></i>预计分配</span><span>淡化层不可交互</span></div>
+   <div class="legend"><span><i class="actual"></i>工时达标</span><span><i class="past-short"></i>过去工时不足</span><span><i class="forecast"></i>当天 / 未来工时不足</span><span><i class="unknown"></i>未知</span><span>盒子包含当天关联任务 · 仅优先层可交互</span></div>
    <GanttLayers :tasks="view.tasks" :members="view.members" :range="view.context.range" :today="view.context.analysisDate" :mode="mode" @select="selection" @open="url=>app.openLink({url}).catch(()=>{error='无法打开 TAPD 链接'})" />
 
    <footer><small>{{view.status==='complete'?'数据完整':'部分 / 未知数据'}} · 来源 {{view.fetchedAt}} · {{view.context.timeZone}}</small><details v-if="view.limitations.length||view.issues.length||presentation.viewFilters?.projectIds"><summary>范围与数据说明</summary><p v-if="presentation.viewFilters?.projectIds">项目范围内的工时与每日完整目标进行对照；不代表成员在其他项目没有投入。</p><p v-for="item in view.limitations" :key="item">{{item}}</p><p v-for="(issue,index) in view.issues" :key="index">{{issue.projectId}}：{{issue.message}}</p><p v-if="view.counts?.issues>view.issues.length">问题共 {{view.counts.issues}} 条，此处展示前 {{view.issues.length}} 条，完整依据可在对话中查询。</p></details></footer>
@@ -89,4 +89,7 @@ onUnmounted(()=>{disposed=true;++generation;clearTimeout(timer)})
 </template>
 <style scoped>
 .analysis-card{padding:16px;margin:0 auto;max-width:1600px}header{display:flex;gap:16px;justify-content:space-between;align-items:start;margin-bottom:16px}.scope{margin:6px 0 0;overflow-wrap:anywhere}.mode-switch{display:flex;flex-shrink:0;background:var(--ts-soft);padding:3px;border-radius:9px;gap:3px}.mode-switch button{border-color:transparent;background:transparent}.mode-switch button[aria-pressed=true]{background:var(--ts-selected);color:var(--ts-accent);border-color:var(--ts-accent)}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ts-muted);margin:12px 0}.legend span{display:flex;gap:5px;align-items:center}i{width:8px;height:8px;border-radius:2px}.actual{background:var(--ts-actual)}.forecast{background:var(--ts-forecast)}footer{margin-top:14px;color:var(--ts-muted);font-size:12px}summary{cursor:pointer}.pending{margin-top:14px}.pending article{padding:10px 0;border-bottom:1px solid var(--ts-line)}@media(max-width:540px){.analysis-card{padding:12px}header{flex-direction:column;gap:12px}.mode-switch{align-self:start}}
+</style>
+<style scoped>
+.past-short{background:var(--ts-hours-past-short)}.unknown{background:var(--ts-hours-unknown)}
 </style>
