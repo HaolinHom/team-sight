@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "version": "0.2.4",
+  "previousVersion": "0.2.3",
+  "packageFiles": 2130,
+  "backup": "/Users/haolin/Library/Application Support/TeamSight MCP/backup-0.2.3-20261105-gantt-024",
+  "runtime": "/Users/haolin/Library/Application Support/TeamSight MCP/versions/0.2.4",
+  "configurationUnchanged": true,
+  "accessTokenUnchanged": true,
+  "credentialPresent": true,
+  "revision": 23,
+  "projectCount": 9,
+  "memberCount": 5,
+  "resources": {
+    "sha256": "7445f5b3666034c66aae2e0ec70d4833c100e78af9f1c3c4872590112162005f",
+    "legacyUrisVerified": true,
+    "drawer": true,
+    "hoursBox": true,
+    "existingOctoberAnalysisReadable": true
+  },
+  "dataCountsBefore": {
+    "config": 1,
+    "settings": 1,
+    "tapd_cache": 5,
+    "operations": 4,
+    "documents": 61,
+    "jobs": 13
+  },
+  "dataCountsAfter": {
+    "config": 1,
+    "settings": 1,
+    "tapd_cache": 5,
+    "operations": 4,
+    "documents": 61,
+    "jobs": 13
+  },
+  "nativeAppsInteraction": "pending",
+  "realTapdWrites": 0
+}

@@ -1,0 +1,13 @@
+
+ RUN  v3.2.7 /Users/haolin/Projects/team-sight/apps/mcp-ui
+
+ ✓ src/gantt-model.spec.ts (15 tests) 5ms
+ ✓ src/Analysis.spec.ts (4 tests) 46ms
+ ✓ src/FormalSettings.spec.ts (11 tests) 134ms
+ ✓ src/GanttLayers.spec.ts (8 tests) 206ms
+
+ Test Files  4 passed (4)
+      Tests  38 passed (38)
+   Start at  23:21:30
+   Duration  1.03s (transform 701ms, setup 0ms, collect 1.30s, tests 391ms, environment 1.13s, prepare 211ms)
+

@@ -1,0 +1,13 @@
+ M apps/mcp-ui/src/Analysis.vue
+ M apps/mcp-ui/src/GanttLayers.spec.ts
+ M apps/mcp-ui/src/GanttLayers.vue
+ M apps/mcp-ui/src/theme.css
+ M apps/server/test/preview-mcp.mjs
+?? apps/mcp-ui/src/GanttDrawer.vue
+?? apps/mcp-ui/src/gantt-model.spec.ts
+?? apps/mcp-ui/src/gantt-model.ts
+?? apps/mcp-ui/src/visible-viewport.ts
+?? artifacts/knowledge/20261105_gantt-hours-box-drawer.md
+?? artifacts/plan/20261105_gantt-hours-box-drawer.md
+?? "artifacts/report/20261105_gantt-hours-box-drawer_\346\265\213\350\257\225\346\212\245\345\221\212.md"
+?? artifacts/report/20261105_gantt-hours-box/

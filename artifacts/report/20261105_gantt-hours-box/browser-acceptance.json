@@ -1,0 +1,19 @@
+{
+  "host": "isolated MCP SDK browser host",
+  "nativeCodexAppsVerified": false,
+  "savedAnalysisId": "5fa61d4f-dd86-45d2-b19a-d1a15aa2ce9c",
+  "snapshotId": "70ebc7bd-39d7-4aed-8006-2b9ae9440258",
+  "range": {"start":"2026-10-01","end":"2026-10-31"},
+  "memberCount": 5,
+  "readAnalysisWorkItemCount": 395,
+  "october8Box": {"memberId":"800167533","x":339,"y":32,"width":42,"height":122,"relatedTasks":3},
+  "october8Detail": {"actual":8,"allocated":0,"target":8,"contributionHours":[1,5,2]},
+  "longListDrawer": {"scrollBefore":{"top":1008,"left":234},"scrollAfter":{"top":1008,"left":234},"closedWith":"Escape"},
+  "clippedIframeDrawer": {"topWithinIframe":41,"height":719,"width":400,"headerVisible":true},
+  "narrowDarkDrawer": {"viewportWidth":390,"drawerWidth":390,"visibleHeight":700,"background":"rgb(29, 26, 24)"},
+  "keyboardTooltip": {"title":"[前端]-Part4-购物车入口优化","estimateHours":0.5,"rect":{"left":466,"right":786,"top":377.1953125,"bottom":490.1953125}},
+  "pointerTooltip": "Verified with a real mouseMoved event; appears after the configured delay.",
+  "consoleObservation": "An intermittent MutationObserver exception was traced to an Electron preload script (CommonJS wrapper, empty URL), outside the app bundle. No application exception was identified in this check.",
+  "realTapdWrites": 0,
+  "notes": "Browser observations recorded through cua_repl. Screenshots were inspected inline in the chat; no standalone screenshot file is claimed. The temporary saved analysis JSON was used only by the isolated host."
+}

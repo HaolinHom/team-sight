@@ -23,4 +23,6 @@
 
 ## 依据
 
+后续 MCP 0.2.4 的工时盒子、抽屉、嵌入视口及本机升级记录见 [MCP 甘特图交互知识](./mcp-gantt-interaction-notes.md)。本文前述 P0 事实保留其历史阶段范围；后续版本不应直接套用“业务接口尚未实施”等 P0 状态描述。
+
 [P0 macOS 验收报告](../artifacts/report/20261028_teamsight-p0-macos_测试报告.md)及[Codex 宿主补充报告](../artifacts/report/20261028_teamsight-p0-codex_测试报告.md)中的版本清单、自动测试、独立运行、真实卡片、系统凭据和中文 PNG 证据。引用这些结论时，应保留平台、宿主版本、接入方式和取证范围的边界。

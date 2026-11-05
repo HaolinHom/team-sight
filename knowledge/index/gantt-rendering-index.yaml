@@ -10,3 +10,10 @@ items:
     summary: "Frappe Gantt 行高与纵坐标由任务下标唯一决定且无左侧任务名列，无法低成本实现成员分组；采用项目内自研 SVG 渲染层与统一布局计算。"
     tags: ["gantt", "frontend", "rendering"]
     verifiedAt: "2026-10-10"
+
+  - id: mcp-gantt-interaction-notes
+    title: "MCP 甘特图工时盒子、抽屉与嵌入视口"
+    path: "knowledge/mcp-gantt-interaction-notes.md"
+    summary: "MCP 0.2.4 单日排期与工时贡献并集盒子、状态配色及前景交互；右侧dialog抽屉、延迟简讯与焦点恢复；IntersectionObserver约束iframe可见区域；macOS升级已验，Codex原生Apps完整交互仍待验。"
+    tags: ["mcp-apps", "gantt", "hours", "drawer", "tooltip", "iframe", "validation"]
+    verifiedAt: "2026-11-05"
