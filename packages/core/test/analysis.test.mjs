@@ -16,7 +16,10 @@ test('shared hours/risk rules preserve leave, calendar, member order and open-da
   const snapshot = { tasks: [], records: [], issues: [], status: 'complete' }
   const result = calculateHours({ snapshot, members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar) })
   assert.deepEqual(result.map(member => member.member.staffId), ['2', '1'])
-  assert.equal(result[1].days[0].target, 5); assert.equal(result[1].days[2].target, 0)
+  assert.equal(result[1].days[0].target, 5); assert.equal(result[1].days[0].leaveHours, 3); assert.equal(result[1].days[2].target, 0)
+  const mcp=calculateHours({ snapshot, members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar), policy:'mcp' })
+  assert.equal(mcp[1].days[0].target,8);assert.equal(mcp[1].days[0].leaveHours,0);assert.equal(mcp[1].days[2].target,0)
+  assert.equal(settings.hours.exemptions[0].hours,3)
   const risks = checkRisks(snapshot, result, settings, today)
   assert.equal(risks.length, 2); assert.ok(risks.every(risk => risk.code === 'HISTORICAL_HOURS_SHORT' && risk.date < today))
 })

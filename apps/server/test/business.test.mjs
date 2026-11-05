@@ -143,9 +143,13 @@ test('analysis separates actual/cumulative reads, preserves source time/order an
     f.store.saveSettings({ expectedRevision: current.revision, patch: { hours: { ...current.settings.hours, exemptions: [{ staffId: '100', date: '2026-10-27', hours: 4, note: '' }] }, projects: [{ ...project, name: '新名称' }] } })
     const recalculated = await f.business.analyze(query)
     assert.equal(f.calls.length, count); assert.equal(analysis.fetchedAt, recalculated.fetchedAt); assert.equal(analysis.snapshotId, recalculated.snapshotId)
-    assert.equal(recalculated.members[1].days[0].target, 4); assert.equal(recalculated.snapshot.tasks[0].projectName, '新名称')
+    assert.equal(recalculated.members[1].days[0].target, 8); assert.equal(recalculated.members[1].days[0].leaveHours, 0); assert.equal(recalculated.snapshot.tasks[0].projectName, '新名称')
     assert.notEqual(analysis.analysisId, recalculated.analysisId)
     assert.equal(f.business.getAnalysis(analysis.analysisId).snapshot.tasks[0].projectName, '测试项目')
+    assert.equal(recalculated.context.rulesVersion,'teamsight-mcp-hours-v3')
+    const historical=JSON.parse(JSON.stringify(analysis));historical.context.rulesVersion='teamsight-mcp-hours-v2';historical.members[1].days[0].target=4
+    const file=f.business.files.putFile('analysis',JSON.stringify(historical),'json','application/json')
+    assert.equal(f.business.getAnalysis(file.id).members[1].days[0].target,4);assert.equal(f.business.getAnalysis(file.id).context.rulesVersion,'teamsight-mcp-hours-v2')
   } finally { await f.close() }
 })
 
@@ -282,4 +286,38 @@ test('MCP exposes catalog, analysis Apps, writes, artifacts and applies validati
     for (const entry of clients) { await entry.transport.terminateSession().catch(() => {}); await entry.client.close() }
     await service?.close(); rmSync(f.dir, { recursive: true, force: true })
   }
+})
+
+test('enabled projects override legacy lists while disabled projects remain readable and operations/fields stay enforced',async()=>{
+ const f=fixture()
+ try {
+  const change=patch=>f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch})
+  change({tapd:{workspaceIds:['obsolete'],writeAccess:{workspaceIds:['obsolete']}}})
+  assert.deepEqual((await f.business.analyze(query)).context.projectIds,[project.id])
+  assert.deepEqual((await f.business.schedule({start:query.start,end:query.end})).coverage.projectIds,[project.id])
+  const created=await f.business.write(createInput(),'create');assert.equal(created.status,'succeeded')
+  const before=await f.business.readItem({workspaceId:project.id,entityType:'task',id:f.task.id})
+  change({projects:[{...project,enabled:false}]})
+  await assert.rejects(f.business.write({...createInput(),id:f.task.id,expectedDigest:before.digest,idempotencyKey:'disabled-update'},'update'),/WRITE_NOT_ALLOWED/)
+  await assert.rejects(f.business.write({...createInput(),idempotencyKey:'disabled-create'},'create'),/WRITE_NOT_ALLOWED/)
+  assert.equal((await f.business.readItem({workspaceId:project.id,entityType:'task',id:f.task.id})).item.id,f.task.id)
+  change({projects:[{...project,available:false}]})
+  await assert.rejects(f.business.write({...createInput(),idempotencyKey:'unavailable-create'},'create'),/PROJECT_NOT_ALLOWED/)
+  change({projects:[project],tapd:{writeAccess:{operations:[]}}})
+  await assert.rejects(f.business.write({...createInput(),idempotencyKey:'no-operations'},'create'),/WRITE_NOT_ALLOWED/)
+  change({tapd:{writeAccess:{operations:['create'],fields:['name']}}})
+  await assert.rejects(f.business.write({...createInput(),idempotencyKey:'no-fields'},'create'),/FIELD_NOT_ALLOWED/)
+  assert.equal(f.writes(),1)
+ }finally{await f.close()}
+})
+test('disabling a project during metadata loading prevents the pending POST',async()=>{
+ const f=fixture();let changed=false
+ const pending=createBusiness(f.store,f.dir,async(path,...args)=>{
+  if(path==='/tasks/custom_fields_settings'&&!changed){changed=true;f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{projects:[{...project,enabled:false}]}})}
+  return f.transport(path,...args)
+ })
+ try {
+  const result=await pending.write({...createInput(),idempotencyKey:'disable-during-write'},'create')
+  assert.equal(changed,true);assert.equal(result.status,'failed');assert.equal(result.code,'CONFIG_CHANGED');assert.equal(f.writes(),0)
+ }finally{await pending.close();await f.close()}
 })

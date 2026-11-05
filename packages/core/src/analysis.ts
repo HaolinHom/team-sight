@@ -5,7 +5,7 @@ import type { HoursSnapshot, MemberHours } from './hoursTypes.js'
 import type { DateRange, TeamSightSettings } from './types.js'
 
 export const RULES_VERSION = 'teamsight-hours-v1.2'
-export const MCP_RULES_VERSION = 'teamsight-mcp-hours-v2'
+export const MCP_RULES_VERSION = 'teamsight-mcp-hours-v3'
 export interface AnalysisContext {
   range: DateRange
   analysisDate: string

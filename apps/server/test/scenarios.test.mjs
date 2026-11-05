@@ -65,12 +65,13 @@ test('link parsing preserves long IDs and rejects unrelated URLs',()=>{
  assert.equal(parseReference('https://www.tapd.cn/1/prong/tasks/view/201').entityType,'task')
  assert.throws(()=>parseReference('https://elsewhere.test/tapd_fe/1/task/detail/2'),/INVALID_TAPD_LINK/)
 })
-test('project synchronization retains preferences and write scope; directory discoveries stay outside default team',async()=>{
+test('project synchronization retains preferences and legacy metadata; new enabled projects permit allowed writes',async()=>{
  const f=fixture();try{
   const before=f.store.readSettings();f.store.saveSettings({expectedRevision:before.revision,patch:{projects:[{...before.settings.projects[0],enabled:false,alias:'Alias',color:'#abcdef',order:2}]}})
   const result=await f.scenarios.syncProjects();assert.equal(result.settings.currentUser.staffId,'100');assert.notEqual(result.settings.currentUser.staffId,'999')
   assert.equal(result.settings.projects.find(p=>p.id==='1').enabled,false);assert.equal(result.settings.projects.find(p=>p.id==='1').alias,'Alias');assert.equal(result.settings.projects.find(p=>p.id==='2').enabled,true)
   assert.deepEqual(result.settings.tapd.writeAccess.workspaceIds,['1'])
+  assert.equal((await f.business.write({workspaceId:'2',entityType:'task',fields:{name:'New project'},idempotencyKey:'new-project-write',actor:'test'},'create')).status,'succeeded')
   const resolved=await f.scenarios.resolveMembers({query:'legacy-account'});assert.equal(resolved.status,'resolved');assert.equal(resolved.member.staffId,'user:legacy-account')
   assert.ok(!f.store.readSettings().settings.groups.find(g=>g.id==='default').memberIds.includes(resolved.member.staffId))
  }finally{await f.close()}
@@ -147,6 +148,7 @@ test('real MCP transport exposes new tools, enforces generic schemas, and filter
   await f.business.close();f.store.close();service=await startServer({dataDir:f.dir,port:0,vault:f.vault,tapdTransport:f.transport})
   client=new Client({name:'scene-test',version:'1'});transport=new StreamableHTTPClientTransport(new URL(service.info.url),{requestInit:{headers:{Authorization:'Bearer '+readFileSync(join(f.dir,'access-token'),'utf8').trim()}}});await client.connect(transport)
   const call=(name,args={})=>client.callTool({name,arguments:args})
+  for(const [target,expected] of Object.entries({write:'connection',general:'connection',leave:'overview',import:'overview'}))assert.equal((await call('teamsight_open_settings',{target})).structuredContent.target,expected)
   const tools=await client.listTools();assert.ok(tools.tools.some(t=>t.name==='teamsight_simulate_urgent'));assert.ok(tools.tools.some(t=>t.name==='teamsight_write_tasks'))
   const invalid=await call('tapd_call_operation',{operationId:'users.current',parameters:{url:'https://elsewhere.test'}});assert.equal(invalid.isError,true)
   const current=await call('tapd_call_operation',{operationId:'users.current',parameters:{}});assert.equal(current.structuredContent.nick,'A_100')
@@ -167,11 +169,15 @@ test('rescheduling updates the existing task and durable batch metadata is prese
   await f.restart();assert.equal((await f.scenarios.getTaskBatch('update-existing-batch')).status,'succeeded');assert.equal(f.writes(),1)
  }finally{await f.close()}
 })
-test('calendar leave capacity and explicit testing identity preserve strict constraints',async()=>{
+test('MCP ignores stored leave for ordinary and urgent capacity while testing identity remains explicit',async()=>{
  const f=fixture();try{
   const current=f.store.readSettings();f.store.saveSettings({expectedRevision:current.revision,patch:{hours:{...current.settings.hours,exemptions:[{staffId:'100',date:'2026-11-03',hours:6,note:'Leave'}]}}})
   const result=await f.scenarios.plan({...proposed(6),start:'2026-11-03',end:'2026-11-04'})
-  assert.equal(result.status,'feasible');assert.ok(result.candidates.every(c=>c.placements.every(p=>p.daily.every(d=>d.date!=='2026-11-03'||d.hours<=2))))
+  assert.equal(result.status,'feasible');assert.ok(result.candidates.every(c=>c.placements[0].daily.some(d=>d.date==='2026-11-03'&&d.hours===6)))
+  const analysis=f.scenarios.getCalculation(result.calculationId).analysis,day=analysis.members[0].days.find(d=>d.date==='2026-11-03')
+  assert.equal(day.target,8);assert.equal(day.leaveHours,0);assert.equal(f.scenarios.capacities(analysis)['100'].find(d=>d.date==='2026-11-03').available,8)
+  const urgent=await f.scenarios.urgent({mode:'direct',tasks:[{ref:'u',title:'Urgent',hours:8}],memberIds:['100'],start:'2026-11-03',deadline:'2026-11-03',analysisDate:today})
+  assert.equal(urgent.status,'feasible');assert.equal(f.writes(),0);assert.equal(f.store.readSettings().settings.hours.exemptions[0].hours,6)
   f.rows.get('task:202').due=null
   const context=await f.scenarios.requirementContext({workspaceId:'1',entityType:'story',id:'101'},{testerMemberIds:['100']})
   assert.equal(context.earliestTesting.id,'201');assert.equal(context.tasks.find(task=>task.id==='202').isTesting,true)
@@ -184,5 +190,19 @@ test('v4 identity scope migrates durably to v5 without increasing the settings r
   f.store.db.prepare('UPDATE settings SET value=? WHERE id=1').run(JSON.stringify(legacy))
   await f.restart();const migrated=f.store.readSettings();assert.equal(migrated.revision,before.revision);assert.equal(migrated.settings.schemaVersion,5);assert.deepEqual(migrated.settings.groups[0].memberIds,legacy.members.map(member=>member.staffId))
   const persisted=JSON.parse(f.store.db.prepare('SELECT value FROM settings WHERE id=1').get().value);assert.equal(persisted.schemaVersion,5);assert.equal(f.store.db.pragma('user_version',{simple:true}),3)
+ }finally{await f.close()}
+})
+
+test('batches apply enabled project scope per item without the old write whitelist',async()=>{
+ const f=fixture()
+ try{
+  f.rows.set('story:102',{id:'102',workspace_id:'2',name:'Other requirement'})
+  f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{projects:f.projects.map(p=>({...p,enabled:p.id==='2'})),tapd:{workspaceIds:['obsolete']}}})
+  const result=await f.scenarios.writeTasks({batchKey:'enabled-project-batch',items:[
+   {ref:'disabled',workspaceId:'1',fields:{name:'Disabled',effort:'1',story_id:'101'}},
+   {ref:'enabled',workspaceId:'2',fields:{name:'Enabled',effort:'1',story_id:'102'}}
+  ]})
+  assert.deepEqual(result.items.map(item=>item.status),['failed','succeeded']);assert.equal(result.items[0].code,'WRITE_NOT_ALLOWED');assert.equal(f.writes(),1)
+  assert.equal((await f.scenarios.requirementContext('https://www.tapd.cn/tapd_fe/1/story/detail/101',{includeMaterials:false})).story.id,'101')
  }finally{await f.close()}
 })

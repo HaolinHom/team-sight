@@ -54,7 +54,7 @@ export function calculateHours(input: {
       owned.push(task); tasksByMember.set(id, owned);
     }
   }
-  const exemptions = new Map(settings.exemptions.map(item => [item.staffId + ':' + item.date, item.hours]));
+  const exemptions = new Map((input.policy === 'mcp' ? [] : settings.exemptions).map(item => [item.staffId + ':' + item.date, item.hours]));
   const weekdays = new Map<string, boolean>();
   return members.map(member => {
     const dayMap = new Map<string, DailyHours>();

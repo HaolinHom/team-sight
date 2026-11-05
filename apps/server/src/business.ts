@@ -51,13 +51,13 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     return new TapdClient({ baseUrl: snapshot.settings.tapd.baseUrl, getToken: () => token, transport, queue })
   }
   function assertProject(settings: TeamSightSettings, workspaceId: string) {
-    const allowed = settings.tapd.workspaceIds.length ? settings.tapd.workspaceIds : settings.projects.map(project => project.id)
+    const allowed = settings.projects.filter(project => project.available !== false).map(project => project.id)
     if (!allowed.includes(workspaceId)) throw new BusinessError('PROJECT_NOT_ALLOWED')
   }
   function access(input: WriteInput, action: 'create' | 'update', snapshot: SettingsSnapshot) {
     assertProject(snapshot.settings, input.workspaceId)
     const policy = snapshot.settings.tapd.writeAccess
-    if (!policy?.workspaceIds.includes(input.workspaceId) || !policy.operations.includes(action)) throw new BusinessError('WRITE_NOT_ALLOWED')
+    if (!snapshot.settings.projects.some(project => project.id === input.workspaceId && project.enabled && project.available !== false) || !policy?.operations.includes(action)) throw new BusinessError('WRITE_NOT_ALLOWED')
     const fields = Object.keys(input.fields)
     if (!fields.length || fields.some(field => !policy.fields.includes(field) || !writableFields.includes(field as typeof writableFields[number]))) throw new BusinessError('FIELD_NOT_ALLOWED')
     if (action === 'create' && (!input.fields.name?.trim() || 'status' in input.fields)) throw new BusinessError('INVALID_CREATE_FIELDS')
@@ -186,7 +186,7 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     const generation = cacheGeneration
     const api = client(snapshot)
     // Source identity excludes aliases, member order and computational rules.
-    const key = `hours-v2:${digest({ baseUrl: settings.tapd.baseUrl, credential: digest(store.getCredential()), authorized: settings.tapd.workspaceIds,
+    const key = `hours-v2:${digest({ baseUrl: settings.tapd.baseUrl, credential: digest(store.getCredential()),
       projects: settings.projects.map(project => project.id).sort(), members: settings.members.map(member => member.staffId).sort(), completedStates: settings.hours.completedStates, range, today })}`
     const cached = input.refresh ? null : store.getCache(key)
     const source = cached && Date.now() - Date.parse(cached.fetchedAt) <= 60_000

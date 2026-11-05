@@ -17,20 +17,17 @@ export type Settings = {
 export type Snapshot = { revision: number; settings: Settings; credentialPresent: boolean; importedFrom?: string; warning?: string }
 
 export const categories = [
-  { id: 'connection', title: 'TAPD 连接', description: '个人令牌与当前用户' },
+  { id: 'connection', title: 'TAPD 连接', description: '账号连接、查询内容与写入权限' },
   { id: 'projects', title: '项目配置', description: '项目、别名、颜色与顺序' },
   { id: 'members', title: '成员配置', description: '查找与管理成员身份' },
   { id: 'groups', title: '分组配置', description: '团队范围与测试人员组' },
   { id: 'hours', title: '工时配置', description: '每日规定工时与业务时区' },
   { id: 'calendar', title: '节假日与调休', description: '中国日历与缓存年份' },
-  { id: 'leave', title: '请假配置', description: '成员按小时请假' },
   { id: 'completed', title: '完成状态', description: '项目任务与缺陷的结束状态' },
-  { id: 'write', title: 'TAPD 写入范围', description: '允许写入的项目、操作与字段' },
-  { id: 'general', title: '其他设置', description: '团队名称与默认查询设置' },
-  { id: 'import', title: '旧配置导入', description: '迁移已有 settings.json' },
 ] as const
 export type SettingsTarget = 'overview' | typeof categories[number]['id']
 export function settingsTarget(value: unknown): SettingsTarget {
+  value = ({write:'connection',general:'connection',leave:'overview',import:'overview'} as Record<string,string>)[String(value)] ?? value
   return categories.some(item => item.id === value) ? value as SettingsTarget : 'overview'
 }
 // Only changed fields are submitted. Nested settings are merged by the server under revision checking.
@@ -41,6 +38,9 @@ export function settingsPatch(before: Settings, after: Settings): Record<string,
   }
   for (const key of ['hours','tapd','chinaCalendar'] as const) {
     const changed = Object.fromEntries(Object.entries(after[key]).filter(([field, value]) => JSON.stringify(value) !== JSON.stringify((before[key] as unknown as Record<string, unknown>)[field])))
+    if (key === 'tapd' && changed.writeAccess) {
+      changed.writeAccess = Object.fromEntries(Object.entries(after.tapd.writeAccess ?? {}).filter(([field,value]) => JSON.stringify(value) !== JSON.stringify((before.tapd.writeAccess as unknown as Record<string,unknown> | undefined)?.[field])))
+    }
     if (Object.keys(changed).length) patch[key] = changed
   }
   return JSON.parse(JSON.stringify(patch))

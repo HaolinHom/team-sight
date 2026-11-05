@@ -18,7 +18,8 @@ import type { Vault } from './storage.js'
 import { type TeamSightSettings } from '@teamsight/core'
 
 export const UI_URI = 'ui://teamsight/p0-settings.html'
-export const SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.2.html'
+export const SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.3.html'
+const PREVIOUS_SETTINGS_UI_URI_V2 = 'ui://teamsight/settings-0.2.2.html'
 const PREVIOUS_SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.1.html'
 const LEGACY_SETTINGS_UI_URI = 'ui://teamsight/settings-p1b.html'
 export const sentinelSchema = z.string().regex(/^TEAMSIGHT_P0_SENTINEL_[A-Za-z0-9_-]{1,80}$/)
@@ -60,13 +61,13 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     const scenarios = createScenarios(business, shared)
     const analysisHtml = readFileSync(options.analysisUiPath ?? defaultAnalysisUiPath, 'utf8')
     const startedAt = new Date().toISOString()
-    const status = () => ({ phase: 'MCP', version: '0.2.2', pid: process.pid, instanceId, startedAt, node: process.versions.node,
+    const status = () => ({ phase: 'MCP', version: '0.2.3', pid: process.pid, instanceId, startedAt, node: process.versions.node,
       napi: process.versions.napi, platform: process.platform, arch: process.arch,
       revision: shared.read().revision, credentialPresent: shared.read().credentialPresent,
       settingsRevision: shared.readSettings().revision, sessions: transports.size, tapdEnabled: true })
     function mcp() {
-      const server = new McpServer({ name: 'TeamSight', version: '0.2.2' }, {
-        instructions: 'When CONFIG_REQUIRED, immediately call teamsight_open_settings with target connection and continueRead true when credentials are missing; for a missing team or project scope open the relevant configuration target. After Apps reports configuration completion, continue the original read request; never request a token in chat. Use currentUser for self and default owners. Team defaults use exactly the default group, not every cached identity. Use context and scheduling tools for scenario data; urgent tools only simulate. Dependencies are rebuilt from TAPD and current conversation. TeamSight provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Configure project and write scopes first. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Open only the requested settings target; do not show unrelated configuration. Gantt cards only offer task/hour mode switching; determine people, project and dates in conversation. Analyze first then open the analysisId; exports, risk interpretation and simulation candidate comparisons are requested in conversation. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
+      const server = new McpServer({ name: 'TeamSight', version: '0.2.3' }, {
+        instructions: 'When CONFIG_REQUIRED, immediately call teamsight_open_settings with target connection and continueRead true when credentials are missing; for a missing team or project scope open the relevant configuration target. After Apps reports configuration completion, continue the original read request; never request a token in chat. Use currentUser for self and default owners. Team defaults use exactly the default group, not every cached identity. Use context and scheduling tools for scenario data; urgent tools only simulate. Dependencies are rebuilt from TAPD and current conversation. TeamSight provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Enabled accessible projects define default query and write scopes; configure allowed write operations and fields in connection settings. MCP ignores historical leave records. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Open only the requested settings target; do not show unrelated configuration. Gantt cards only offer task/hour mode switching; determine people, project and dates in conversation. Analyze first then open the analysisId; exports, risk interpretation and simulation candidate comparisons are requested in conversation. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
       })
       server.registerTool('teamsight_status', { description: 'Read-only TeamSight service status; includes the shared process and instance identity.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false } }, () => result(status()))
       const ui = { resourceUri: UI_URI }
@@ -112,10 +113,10 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
         }
       }
       registerAppTool(server, 'teamsight_open_settings', {
-        description: 'Open only the requested settings target. Omit target for the category chooser; use connection for a token, projects, members, groups, hours, calendar, leave, completed, write, general or import. Set continueRead when configuration blocked a read request.',
+        description: 'Open only the requested settings target. Omit target for the category chooser; use connection for credentials, query types and write operations/fields; projects, members, groups, hours, calendar or completed for the other settings. Set continueRead when configuration blocked a read request.',
         inputSchema: z.object({ target: z.enum(['overview','connection','projects','members','groups','hours','calendar','leave','completed','write','general','import']).optional(), continueRead: z.boolean().optional() }).strict(),
         annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: settingsUi },
-      }, args => { const snapshot = shared.readSettings(); return settingsResult({ ...snapshot, target: args.target ?? (snapshot.credentialPresent ? 'overview' : 'connection'), continueRead: args.continueRead ?? false }) })
+      }, args => { const snapshot = shared.readSettings(); return settingsResult({ ...snapshot, target: ({write:'connection',general:'connection',leave:'overview',import:'overview'} as Record<string,string>)[args.target ?? ''] ?? args.target ?? (snapshot.credentialPresent ? 'overview' : 'connection'), continueRead: args.continueRead ?? false }) })
       registerAppTool(server, 'teamsight_read_settings', { description: 'Read current TeamSight settings and revision. Secrets are represented only by credentialPresent.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } } }, () => settingsResult(shared.readSettings()))
       registerAppTool(server, 'teamsight_save_settings', {
         description: 'Save a validated settings patch using an expected revision. A TAPD token, when supplied by the Apps UI, is stored in the OS credential vault and never returned.',
@@ -134,7 +135,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
 
       registerBusinessTools(server, business, shared, analysisHtml, scenarios)
       registerScenarioTools(server, scenarios)
-      for (const uri of [SETTINGS_UI_URI, PREVIOUS_SETTINGS_UI_URI, LEGACY_SETTINGS_UI_URI]) registerAppResource(server, 'TeamSight settings '+uri, uri, { description: 'Self-contained focused settings card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
+      for (const uri of [SETTINGS_UI_URI, PREVIOUS_SETTINGS_UI_URI_V2, PREVIOUS_SETTINGS_UI_URI, LEGACY_SETTINGS_UI_URI]) registerAppResource(server, 'TeamSight settings '+uri, uri, { description: 'Self-contained focused settings card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
       return server
     }
     const answer = (res: ServerResponse, code: number, value: unknown) => {

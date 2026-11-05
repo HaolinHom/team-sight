@@ -3,6 +3,7 @@ import {mount,flushPromises} from '@vue/test-utils'
 const state=vi.hoisted(()=>({instance:null as any,call:vi.fn(),context:vi.fn(),send:vi.fn()}))
 vi.mock('@modelcontextprotocol/ext-apps',()=>({applyDocumentTheme:vi.fn(),applyHostStyleVariables:vi.fn(),App:class {ontoolresult:any;ontoolinput:any;constructor(){state.instance=this}async connect(){}getHostContext(){return {theme:'light'}}callServerTool=state.call;updateModelContext=state.context;sendMessage=state.send}}))
 import FormalSettings from './FormalSettings.vue'
+import {categories,settingsTarget} from './settings-model'
 const settings={schemaVersion:5,teamName:'Team',timeZone:'Asia/Shanghai',projects:[{id:'1',name:'One',enabled:true,color:'#EB732D',alias:'Alias'}],members:[],groups:[{id:'default',name:'默认组',memberIds:[]}],defaultGroupId:'default',currentUser:{staffId:'100',name:'Me'},hours:{dailyRequiredHours:8,exemptions:[{staffId:'100',date:'2026-11-03',hours:2}],completedStates:[]},chinaCalendar:{enabled:true,years:{}},tapd:{baseUrl:'https://api.tapd.cn',workspaceIds:['1'],defaultTypes:['task'],writeAccess:{workspaceIds:[],operations:[],fields:[]}},updatedAt:''}
 const snapshot={settings,revision:4,credentialPresent:true}
 const response=(value:unknown)=>({structuredContent:JSON.parse(JSON.stringify(value)),content:[]})
@@ -19,4 +20,33 @@ describe('directed settings',()=>{
  it('opens new groups for editing and retains the unique default group',async()=>{const view=await open('groups');await view.get('.add-row').trigger('click');await flushPromises();const panels=view.findAll('.group-panel');expect(panels).toHaveLength(2);expect(panels[1].attributes('open')).toBeDefined();expect((view.get('#default-group').element as HTMLSelectElement).value).toBe('default');view.unmount()})
  it('clears success feedback when a new draft is edited',async()=>{const view=await open('hours');await view.get('input[type=number]').setValue('7');await view.get('.save-bar .primary').trigger('click');await flushPromises();expect(view.text()).toContain('已保存更改。');await view.get('input[type=number]').setValue('6');expect(view.text()).not.toContain('已保存更改。');view.unmount()})
 
+})
+
+describe('simplified connection settings',()=>{
+ it('offers seven categories and maps legacy targets without removed forms',async()=>{
+  expect(categories.map(item=>item.id)).toEqual(['connection','projects','members','groups','hours','calendar','completed'])
+  for(const [old,next] of Object.entries({write:'connection',general:'connection',leave:'overview',import:'overview'}))expect(settingsTarget(old)).toBe(next)
+  const view=await open('overview');expect(view.findAll('.category-row')).toHaveLength(7)
+  for(const removed of ['请假配置','旧配置导入','TAPD 写入范围','其他设置'])expect(view.text()).not.toContain(removed)
+  view.unmount()
+ })
+ it('saves moved preferences together, retains custom fields, and reads them back without unrelated changes',async()=>{
+  const saved=JSON.parse(JSON.stringify(snapshot));saved.settings.tapd.writeAccess.fields=['name','custom_field_one']
+  state.call.mockResolvedValue(response(saved))
+  const view=await open('connection')
+  expect(view.text()).toContain('账号连接');expect(view.text()).toContain('查询内容');expect(view.text()).toContain('写入权限')
+  for(const removed of ['允许写入的项目','项目 ID 列表','默认查询项目','团队名称','请假配置'])expect(view.text()).not.toContain(removed)
+  expect(view.find('.categories').exists()).toBe(false)
+  await view.get('input[value=bug]').setValue(true)
+  await view.get('input[value=create]').setValue(true)
+  await view.get('input[value=effort]').setValue(true)
+  saved.settings.tapd.defaultTypes=['task','bug'];saved.settings.tapd.writeAccess.operations=['create'];saved.settings.tapd.writeAccess.fields=['name','custom_field_one','effort'];saved.revision=5
+  state.call.mockResolvedValue(response(saved))
+  await view.get('.save-actions .primary').trigger('click');await flushPromises()
+  expect(state.call).toHaveBeenLastCalledWith({name:'teamsight_save_settings',arguments:{expectedRevision:4,patch:{tapd:{defaultTypes:['task','bug'],writeAccess:{operations:['create'],fields:['name','custom_field_one','effort']}}}}})
+  view.unmount()
+  const reopened=await open('connection');expect((reopened.get('input[value=bug]').element as HTMLInputElement).checked).toBe(true)
+  expect((reopened.get('.stack-field input').element as HTMLInputElement).value).toContain('custom_field_one')
+  reopened.unmount()
+ })
 })

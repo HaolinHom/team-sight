@@ -20,6 +20,7 @@ yarn-error.log*
 /dist
 /apps/*/dist
 /apps/*/node_modules
+/packages/*/dist
 /packages/*/node_modules
 /artifacts/releases
 /artifacts/validation
