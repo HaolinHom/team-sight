@@ -12,8 +12,8 @@ items:
     verifiedAt: "2026-10-10"
 
   - id: mcp-gantt-interaction-notes
-    title: "MCP 甘特图工时盒子、抽屉与嵌入视口"
+    title: "MCP 甘特图工时关联、虚拟排期与交互"
     path: "knowledge/mcp-gantt-interaction-notes.md"
-    summary: "MCP 0.2.4 单日排期与工时贡献并集盒子、状态配色及前景交互；右侧dialog抽屉、延迟简讯与焦点恢复；IntersectionObserver约束iframe可见区域；macOS升级已验，Codex原生Apps完整交互仍待验。"
-    tags: ["mcp-apps", "gantt", "hours", "drawer", "tooltip", "iframe", "validation"]
-    verifiedAt: "2026-11-05"
+    summary: "工时关联资料在计算后独立补查；缺有效日期按成员首末投入日生成连续虚拟条，负责人流转或排期外工时按日补块；完整分析范围先建区间再过滤分页，MCP与SVG/PNG/HTML共用展示转换；工时盒子、抽屉及嵌入视口；103项测试与真实十月隔离验证通过，虚拟排期未部署，原生Apps和真实键盘仍待验。"
+    tags: ["mcp-apps", "gantt", "hours", "worklog", "virtual-schedule", "export", "drawer", "tooltip", "iframe", "validation"]
+    verifiedAt: "2026-11-06"
