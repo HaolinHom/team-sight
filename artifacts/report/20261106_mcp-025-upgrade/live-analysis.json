@@ -1,0 +1,134 @@
+{
+  "analysisId": "805e58c6-9f40-4d48-9ced-441abda4daca",
+  "status": "complete",
+  "taskViewCount": 102,
+  "cases": [
+    {
+      "id": "800167533",
+      "date": "2026-10-15",
+      "actual": 8.5
+    },
+    {
+      "id": "800167533",
+      "date": "2026-10-19",
+      "actual": 8
+    },
+    {
+      "id": "810113275",
+      "date": "2026-10-09",
+      "actual": 8
+    },
+    {
+      "id": "810113275",
+      "date": "2026-10-10",
+      "actual": 4
+    }
+  ],
+  "focused": [
+    {
+      "id": "1158345970001209605",
+      "title": "【前端】下图-回收站功能",
+      "sourceType": "task",
+      "projectId": "58345970",
+      "original": [
+        null,
+        null
+      ],
+      "displaySpans": [
+        {
+          "memberId": "810113275",
+          "memberName": "林曈",
+          "start": "2026-10-09",
+          "end": "2026-10-10",
+          "kind": "actual",
+          "actualDays": [
+            {
+              "date": "2026-10-09",
+              "hours": 4
+            },
+            {
+              "date": "2026-10-10",
+              "hours": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1163253157001041942",
+      "title": "【礼品卡售卡】礼品卡号为扫码录入时，筛选条件无法使用键盘输入",
+      "sourceType": "bug",
+      "projectId": "63253157",
+      "original": [
+        "2026-10-15",
+        "2026-10-15"
+      ],
+      "displaySpans": [
+        {
+          "memberId": "800167533",
+          "memberName": "洪浩林",
+          "start": "2026-10-15",
+          "end": "2026-10-15",
+          "kind": "actual",
+          "actualDays": [
+            {
+              "date": "2026-10-15",
+              "hours": 0.5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1163253157001041841",
+      "title": "消除目前线上传递undefined的前端请求",
+      "sourceType": "bug",
+      "projectId": "63253157",
+      "original": [
+        "2026-10-19",
+        "2026-10-23"
+      ],
+      "displaySpans": [
+        {
+          "memberId": "800167533",
+          "memberName": "洪浩林",
+          "start": "2026-10-19",
+          "end": "2026-10-19",
+          "kind": "actual",
+          "actualDays": [
+            {
+              "date": "2026-10-19",
+              "hours": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1163253157001041955",
+      "title": "【促销中心】活动的适用会员类型为金卡，金卡用户无法参与",
+      "sourceType": "bug",
+      "projectId": "63253157",
+      "original": [
+        "2026-10-19",
+        "2026-10-19"
+      ],
+      "displaySpans": [
+        {
+          "memberId": "800167533",
+          "memberName": "洪浩林",
+          "start": "2026-10-19",
+          "end": "2026-10-19",
+          "kind": "actual",
+          "actualDays": [
+            {
+              "date": "2026-10-19",
+              "hours": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verifiedAt": "2026-11-06 06:47:54 UTC"
+}

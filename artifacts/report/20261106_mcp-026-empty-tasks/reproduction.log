@@ -1,0 +1,289 @@
+
+> @teamsight/core@0.2.0 test /Users/haolin/Projects/team-sight/packages/core
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: business day is explicit across timezone boundaries and invalid ranges are rejected
+ok 1 - business day is explicit across timezone boundaries and invalid ranges are rejected
+  ---
+  duration_ms: 5.042166
+  type: 'test'
+  ...
+# Subtest: shared hours/risk rules preserve leave, calendar, member order and open-day progress
+ok 2 - shared hours/risk rules preserve leave, calendar, member order and open-day progress
+  ---
+  duration_ms: 1.04225
+  type: 'test'
+  ...
+# Subtest: unknown source gaps do not become zero-hours risk findings
+ok 3 - unknown source gaps do not become zero-hours risk findings
+  ---
+  duration_ms: 0.170541
+  type: 'test'
+  ...
+# Subtest: core keeps natural-date and timezone-independent semantics
+ok 4 - core keeps natural-date and timezone-independent semantics
+  ---
+  duration_ms: 1.654792
+  type: 'test'
+  ...
+# Subtest: legacy settings import keeps business fields and ignores credential values
+ok 5 - legacy settings import keeps business fields and ignores credential values
+  ---
+  duration_ms: 0.327
+  type: 'test'
+  ...
+# Subtest: schedule mapping matches the old TAPD field conventions
+ok 6 - schedule mapping matches the old TAPD field conventions
+  ---
+  duration_ms: 0.22475
+  type: 'test'
+  ...
+# Subtest: hours summary preserves leave deduction and missing actual as zero
+ok 7 - hours summary preserves leave deduction and missing actual as zero
+  ---
+  duration_ms: 0.193417
+  type: 'test'
+  ...
+# Subtest: missing/partial/reversed dates span first to last actual day without changing sources
+not ok 8 - missing/partial/reversed dates span first to last actual day without changing sources
+  ---
+  duration_ms: 1.140208
+  type: 'test'
+  location: '/Users/haolin/Projects/team-sight/packages/core/test/ganttDisplay.test.mjs:7:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/haolin/Projects/team-sight/packages/core/test/ganttDisplay.test.mjs:16:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: unscheduled shared completed items appear only for members with positive finite actuals in the analysis period
+not ok 9 - unscheduled shared completed items appear only for members with positive finite actuals in the analysis period
+  ---
+  duration_ms: 0.255708
+  type: 'test'
+  location: '/Users/haolin/Projects/team-sight/packages/core/test/ganttDisplay.test.mjs:21:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/haolin/Projects/team-sight/packages/core/test/ganttDisplay.test.mjs:26:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: legacy unscheduled markers cannot create a row, including on tasks with another member span
+not ok 10 - legacy unscheduled markers cannot create a row, including on tasks with another member span
+  ---
+  duration_ms: 0.794208
+  type: 'test'
+  location: '/Users/haolin/Projects/team-sight/packages/core/test/ganttDisplay.test.mjs:31:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   {
+    +     layoutTask: {
+    +       assigneeId: 'a',
+    +       assigneeIds: [
+    +         'a'
+    +       ],
+    +       assigneeName: 'A',
+    +       displaySpans: [],
+    +       displayUnscheduledMemberIds: [
+    +         'a'
+    +       ],
+    +       dueDate: null,
+    +       id: 'legacy\x00000000000000:a',
+    +       projectColor: '#123456',
+    +       projectId: 'p',
+    +       projectName: '项目',
+    +       sourceType: 'task',
+    +       startDate: null,
+    +       status: 'done',
+    +       tapdUrl: '',
+    +       title: 'legacy'
+    +     },
+    +     memberId: 'a',
+    +     spans: [],
+    +     task: {
+    +       assigneeId: 'a',
+    +       assigneeIds: [
+    +         'a'
+    +       ],
+    +       assigneeName: 'A',
+    +       displaySpans: [],
+    +       displayUnscheduledMemberIds: [
+    +         'a'
+    +       ],
+    +       dueDate: null,
+    +       id: 'legacy',
+    +       projectColor: '#123456',
+    +       projectId: 'p',
+    +       projectName: '项目',
+    +       sourceType: 'task',
+    +       startDate: null,
+    +       status: 'done',
+    +       tapdUrl: '',
+    +       title: 'legacy'
+    +     }
+    +   }
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      task:
+        id: 'legacy'
+        sourceType: 'task'
+        title: 'legacy'
+        projectId: 'p'
+        projectName: '项目'
+        projectColor: '#123456'
+        assigneeIds:
+          0: 'a'
+        assigneeId: 'a'
+        assigneeName: 'A'
+        startDate: ~
+        dueDate: ~
+        status: 'done'
+        tapdUrl: ''
+        displaySpans:
+        displayUnscheduledMemberIds:
+          0: 'a'
+      spans:
+      memberId: 'a'
+      layoutTask:
+        id: 'legacy\x00000000000000:a'
+        sourceType: 'task'
+        title: 'legacy'
+        projectId: 'p'
+        projectName: '项目'
+        projectColor: '#123456'
+        assigneeIds:
+          0: 'a'
+        assigneeId: 'a'
+        assigneeName: 'A'
+        startDate: ~
+        dueDate: ~
+        status: 'done'
+        tapdUrl: ''
+        displaySpans: <Circular>
+        displayUnscheduledMemberIds: <Circular>
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/haolin/Projects/team-sight/packages/core/test/ganttDisplay.test.mjs:34:9)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: valid scheduled items stay visible without actuals regardless of completion state
+ok 11 - valid scheduled items stay visible without actuals regardless of completion state
+  ---
+  duration_ms: 0.810125
+  type: 'test'
+  ...
+# Subtest: transferred ownership uses individual actual days; owner keeps real dates plus outside days
+ok 12 - transferred ownership uses individual actual days; owner keeps real dates plus outside days
+  ---
+  duration_ms: 0.248083
+  type: 'test'
+  ...
+# Subtest: distinct project/type IDs, missing metadata, nonpositive actuals and scope stay separate
+ok 13 - distinct project/type IDs, missing metadata, nonpositive actuals and scope stay separate
+  ---
+  duration_ms: 0.162209
+  type: 'test'
+  ...
+# Subtest: October regression actual totals remain 8.5, 8, 8, 4 and presentation never changes calculation inputs
+ok 14 - October regression actual totals remain 8.5, 8, 8, 4 and presentation never changes calculation inputs
+  ---
+  duration_ms: 1.315292
+  type: 'test'
+  ...
+# Subtest: v4 identities migrate into one default group; v5 discovery does not silently join it
+ok 15 - v4 identities migrate into one default group; v5 discovery does not silently join it
+  ---
+  duration_ms: 1.754208
+  type: 'test'
+  ...
+# Subtest: 4+4 and 2+6 can occupy Monday and Wednesday without imposing story adjacency
+ok 16 - 4+4 and 2+6 can occupy Monday and Wednesday without imposing story adjacency
+  ---
+  duration_ms: 1.064792
+  type: 'test'
+  ...
+# Subtest: continuity and earliest profiles expose the tradeoff, strict capacity never overflows
+ok 17 - continuity and earliest profiles expose the tradeoff, strict capacity never overflows
+  ---
+  duration_ms: 0.223541
+  type: 'test'
+  ...
+# Subtest: backward anchors, dependencies, explicit same-day and cycles are respected
+ok 18 - backward anchors, dependencies, explicit same-day and cycles are respected
+  ---
+  duration_ms: 1.3485
+  type: 'test'
+  ...
+# Subtest: incomplete data and bounded search never become false infeasibility
+ok 19 - incomplete data and bounded search never become false infeasibility
+  ---
+  duration_ms: 0.184541
+  type: 'test'
+  ...
+# Subtest: multi-person search assigns indivisible work units independently
+ok 20 - multi-person search assigns indivisible work units independently
+  ---
+  duration_ms: 0.174291
+  type: 'test'
+  ...
+# Subtest: MCP missing estimate uses zero, actuals survive missing dates, today gets shortage; legacy remains unchanged
+ok 21 - MCP missing estimate uses zero, actuals survive missing dates, today gets shortage; legacy remains unchanged
+  ---
+  duration_ms: 0.862833
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 18
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 53.369291
+/Users/haolin/Projects/team-sight/packages/core:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @teamsight/core@0.2.0 test: `node --test test/*.test.mjs`
+Exit status 1
+ WARN   Local package.json exists, but node_modules missing, did you mean to install?

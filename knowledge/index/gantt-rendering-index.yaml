@@ -14,6 +14,6 @@ items:
   - id: mcp-gantt-interaction-notes
     title: "MCP 甘特图工时关联、虚拟排期与交互"
     path: "knowledge/mcp-gantt-interaction-notes.md"
-    summary: "工时关联资料在计算后独立补查；缺有效日期按成员首末投入日生成连续虚拟条，负责人流转或排期外工时按日补块；完整分析范围先建区间再过滤分页，MCP与SVG/PNG/HTML共用展示转换；工时盒子、抽屉及嵌入视口；103项测试与真实十月隔离验证通过，虚拟排期未部署，原生Apps和真实键盘仍待验。"
+    summary: "工时关联资料在计算后独立补查；缺有效日期按成员首末投入日生成连续虚拟条，负责人流转或排期外工时按日补块；无有效排期且本人无区间实际工时的任务隐藏，旧标记不生成行；先过滤再计数分页，MCP与SVG/PNG/HTML共用转换；0.2.6本机已部署、107项测试通过，十月任务55→40且工时不变，原生Apps完整交互仍待验。"
     tags: ["mcp-apps", "gantt", "hours", "worklog", "virtual-schedule", "export", "drawer", "tooltip", "iframe", "validation"]
     verifiedAt: "2026-11-06"
