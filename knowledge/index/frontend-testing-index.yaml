@@ -1,26 +1,19 @@
 schemaVersion: "knowledge-index/v1"
 
-title: "前端工程与测试"
-description: "当前 MCP UI 的 Vue/Vitest 依赖与验收约定；保留旧 Tauri 前端测试历史。"
+title: "MCP Apps 前端与工作日历"
+description: "MCP 0.3.0 的 Vue 测试、沙箱保存、分页一致性与共享日历规则；不收录退役 Tauri 前端约定。"
 
 items:
   - id: frontend-testing-notes
     title: "MCP Apps 前端与 Vue 组件测试"
     path: "knowledge/frontend-testing-notes.md"
-    summary: "0.3.0 Apps沙箱保存用button/click并先reportValidity，桥接普通JSON；局部patch分层合并与修订校验；同范围合并全部成员/任务页，核对游标/快照并丢弃旧响应；Vue及测试依赖归MCP UI，避免运行时分裂；根test转发全量，UI40项通过，隔离浏览器不替代原生Apps验收。以下为旧Tauri测试历史：按文件启用 jsdom；RouterLink stub、Tauri 运行时补丁、flushPromises；部分模块 mock、stubEnv 后动态 import、事件上抛后 setProps；保活用真实 memory Router 并卸载清理 watch；VTU 2.5.1 指针继承属性只读错误用 MouseEvent 加 pointerId 派发适配，捕获与坐标单独 mock，桌面拖拽需生产包实测。"
-    tags: ["frontend", "testing", "vitest", "vue", "pointer", "drag", "mcp-apps", "sandbox", "forms", "pagination", "async"]
+    summary: "UI 包独立声明 Vue 与测试依赖；根 test 转发全部 MCP 回归；沙箱保存用 button/click 和 reportValidity，桥接参数转普通 JSON；局部 patch 分层合并并校验修订；成员和任务游标在同一范围读全后提交，校验快照与 generation；组件和隔离浏览器不替代原生 Apps 验收。"
+    tags: ["frontend", "testing", "vitest", "vue", "mcp-apps", "sandbox", "forms", "pagination", "async"]
     verifiedAt: "2026-11-06"
 
-  - id: frontend-reliability-notes
-    title: "前端异步数据与配置一致性"
-    path: "knowledge/frontend-reliability-notes.md"
-    summary: "最新请求提交与旧数据范围标注；聚合完整性与分页警告；配置串行保存、成功后提交、失败可重试，原生控件恢复确认值；Worker快照和错误保真、完整缓存保留原时间；KeepAlive门控加载及资源清理；members数组统一展示顺序，工号移动，memberOrder控制看板，工时保留输入顺序，排序不改变查询身份、复用快照重算；项目名按ID在渲染时解析，改名不取数、不重算，工时原因保留结构。"
-    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing", "worker", "cache", "keepalive", "member-order", "project-name", "identity"]
-    verifiedAt: "2026-10-17"
-
   - id: china-calendar-notes
-    title: "中国节假日及调休与永久缓存"
+    title: "中国节假日及调休与年度缓存"
     path: "knowledge/china-calendar-notes.md"
-    summary: "配置v3默认关闭中国日历并忽略旧手动日期；holiday-cn双源校验、12月补查次年公告及较后公告覆盖；年度缓存永久有效，缺失自动获取一次、已有缓存仅手动刷新，保存成功才更新状态；看板和工时Worker共享工作日映射，覆盖预测完整任务区间，规则变化复用TAPD快照重算。"
-    tags: ["frontend", "calendar", "holiday-cn", "settings", "cache", "gantt", "hours", "worker"]
-    verifiedAt: "2026-10-17"
+    summary: "MCP schema v6 默认关闭中国日历；core 共享工作日规则，Node 固定双源获取并校验 holiday-cn，12 月补查次年公告、较后来源覆盖；年度缓存无 TTL，缺失自动尝试一次、已有仅显式刷新；失败保留旧值，缺来源使分析 partial 并标注目标待确认；当前不扣请假。"
+    tags: ["calendar", "holiday-cn", "settings", "cache", "hours", "mcp"]
+    verifiedAt: "2026-11-06"

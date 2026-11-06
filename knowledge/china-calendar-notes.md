@@ -1,33 +1,25 @@
-# 中国节假日及调休与永久缓存
+# 中国节假日及调休与年度缓存
 
-> 验证及授权提升日期：2026-10-17。
+> 适用版本：MCP 0.3.0／配置 schema v6。2026-11-06 按当前源码复核；下述为实现契约，本轮未访问外部日历源。
 
-## 已验证事实
+## 数据与工作日规则
 
-- 配置 v3 以 `AppSettings.chinaCalendar` 保存总开关和年度缓存，旧 `hours.calendarOverrides` 被忽略，手动日期维护入口已移除。
-- holiday-cn 数据文件以公告标题年份组织，可包含上一年实际日期。涉及 12 月须补查下一年文件，按文件年份升序合并、较后文件覆盖较早文件。来源 README 与日期合并测试确认该约定。
-- 数据源为 jsDelivr 的 NateScarlet/holiday-cn master 年度 JSON，失败或格式无效时回退 GitHub Raw；`isOffDay` 取反得到 `working`。
-- `src/calendar/chinaCalendar.ts` 是共享工作日规则；看板与工时 Worker 使用同一份可序列化日期映射，个人请假豁免独立生效。
-- 年份缓存永久有效；只有用户点击年份标签才重新获取已有缓存。缺失年份首次自动获取，自动失败在当前运行期间不重复尝试，允许手动重试。
-- 绿色标签表示有效数据已持久保存；网络或保存失败时，有旧缓存则保留绿色、原数据和原获取时间，无旧缓存则保持红色；错误独立显示。“已缓存”不表示最近一次刷新成功。
-- 缓存写入和开关更新沿用 useSettings 串行队列，基于最新配置合并，不覆盖并发保存的其他年份或设置。
-- 工时需要展示区间和预测完整有效任务区间的年度日历；规则改变仅重算已有 TAPD 快照，不改变 TAPD 查询身份。
-- 关闭开关只停用规则，保留年度缓存；无有效缓存时按普通周历处理并提示受影响年份。次年补充文件获取失败不使本年缓存失效。
+- 配置以 `chinaCalendar.enabled` 和 `chinaCalendar.years` 保存开关及年度缓存，默认关闭。关闭只停用日历覆盖，保留缓存；当前工时规则不扣请假。
+- 来源为 NateScarlet/holiday-cn 的 jsDelivr master 年度 JSON，网络或校验失败时回退 GitHub Raw。服务端仅接受年份并访问固定来源；`isOffDay` 取反得到 `working`。
+- 校验年份、非空日期和公告列表、日期合法性及重复日期。年度文件按公告年份组织，允许包含上一年的日期；涉及 12 月时额外加载次年来源，合并时按来源年份升序，较后来源覆盖较早来源。
+- `mergeCalendar` 与 `isWorkingDay` 为共享规则；没有日期覆盖时使用普通周历。损坏年度缓存按未获取处理，不影响其他有效年份。
 
-## 关键实现入口
+## 自动获取、刷新与保存
 
-- `src/calendar/chinaCalendar.ts`：年度数据校验、损坏缓存过滤、公告覆盖顺序、共享工作日函数与跨年加载范围。
-- `src/composables/useChinaCalendar.ts`：共享年度请求合并、当前运行期间的自动尝试记录、刷新错误与降级提示。
-- `src/services/chinaCalendar.ts`、`src-tauri/src/china_calendar.rs`：双源请求与校验；桌面命令仅接收年份，固定来源，阻塞 HTTP 通过 `spawn_blocking` 执行。
-- `src/types/settings.ts`、`src/composables/useSettings.ts`：v3 配置和成功保存后提交状态的串行更新。
-- `src/components/hours/ChinaCalendarSettings.vue`：原生状态按钮、请求期间禁用、缓存颜色与北京时间获取时间。
-- `src/pages/BoardPage.vue`、`src/pages/HoursPage.vue`、`src/hours/statistics.ts`、`src/hours/workerProtocol.ts`：看板与工时规则接入、快照重算及可序列化日历传递。
+- 年度缓存没有 TTL。启用日历时，分析先检查展示范围，再补齐完整任务分配区间所需来源。
+- 已有缓存不自动刷新；缺失来源在当前服务进程中自动尝试一次，失败后不自动重复。设置页“刷新数据”或 `teamsight_refresh_calendar` 可显式强制重试。
+- 刷新经服务端读取最新设置并校验 revision，成功持久化后才发布新缓存；失败保留旧值和原 fetchedAt，显式刷新失败返回 `CALENDAR_REFRESH_FAILED`。
+- 设置卡片的开关作为草稿通过局部保存提交；年度刷新是立即生效的独立动作。卡片操作会处理未保存草稿，刷新后重新读取正式设置。
+- 缺少必要来源时，分析标记日历不完整，记录限制及受影响日期原因；对应不足状态改为 unknown，不能将普通周历结果当作已确认的节假日目标。
 
-## 验证证据与边界
+## 实现与验证边界
 
-- 数据源约定：[NateScarlet/holiday-cn](https://github.com/NateScarlet/holiday-cn)。永久缓存与手动刷新策略是本项目约定。
-- 359 项前端测试、8 项 Rust 测试及 macOS 生产包构建通过。
-- 真实桌面下载 2026 年 39 条安排，验证重启复用缓存以及绿色标签手动刷新更新时间；验收后用户设置已恢复。
-- 报告：`artifacts/report/20261017_1103_china-calendar_测试报告.md`。
-- 真实断网桌面 UI 与完整键盘导航未完成；失败恢复由自动化测试覆盖。Windows/Linux 未验证。
-- 提升时仅进行源码和已有报告对照，未重新运行上述测试或桌面验收。
+- [core 日历](../packages/core/src/calendar.ts)：校验、来源覆盖、工作日判断与跨年范围。
+- [分析及刷新](../apps/server/src/business.ts)：固定双源、进程尝试记录、持久化及不完整状态。
+- [设置卡片](../apps/mcp-ui/src/FormalSettings.vue)、[日历工具](../apps/server/src/business-tools.ts)：手动刷新和局部保存入口。
+- [0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)保留版本验收范围；不沿用旧 Tauri 的绿色年份标签、Rust 下载、Worker 或 useSettings 队列说明。

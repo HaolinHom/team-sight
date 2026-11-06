@@ -1,27 +1,19 @@
-# 甘特图渲染选型：自研 SVG 而非 Frappe Gantt
+# 甘特图渲染选型与共享布局
 
-> 验证时间：2026-10-10｜验证方式：第三方库源码阅读 + 自研渲染层实测
+> 适用版本：MCP 0.3.0。2026-11-06 按当前源码复核；第三方选型背景来自 2026-10-10 对 Frappe Gantt 1.2.2 的检查，不代表其他版本的能力。
 
-## 结论
+## 选型结论
 
-团队成员分组甘特图采用项目内自研 SVG 渲染层，不使用 Frappe Gantt（1.2.2，MIT）。
+成员分组甘特图采用项目内自研 SVG 渲染与 core 共享布局。原选型检查发现，Frappe Gantt 1.2.2 按任务下标计算等高行，不提供所需左侧任务名列；插入成员标题、处理不同类型行及对齐固定名称列需要额外改造。此背景只解释选型，不作为当前第三方库源码入口。
 
-## 依据（源码级）
+## 当前布局契约
 
-1. 行高与纵坐标完全由任务下标唯一决定：`src/bar.js` 的 `compute_y()` 为 `y = header_height + padding + task._index * (height + padding)`。
-2. 网格高度按 `(bar_height + padding) × 任务数` 计算（`src/index.js` 的 `grid_height` 与网格线绘制），即所有行等高，无法容纳独立的成员标题行或变高行。
-3. 库本身不提供左侧任务名列（任务名通过弹层/提示展示），而本项目要求「左侧固定标题列 + 右侧日期区」。
+- `packages/core/src/layout.ts` 的 `computeLayout` 统一产出行 y、高度、条形 x／宽度与画布尺寸；交互图层和导出均消费共享结果。
+- 坐标为 `x = dateDiff(rangeStart, visibleStart) × dayColumnWidth`，宽度含首尾两天；显示裁剪不改原日期。日期差使用 UTC 零点，分析中的“今天”由配置时区和 analysisDate 确定。
+- Apps 名称列与时间轴处于同一滚动容器，名称列使用 `position:sticky; left:0`，日期表头使用 `position:sticky; top:0`；不再采用旧 Tauri 的 translateY 同步滚动说明。
+- 成员优先遵循传入的 memberOrder；未指定成员按中文姓名和稳定键排序，未分配成员在最后。MCP UI 使用分析 members 顺序，导出使用 context.memberIds 顺序。
+- 组内按展示开始日、截止日、项目及 ID 稳定排序。每成员／工作项只占一行，多条真实／虚拟区间由该行承载；展示资格和区间生成先于布局，详见[交互与虚拟排期](mcp-gantt-interaction-notes.md)。
 
-因此「成员标题行 + 任务独立成行 + 折叠展开 + 左列对齐」需要改动库源码并叠加 hack 式 DOM/CSS 补丁，超出可接受的改造成本。
+## 重新选型的检查项
 
-## 自研渲染层要点
-
-- 单一几何来源：一次布局计算产出所有行的 y 与高度、任务条 x 与宽度、画布总宽高；禁止各组件自行推算纵坐标。
-- 坐标公式：`x(d) = dateDiff(rangeStart, d) × dayColumnWidth`；`width = (dateDiff(taskStart, taskEnd) + 1) × dayColumnWidth`；任务跨窗口时裁剪显示但不改动原始日期。
-- 布局：左侧标题列不做独立滚动，由时间轴纵向滚动通过 `transform: translateY(-scrollTop)` 同步；日期表头用 `position: sticky` 吸顶，横向随内容滚动。
-- 日期数学统一用 UTC 零点构造，避免本地时区/夏令时导致天数差偏移；「今天」取本地日期。
-- 稳定性要求：成员顺序按中文排序（未分配成员置底），组内按开始日、截止日、项目、ID 依次排序，保证多次刷新顺序一致。
-
-## 若未来重新评估第三方库
-
-选型前必须先验证四项能力：能否插入非任务行、能否支持变高行、是否提供左侧标题列、能否禁用拖拽改期。任一项不满足即应重新评估或继续自研。
+重新评估第三方库时，先验证成员标题行、不同类型行的高度、固定名称列、只读排期及多区间条形能力。当前实现入口为[共享布局](../packages/core/src/layout.ts)、[展示模型](../apps/mcp-ui/src/gantt-model.ts)、[图层](../apps/mcp-ui/src/GanttLayers.vue)与[导出](../apps/server/src/outputs.ts)。

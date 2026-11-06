@@ -1,6 +1,6 @@
 # TeamSight MCP 配置、项目范围与工时规则
 
-> 验证与授权提升日期：2026-11-06。适用于 MCP 0.3.0／配置 schema v6，更新此前 0.2.3 的兼容约定。旧分析按快照读取；Windows 实机、Codex 原生 Apps 完整交互及真实 TAPD 写入仍未在本轮验收。
+> 适用版本：MCP 0.3.0／配置 schema v6。2026-11-06 按源码复核。旧分析按快照读取；本轮为知识整理，未进行 Windows 实机、Codex 原生 Apps 完整交互或真实 TAPD 写入验收。
 
 ## 设置入口与局部保存
 
@@ -12,12 +12,11 @@ writeAccess 保存只提交改变的子字段，服务端合并并校验配置�
 
 ## 成员身份与分组范围
 
-> 2026-11-06 经用户授权从能力补齐候选提取；已按 MCP 0.3.0 源码复核。
-
 - 不将 /users/info 的内部 id 当作成员工号。当前自动识别以响应的 nick/name 值与项目目录 UserWorkspace.user 完整账号精确匹配，不按显示姓名猜测当前用户。
 - 身份解析从目录账号提取工号；无工号时以 `user:完整账号` 作为本地 staffId。成员查询若命中多个身份，返回候选，由 selectedAccount 消歧；目录不完整时保留 partial，不宣称解析完整。
 - members 是身份目录，groups 才定义分组成员。同步当前用户或解析成员只保存身份，不自动加入默认团队。新安装默认分组为空；多组可重叠，defaultGroupId 指定唯一默认组。
 - 成员范围依次使用显式 memberIds、显式 groupIds、self、默认组；分组成员去重。默认组为空时返回 TEAM_SCOPE_REQUIRED，不能退回整个身份目录扩大范围。
+- 解析后的成员按成员 order 排序，缺省时回退身份目录位置；统计器保留传入顺序，Apps 与导出使用分析的成员顺序。旧桌面“只按 members 数组顺序、无排序字段”的约定已不适用。
 
 源码：[身份解析与同步](../apps/server/src/scenarios.ts)、[成员范围](../packages/core/src/memberScope.ts)、[默认配置](../packages/core/src/settings.ts)。历史接口验证见 [2026-11-03 报告](../artifacts/report/20261103_teamsight-mcp-capability-completion_测试报告.md)；本次未重新请求真实 TAPD。
 
@@ -36,11 +35,8 @@ writeAccess 保存只提交改变的子字段，服务端合并并校验配置�
 
 缺预估按 0 处理并保留缺失标记，当天不足仍纳入风险，取数失败继续表示未知，不能当成零工时。历史分析的内容、规则版本和文件哈希保持原样，支持读取和基于快照导出；历史内容可能仍包含已退役字段，不会被自动重算覆盖。非当前规则的分析不能用于新容量、模拟或写入，返回 `ANALYSIS_RULES_OUTDATED` 并提示重新生成分析。
 
-实施阶段用本机已安装 0.2.6 core 与本次 core，对相同 5 份历史分析输入、775 个成员日期格对照：除删除的 leaveHours 输出外，工时、容量、风险一致；没有 TAPD 请求。历史 SVG/PNG/HTML 和 Markdown/HTML/CSV/JSON 报告导出亦已验证，源快照不变。
-
 ## 依据与验收边界
 
 - [0.3.0 实施测试报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)：110 项回归、固定输入对照、迁移核对、隔离浏览器设置局部保存及真实宿主只读连接。
-- [0.2.3 历史报告](../artifacts/report/20261105_teamsight-settings-simplify_测试报告.md)保留当时的七类设置及统一项目范围验证；其中旧字段、目标映射和 legacy 算法的兼容说明已由本文更新。
 - 源码入口：[配置模型](../packages/core/src/settings.ts)、[设置模型](../apps/mcp-ui/src/settings-model.ts)、[写入校验](../apps/server/src/business.ts)、[MCP 工时规则](../packages/core/src/statistics.ts)、[历史规则保护](../apps/server/src/scenarios.ts)。
-- 数据目录、正式存储与显式迁移见[运行知识](teamsight-server-runtime-notes.md)。本次知识提升只核对源码及已有报告，没有重新运行业务测试。
+- 数据目录、正式存储与显式迁移见[运行知识](teamsight-server-runtime-notes.md)。以上历史报告只证明对应版本及范围，本次未重新运行业务测试。

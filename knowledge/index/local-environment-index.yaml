@@ -1,26 +1,19 @@
 schemaVersion: "knowledge-index/v1"
 
-title: "本机/团队环境与工具链"
-description: "影响本机（macOS）开发效率与构建成功率的工具链事实。"
+title: "MCP 运行与配置"
+description: "TeamSight MCP 0.3.0 的工程、存储、迁移、排期恢复及配置规则；不收录退役 Rust/Tauri 工具链。"
 
 items:
-  - id: local-toolchain-notes
-    title: "历史 Rust/Tauri 工具链与网络注意事项"
-    path: "knowledge/local-toolchain-notes.md"
-    summary: "历史 Tauri App 记录，0.3.0 已退役；rustup 官方源在本网络极慢、切 USTC 镜像后秒级完成；crates.io 首次索引约 15 分钟；Tauri 2 必须有 src-tauri/icons/icon.png 才能编译；应用配置目录位置与本地凭据（0600、原子写入、令牌解析顺序）；macOS 打包配置（bundle.active/targets）、未签名产物分发方式、dmg 挂载验证、打包后可绑定窗口做端到端验证；令牌泄漏审计脚本写法。"
-    tags: ["environment", "toolchain", "rust", "tauri", "packaging", "security"]
-    verifiedAt: "2026-10-11"
-
   - id: teamsight-server-runtime-notes
     title: "TeamSight Server / MCP Apps 运行与验收边界"
     path: "knowledge/teamsight-server-runtime-notes.md"
-    summary: "MCP 0.3.0 工程与37工具/2资源；数据库v4、配置v6、TeamSight.MCP钥匙串；仅显式迁移DB v3/配置v5，源保留及失败补偿；排期仅释放预计、缓存30分钟/50条、搜索上限50000；紧急模拟只读；批次回执在POST前持久化、unknown核对不重发；可信原生缓存校验；LaunchAgent升级/回退；本机已迁data-mcp，110项测试通过，Windows与原生Apps完整交互待验；保留P0历史记录。"
-    tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "validation", "planning", "simulation", "batch", "recovery"]
+    summary: "MCP 0.3.0、37 工具/2 资源，Node 22.14+ 且低于 23；DB v4/配置 v6/TeamSight.MCP 钥匙串；显式迁移旧 DB v3/配置 v5，保留源并失败补偿；完整查询缓存 60 秒，计算缓存 30 分钟/50 条，搜索预算 50000；模拟只读、POST 前持久化批次回执、unknown 核对不重发；运行包和 LaunchAgent 升级/回退及平台验收边界。"
+    tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "validation", "planning", "simulation", "batch", "recovery", "cache"]
     verifiedAt: "2026-11-06"
 
   - id: teamsight-mcp-config-scope
     title: "TeamSight MCP 配置、项目范围与工时规则"
     path: "knowledge/teamsight-mcp-config-scope.md"
-    summary: "MCP 0.3.0/schema v6七类设置及局部保存；完整账号解析身份，无工号用user:账号，歧义返回候选；身份目录不等于默认团队，成员范围按显式/分组/self/默认组解析；旧target/导入/项目名单/请假字段退役；启用且可访问项目统一查询与写入范围，保留操作/字段限制；仅MCP v3，无leaveHours；历史只读导出，非当前规则禁止新模拟/写入；775成员日期格对照一致。"
-    tags: ["teamsight", "mcp", "settings", "workspace", "permissions", "hours", "compatibility", "identity", "member-scope", "groups"]
+    summary: "schema v6 七类设置与局部保存；完整账号身份，无工号用 user:账号，歧义返回候选；身份目录不等于默认组，范围按显式成员/分组/self/默认组解析并按 order 排序；启用且可访问项目统一默认查询与写入范围，仍限制操作及字段；工时仅 v3，无请假；历史只读导出，旧规则禁止新计算及写入。"
+    tags: ["teamsight", "mcp", "settings", "workspace", "permissions", "hours", "compatibility", "identity", "member-scope", "groups", "member-order"]
     verifiedAt: "2026-11-06"
