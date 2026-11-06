@@ -13,9 +13,34 @@ test('missing/partial/reversed dates span first to last actual day without chang
   assert.equal(filterGanttDisplayTasks([result],{start:'2026-10-10',end:'2026-10-11'})[0].displaySpans[0].start,'2026-10-09')
   const withoutHours=buildGanttDisplayTasks([original],[member('a',[]),member('b',[])],range)
   const pending=filterGanttDisplayTasks(withoutHours,range,['a'])
-  assert.equal(pending.length,1);assert.equal(pending[0].displaySpans.length,0)
-  assert.deepEqual(ganttDisplayRows(pending).map(row=>[row.memberId,row.spans.length]),[['a',0]])
+  assert.equal(pending.length,0)
+  assert.deepEqual(ganttDisplayRows(pending),[])
   assert.equal(filterGanttDisplayTasks(withoutHours,range,['b']).length,0)
+ }
+})
+test('unscheduled shared completed items appear only for members with positive finite actuals in the analysis period',()=>{
+ const original=task('1',{startDate:null,dueDate:null,assigneeIds:['a','b'],status:'done'})
+ const members=[member('a',[['2026-10-09','p:task:1',0],['2026-10-10','p:task:1',-1],['2026-10-11','p:task:1',NaN],['2026-10-12','p:task:1',Infinity],['2026-09-30','p:task:1',8]]),member('b',[['2026-10-15','p:task:1',2]])]
+ const before=structuredClone({original,members})
+ const display=buildGanttDisplayTasks([original],members,range)
+ assert.equal(filterGanttDisplayTasks(display,range,['a']).length,0)
+ assert.deepEqual(ganttDisplayRows(filterGanttDisplayTasks(display,range)).map(row=>row.memberId),['b'])
+ assert.equal(filterGanttDisplayTasks(display,{start:'2026-10-16',end:'2026-10-31'},['b']).length,0)
+ assert.deepEqual({original,members},before)
+})
+test('legacy unscheduled markers cannot create a row, including on tasks with another member span',()=>{
+ const legacy={...task('legacy',{startDate:null,dueDate:null}),displaySpans:[],displayUnscheduledMemberIds:['a']}
+ const shared={...legacy,id:'shared',displaySpans:[{memberId:'b',memberName:'B',start:'2026-10-15',end:'2026-10-15',kind:'actual',actualDays:[{date:'2026-10-15',hours:2}]}]}
+ assert.deepEqual(ganttDisplayRows([legacy]),[])
+ assert.equal(filterGanttDisplayTasks([legacy,shared],range,['a']).length,0)
+ assert.deepEqual(ganttDisplayRows([shared]).map(row=>row.memberId),['b'])
+})
+test('valid scheduled items stay visible without actuals regardless of completion state',()=>{
+ for(const status of ['open','done']){
+  const display=buildGanttDisplayTasks([task('1',{status})],[member('a',[])],range)
+  assert.equal(filterGanttDisplayTasks(display,range,['a']).length,1)
+  assert.equal(ganttDisplayRows(display)[0].spans[0].kind,'planned')
+  assert.equal(filterGanttDisplayTasks(display,{start:'2026-10-17',end:'2026-10-31'}).length,0)
  }
 })
 test('transferred ownership uses individual actual days; owner keeps real dates plus outside days',()=>{

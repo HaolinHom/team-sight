@@ -20,6 +20,7 @@ export interface DisplaySpan {
 }
 export interface GanttDisplayTask extends ScheduleTask {
   displaySpans?: DisplaySpan[]
+  /** Legacy input only; unscheduled items without actual hours no longer create rows. */
   displayUnscheduledMemberIds?: string[]
   displayWarning?: string
 }
@@ -53,13 +54,11 @@ export function buildGanttDisplayTasks(tasks: ScheduleTask[], members: MemberHou
   }
   return [...sources].map(([key, task]) => {
     const displaySpans: DisplaySpan[] = []
-    const displayUnscheduledMemberIds: string[] = []
     for (const { member } of members) {
       const actualDays = [...(actuals.get(key)?.get(member.staffId) ?? [])].map(([date, hours]) => ({ date, hours })).sort((a, b) => a.date.localeCompare(b.date))
       const base = { memberId: member.staffId, memberName: member.name }
       if (resolveDateIssue(task)) {
         if (actualDays.length) displaySpans.push({ ...base, start: actualDays[0].date, end: actualDays.at(-1)!.date, kind: 'actual', actualDays })
-        else if (task.assigneeIds.includes(member.staffId)) displayUnscheduledMemberIds.push(member.staffId)
       } else {
         const owner = task.assigneeIds.includes(member.staffId)
         if (owner) displaySpans.push({ ...base, start: task.startDate!, end: task.dueDate!, kind: 'planned', actualDays: actualDays.filter(day => day.date >= task.startDate! && day.date <= task.dueDate!) })
@@ -68,20 +67,20 @@ export function buildGanttDisplayTasks(tasks: ScheduleTask[], members: MemberHou
         }
       }
     }
-    return { ...task, displaySpans, displayUnscheduledMemberIds, ...(warnings.get(key) ? { displayWarning: warnings.get(key) } : {}) }
+    return { ...task, displaySpans, displayUnscheduledMemberIds: [], ...(warnings.get(key) ? { displayWarning: warnings.get(key) } : {}) }
   })
 }
 
 export function filterGanttDisplayTasks(tasks: GanttDisplayTask[], range: DateRange, memberIds?: string[], projectIds?: string[]) {
   return tasks.filter(task => !projectIds?.length || projectIds.includes(task.projectId)).map(task => ({ ...task,
     displaySpans: task.displaySpans?.filter(span => (!memberIds?.length || memberIds.includes(span.memberId)) && span.start <= range.end && span.end >= range.start),
-    displayUnscheduledMemberIds: task.displayUnscheduledMemberIds?.filter(id => !memberIds?.length || memberIds.includes(id)),
-  })).filter(task => task.displaySpans?.length || task.displayUnscheduledMemberIds?.length)
+    displayUnscheduledMemberIds: [],
+  })).filter(task => task.displaySpans?.length)
 }
 
 /** A private layout clone per member gives each item one row, even with multiple bars. */
 export function ganttDisplayRows(tasks: GanttDisplayTask[]) {
-  return tasks.flatMap((task, index) => [...new Set([...(task.displaySpans?.map(span => span.memberId) ?? []), ...(task.displayUnscheduledMemberIds ?? [])])].map(memberId => {
+  return tasks.flatMap((task, index) => [...new Set(task.displaySpans?.map(span => span.memberId) ?? [])].map(memberId => {
     const spans = task.displaySpans?.filter(span => span.memberId === memberId) ?? []
     const start = spans.map(span => span.start).sort()[0] ?? task.startDate, end = spans.map(span => span.end).sort().at(-1) ?? task.dueDate
     return { task, spans, memberId, layoutTask: { ...task, id: task.id + '\u0000' + String(index).padStart(12, '0') + ':' + memberId,

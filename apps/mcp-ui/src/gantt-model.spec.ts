@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { DailyHours, MemberHours, ScheduleTask } from '@teamsight/core'
+import type { DailyHours, GanttDisplayTask, MemberHours, ScheduleTask } from '@teamsight/core'
 import { buildGanttModel, hoursStatus } from './gantt-model'
 
 const range = { start: '2026-10-01', end: '2026-10-31' }, today = '2026-10-15'
@@ -36,6 +36,18 @@ describe('daily hours geometry and source association', () => {
   const model = build([])
   expect(model.cells[0]!.y).toBe(2); expect(model.cells[0]!.height).toBe(26)
   expect(model.cells[0]!.related).toEqual([]); expect(model.bars).toEqual([])
+ })
+ it('hides empty task labels and legacy markers without changing hours geometry or related details', () => {
+  const planned = task('planned')
+  const empty = { ...task('empty'), startDate: null, dueDate: null, status: 'done', assigneeIds: ['100', '200'] }
+  const people = [member(), member([day()], '200')]
+  const baseline = build([planned], people), model = build([planned, empty], people)
+  expect(model.layout.rows).toEqual(baseline.layout.rows)
+  expect(model.cells).toEqual(baseline.cells)
+  expect(model.bars).toEqual(baseline.bars)
+  const legacy: GanttDisplayTask = { ...empty, displaySpans: [], displayUnscheduledMemberIds: ['100', '200'] }
+  const prepared: GanttDisplayTask = { ...planned, displaySpans: [{ memberId: '100', memberName: '100', start: planned.startDate!, end: planned.dueDate!, kind: 'planned', actualDays: [] }] }
+  expect(buildGanttModel([prepared, legacy], people, range, today, 190, 48).layout.rows).toEqual(baseline.layout.rows)
  })
  it('isolates members, duplicates multi-owner tasks and clips cross-window dates', () => {
   const shared = { ...task('1', '2026-09-25', '2026-11-01'), assigneeIds: ['100', '200'] }

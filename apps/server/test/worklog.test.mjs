@@ -60,6 +60,7 @@ test('display filtering occurs before pagination, retains transferred contributo
  const f=fixture();let service,client,connection
  try{
   const a=await f.business.analyze(range)
+  for(let i=0;i<205;i++)a.snapshot.tasks.push({...a.snapshot.tasks[0],id:'empty'+i,title:'应隐藏空任务'+i,startDate:null,dueDate:null})
   for(let i=0;i<205;i++)a.snapshot.tasks.push({...a.snapshot.tasks[0],id:String(1000+i)})
   a.analysisId=randomUUID();f.business.files.putFile('analysis',JSON.stringify(a),'json','application/json',{},a.analysisId)
   await f.business.close();f.store.close()
@@ -69,9 +70,12 @@ test('display filtering occurs before pagination, retains transferred contributo
   const first=await call({start:'2026-10-15',end:'2026-10-15'}),second=await call({start:'2026-10-15',end:'2026-10-15',taskOffset:200})
   assert.equal(first.tasks.length,200);assert.equal(first.nextTaskOffset,200);assert.equal(second.tasks.length,7);assert.equal(second.nextTaskOffset,null)
   assert.ok([...first.tasks,...second.tasks].some(t=>t.id==='301'))
+  assert.equal(first.counts.tasks,207);assert.equal(second.counts.tasks,207)
+  assert.ok([...first.tasks,...second.tasks].every(t=>!t.id.startsWith('empty')))
   const narrowed=await call({start:'2026-10-10',end:'2026-10-10'})
   assert.equal(narrowed.tasks.length,1);assert.equal(narrowed.tasks[0].displaySpans[0].start,'2026-10-09');assert.equal(narrowed.tasks[0].startDate,null)
   const before=f.calls.length;await call({start:'2026-10-15',end:'2026-10-15'});assert.equal(f.calls.length,before)
   const exported=ganttSvgs(a);assert.ok(exported.length>6);assert.match(exported.join(''),/已流转缺陷 301/)
+  assert.doesNotMatch(exported.join(''),/应隐藏空任务/)
  }finally{await connection?.terminateSession().catch(()=>{});await client?.close();await service?.close();rmSync(f.dir,{recursive:true,force:true})}
 })
