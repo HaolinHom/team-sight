@@ -1,8 +1,0 @@
-
-> team-sight@0.1.0 verify:secrets /Users/haolin/Projects/team-sight
-> node scripts/check-secrets.mjs apps packages
-
-扫描文件数：3699
-未发现令牌明文泄漏
-{"passed":true,"scannedFiles":445,"comparedCredentials":3,"targets":["src","apps","packages","dist","README.md","docs","artifacts"],"leaks":[]}
-__EXIT=0

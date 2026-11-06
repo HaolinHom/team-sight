@@ -1,5 +1,7 @@
 # TeamSight MCP 能力补齐测试报告
 
+> 2026-11-07 目录整理标注：历史证据：保留接口差异、身份、排期和回执恢复的原始验收；配置 v5、DB v3、P0 兼容、旧规则及旧包地址已被 0.3.0 替代。正文脚本仅为原轮次证据，不作为当前写入或部署入口。
+
 ## Summary
 
 实施依据：[M1–M7方案](../plan/20261103_teamsight-mcp-capability-completion.md)。本轮实现版本0.2.0，涵盖配置与身份／分组、场景上下文、MCP工时与容量、普通排期、紧急模拟、批量创建／补排期、双层Apps及运行包。使用当前工作树构建和测试，未提交、部署或重启用户现有MCP服务，未改写Codex连接配置。
@@ -74,7 +76,7 @@ Windows最终打包时npm TLS连接两次中断（ECONNRESET）。使用本轮�
 ## Artifacts
 
 - [使用说明](../../docs/TeamSight-MCP-能力与使用说明.md)、[平台交接](../../docs/validation/teamsight-mcp-platforms.md)。
-- [macOS arm64 ZIP](../releases/teamsight-mcp-darwin-arm64.zip)、[Windows x64 ZIP](../releases/teamsight-mcp-win32-x64.zip)。
+- macOS arm64 ZIP（历史附件未留存：`../releases/teamsight-mcp-darwin-arm64.zip`）、Windows x64 ZIP（历史附件未留存：`../releases/teamsight-mcp-win32-x64.zip`）。
 - 两个包各2130个受校验文件；[包校验](evidence/20261103-mcp/package-checks.json)核对全部文件哈希、当时工作树源码哈希和原生格式。ZIP不包含Node运行时、业务凭据或用户配置。
-- [构建版本清单](../releases/teamsight-mcp-darwin-arm64/versions.json)、[Windows清单](../releases/teamsight-mcp-win32-x64/versions.json)。
+- 构建版本清单（历史附件未留存：`../releases/teamsight-mcp-darwin-arm64/versions.json`）、Windows清单（历史附件未留存：`../releases/teamsight-mcp-win32-x64/versions.json`）。
 - 日志／JSON／截图统一位于artifacts/report/evidence/20261103-mcp。

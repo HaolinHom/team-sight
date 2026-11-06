@@ -1,4 +1,0 @@
-
-> @teamsight/server@0.2.2 build /Users/haolin/Projects/team-sight/apps/server
-> tsc -p tsconfig.json
-

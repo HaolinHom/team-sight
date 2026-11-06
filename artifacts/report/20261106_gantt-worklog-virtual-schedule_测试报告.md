@@ -1,5 +1,7 @@
 # 甘特图工时关联任务与虚拟排期测试报告
 
+> 2026-11-07 目录整理标注：历史证据：保留工时关联及虚拟区间的原始验证。其中“无日期无实际工时仍保留名称行”已由[后续空行修复](20261106_甘特图空任务行修复_mcp026_测试报告.md)替代；“未升级服务”等状态只描述当时。
+
 ## Summary
 
 2026-11-06，按已确认方案实现并验证 MCP 交互甘特图及 SVG、PNG、HTML 甘特图导出。服务端在工时与风险计算结束后，独立补查工时引用的工作项资料；展示转换由 core 共享，不修改原始任务日期、负责人或计算任务集合。
@@ -95,4 +97,4 @@
 - 隔离分析及导出：`.local/teamsight-virtual-live/files/`。最终导出文件名在 `verification.json.exports` 中；`.local` 为忽略目录。
 - 截图：`artifacts/report/assets/20261106-virtual-gantt/recycle-detail.jpg`、`recycle-dark.jpg`、`hong-1015-hours.jpg`。浅色回收站图已按最终构建更新，暗色与工时图是同一实现的先前浏览器核对记录。
 
-![回收站虚拟排期与每日工时](/Users/haolin/Projects/team-sight/artifacts/report/assets/20261106-virtual-gantt/recycle-detail.jpg)
+回收站虚拟排期与每日工时（历史附件未留存：`/Users/haolin/Projects/team-sight/artifacts/report/assets/20261106-virtual-gantt/recycle-detail.jpg`）

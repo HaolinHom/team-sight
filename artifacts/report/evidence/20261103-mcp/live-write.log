@@ -1,4 +1,0 @@
-{"stage":"marked-parent-and-token-user-verified","scope":"isolated-project","writesEnabled":true}
-{"stage":"create-and-replay-verified","taskId":"1162119705001212647"}
-{"stage":"planning-complete","status":"feasible"}
-{"workspaceId":"62119705","validationRequirement":"1162119705001212279","create":{"status":"succeeded","taskId":"1162119705001212647","operationId":"8f140ea5-7086-4e67-b358-f22e62105ff2"},"createReplayNoPost":true,"plan":{"status":"feasible","candidates":2},"reschedule":{"status":"succeeded","sameTaskId":true,"begin":"2026-11-03","due":"2026-11-03","statusAfter":"done","operationId":"bb91987b-4922-41a0-81f7-be81de812210"},"restartRecovery":true,"ok":true,"realTapdPosts":2,"tapdUrl":"https://www.tapd.cn/tapd_fe/62119705/task/detail/1162119705001212647","dataDir":"/Users/haolin/Projects/team-sight/.local/teamsight-mcp-m5-live","date":"2026-11-03T02:18:22.089Z"}

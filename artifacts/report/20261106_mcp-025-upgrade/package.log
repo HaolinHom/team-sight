@@ -1,5 +1,0 @@
-
-> team-sight@0.1.0 mcp:package /Users/haolin/Projects/team-sight
-> node scripts/package-mcp.mjs darwin-arm64
-
-{"output":"/Users/haolin/Projects/team-sight/artifacts/releases/teamsight-mcp-darwin-arm64","target":"darwin-arm64","files":2134,"noSymlinks":true,"nodeRuntimeBundled":false}

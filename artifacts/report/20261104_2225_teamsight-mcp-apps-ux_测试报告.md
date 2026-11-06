@@ -1,5 +1,7 @@
 # TeamSight MCP Apps 体验优化测试报告
 
+> 2026-11-07 目录整理标注：历史证据：保留沙箱保存问题、局部 patch 和分页交互的原始验证；旧设置目标、0.2.x 资源别名及当时安装位置不适用于 0.3.0。
+
 ## Summary
 
 实现已确认的 MCP Apps 优化方案：定向配置、局部保存、最小甘特图、橙色主题。server/UI 版本为 0.2.1，保留现有 45 个工具与旧资源地址。未改工时内核、排期算法、TAPD 写入语义及旧 Tauri 页面。
@@ -48,8 +50,8 @@ Kimi 浏览器扩展未连接；按技能要求未重试该通道，使用可用
 
 - 方案：[Apps 优化方案](../plan/20261103_1441_teamsight-mcp-apps-ux-redesign.md)
 - 使用说明：[MCP 能力与使用说明](../../docs/TeamSight-MCP-能力与使用说明.md)
-- 日志与安装记录：[证据目录](20261104_mcp-apps-ux/)
-- 截图：[项目保存](20261104_mcp-apps-ux/projects.png)、[保存后重开](20261104_mcp-apps-ux/projects-reopened.png)、[分类入口](20261104_mcp-apps-ux/settings-overview.png)、[任务详情](20261104_mcp-apps-ux/tasks.png)、[窄屏工时](20261104_mcp-apps-ux/hours-narrow.png)、[深色工时](20261104_mcp-apps-ux/hours-dark.png)。均为隔离 SDK 浏览器截图。
+- 日志与安装记录：证据目录（历史附件未留存：`20261104_mcp-apps-ux/`）
+- 截图：项目保存（历史附件未留存：`20261104_mcp-apps-ux/projects.png`）、保存后重开（历史附件未留存：`20261104_mcp-apps-ux/projects-reopened.png`）、分类入口（历史附件未留存：`20261104_mcp-apps-ux/settings-overview.png`）、任务详情（历史附件未留存：`20261104_mcp-apps-ux/tasks.png`）、窄屏工时（历史附件未留存：`20261104_mcp-apps-ux/hours-narrow.png`）、深色工时（历史附件未留存：`20261104_mcp-apps-ux/hours-dark.png`）。均为隔离 SDK 浏览器截图。
 - 新运行包：artifacts/releases/teamsight-mcp-darwin-arm64.zip 与 teamsight-mcp-win32-x64.zip；SHA256SUMS.txt 提供校验。
 - 旧运行包归档：artifacts/releases/0.2.0。
 - 安装位置：/Users/haolin/Library/Application Support/TeamSight MCP/versions/0.2.1。
