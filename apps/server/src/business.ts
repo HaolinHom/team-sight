@@ -236,6 +236,29 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     }
     const analysis: TeamAnalysis = { analysisId: randomUUID(), snapshotId, createdAt: new Date().toISOString(), fetchedAt, context, status: currentSnapshot.status === 'failed' ? 'failed' : calendarIncomplete ? 'partial' : currentSnapshot.status, unit: 'hours',
       snapshot: currentSnapshot, members, risks: checkRisks(currentSnapshot, members, settings, today, 'mcp'), limitations }
+    // Resolve historical contributors after calculation, without turning them into forecast tasks.
+    const known = new Set(currentSnapshot.tasks.map(hoursTaskKey))
+    const missing = [...new Set(members.flatMap(member => member.days.flatMap(day => day.contributions.filter(row => Number.isFinite(row.actual) && row.actual > 0 && !known.has(row.taskKey)).map(row => row.taskKey))))]
+    const contributionItems: NonNullable<TeamAnalysis['contributionItems']> = new Array(missing.length)
+    let cursor = 0
+    await Promise.all(Array.from({ length: Math.min(3, missing.length) }, async () => {
+      while (cursor < missing.length) {
+        signal?.throwIfAborted()
+        const index = cursor++, taskKey = missing[index], [projectId, type, id] = taskKey.split(':')
+        const project = settings.projects.find(project => project.id === projectId)
+        try {
+          if (!project || !['task', 'bug'].includes(type) || !id) throw new Error('INVALID_WORKLOG_REFERENCE')
+          const task = await api.getItem({ workspaceId: projectId, entityType: type as 'task' | 'bug', id }, project, {}, signal)
+          if (!task) throw new Error('WORKLOG_ITEM_MAPPING_FAILED')
+          contributionItems[index] = { taskKey, task: { ...task, projectName: project.alias || project.name } }
+        } catch {
+          signal?.throwIfAborted()
+          contributionItems[index] = { taskKey, projectName: project && (project.alias || project.name), projectColor: project?.color, warning: '工作项资料未获取，按已知工时展示' }
+        }
+      }
+    }))
+    signal?.throwIfAborted()
+    analysis.contributionItems = contributionItems
     files.putFile('analysis', JSON.stringify(analysis), 'json', 'application/json', { snapshotId, analysisId: analysis.analysisId }, analysis.analysisId)
     return analysis
   }

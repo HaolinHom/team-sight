@@ -1,7 +1,7 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server'
 import { registerAppTool, registerAppResource, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server'
 import { z } from 'zod'
-import { assertRange, businessDate, currentMonthRange, type TeamAnalysis } from '@teamsight/core'
+import { assertRange, businessDate, currentMonthRange, buildGanttDisplayTasks, filterGanttDisplayTasks, type TeamAnalysis } from '@teamsight/core'
 import { operations, describeOperation, TapdError, schemaInput, searchInput, getItemInput, createItemInput, updateItemInput, timesheetsInput, workspaceInput, operationInput } from '@teamsight/tapd'
 import { BusinessError, type TeamSightBusiness } from './business.js'
 import type { TeamSightStore } from './storage.js'
@@ -139,6 +139,7 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     if(!args.analysisId && !args.calculationId) throw new BusinessError('ANALYSIS_REQUIRED')
     const source = args.calculationId ? scenarios.calculationView(args.calculationId,args.candidateId) : business.getAnalysis(args.analysisId!)
     const analysis = structuredClone(source)
+    const displayTasks = buildGanttDisplayTasks(source.snapshot.tasks, source.members, source.context.range, source.contributionItems)
     if(args.projectIds?.length) {
       analysis.snapshot.tasks = analysis.snapshot.tasks.filter(task=>args.projectIds!.includes(task.projectId))
       for(const member of analysis.members) {member.pending=member.pending.filter(row=>args.projectIds!.includes(row.task.projectId));for(const day of member.days) {day.contributions=day.contributions.filter(row=>args.projectIds!.includes(row.projectId));day.actual=day.contributions.reduce((sum,row)=>sum+row.actual,0);day.allocated=day.contributions.reduce((sum,row)=>sum+row.allocated,0);day.total=day.actual+(day.basis==='forecast'?day.allocated:0);day.deficit=Math.max(day.target-day.total,0)}}
@@ -148,12 +149,12 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     const start = args.start ?? analysis.context.range.start, end = args.end ?? analysis.context.range.end
     assertRange({ start, end })
     if (start < analysis.context.range.start || end > analysis.context.range.end || start > end) throw new BusinessError('VIEW_OUTSIDE_ANALYSIS')
-    analysis.snapshot.tasks=analysis.snapshot.tasks.filter(task=>!task.startDate||!task.dueDate||task.startDate>task.dueDate||task.startDate<=end&&task.dueDate>=start)
+    const visibleTasks = filterGanttDisplayTasks(displayTasks, { start, end }, args.memberIds, args.projectIds)
     analysis.risks=analysis.risks.filter(risk=>(!risk.date||risk.date>=start&&risk.date<=end)&&(!args.memberIds?.length||!risk.staffId||args.memberIds.includes(risk.staffId))&&(!args.projectIds?.length||!risk.taskKey||args.projectIds.some(project=>risk.taskKey!.startsWith(project+':'))))
     analysis.context={...analysis.context,range:{start,end}}
     return { ...analysisSummary(analysis), risks:analysis.risks.slice(args.riskOffset??0,(args.riskOffset??0)+30),risksTruncated:analysis.risks.length>(args.riskOffset??0)+30,sourceContext:source.context, viewFilters:{projectIds:args.projectIds,memberIds:args.memberIds,start,end}, calculationId: args.calculationId, candidateId: args.candidateId, members: analysis.members.slice(memberOffset, memberOffset + 20).map(member => ({ ...member, days: member.days.filter(day => day.date >= start && day.date <= end), pending: member.pending.slice(0, 50), pendingCount: member.pending.length, pendingTruncated: member.pending.length > 50 })),
-      tasks: analysis.snapshot.tasks.slice(taskOffset, taskOffset + 200), issues: analysis.snapshot.issues.slice(0, 100),
-      nextMemberOffset: analysis.members.length > memberOffset + 20 ? memberOffset + 20 : null, nextTaskOffset: analysis.snapshot.tasks.length > taskOffset + 200 ? taskOffset + 200 : null }
+      counts: { ...analysisSummary(analysis).counts, tasks: visibleTasks.length }, tasks: visibleTasks.slice(taskOffset, taskOffset + 200), issues: analysis.snapshot.issues.slice(0, 100),
+      nextMemberOffset: analysis.members.length > memberOffset + 20 ? memberOffset + 20 : null, nextTaskOffset: visibleTasks.length > taskOffset + 200 ? taskOffset + 200 : null }
   })
   add('teamsight_check_risks', 'Read explainable risk findings from one saved analysis. Includes the open day under MCP hours rules; partial sources and unscanned unassigned items remain explicit.', z.object({ analysisId: id, offset: z.number().int().min(0).optional() }).strict(), args => {
     const analysis = business.getAnalysis(args.analysisId), offset = args.offset ?? 0

@@ -1,5 +1,5 @@
 import { Resvg } from '@resvg/resvg-js'
-import { computeLayout, eachDateKey, hoursTaskKey, type TeamAnalysis } from '@teamsight/core'
+import { computeLayout, eachDateKey, buildGanttDisplayTasks, filterGanttDisplayTasks, ganttDisplayRows, dateDiffInDays, type TeamAnalysis } from '@teamsight/core'
 import type { BusinessStorage, FileRecord } from './business-storage.js'
 
 export const escapeHtml = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)
@@ -14,21 +14,24 @@ const n = (value: number) => Math.floor((value + 1e-9) * 100) / 100
 export function ganttSvgs(analysis: TeamAnalysis): string[] {
   const pages: string[] = []
   const dates = eachDateKey(analysis.context.range)
-  const configured = new Set(analysis.context.memberIds)
-  const tasks = analysis.snapshot.tasks.filter(task => task.assigneeIds.some(id => configured.has(id)))
+  const tasks = buildGanttDisplayTasks(analysis.snapshot.tasks, analysis.members, analysis.context.range, analysis.contributionItems)
   const memberNames = new Map(analysis.members.map(member => [`staff:${member.member.staffId}`, member.member.name]))
   for (let dateIndex = 0; dateIndex < dates.length; dateIndex += 30) {
     const range = { start: dates[dateIndex], end: dates[Math.min(dateIndex + 29, dates.length - 1)] }
-    const visible = tasks.filter(task => !task.startDate || !task.dueDate || task.startDate > task.dueDate || task.startDate <= range.end && task.dueDate >= range.start)
-    const pairs = visible.flatMap(task => task.assigneeIds.filter(id => configured.has(id)).map(memberId => ({ task, memberId })))
+    const displayRows = ganttDisplayRows(filterGanttDisplayTasks(tasks, range, analysis.context.memberIds))
+    const byId = new Map(displayRows.map(row => [row.layoutTask.sourceType + ':' + row.layoutTask.id, row]))
+    // Sort the complete member/date list before splitting pages, using the same layout as the UI.
+    const ordered = computeLayout({ tasks: displayRows.map(row => row.layoutTask), range, memberNames,
+      memberOrder: analysis.context.memberIds.map(id => 'staff:' + id), memberKeysOf: task => task.assigneeIds.map(id => 'staff:' + id) })
+    const pairs = ordered.rows.flatMap(row => row.type === 'task' ? [byId.get(row.taskId)!] : [])
     for (let offset = 0; offset < Math.max(pairs.length, 1); offset += 30) {
       if (pages.length >= 200) throw new Error('OUTPUT_PAGE_BUDGET_EXCEEDED')
       const group = pairs.slice(offset, offset + 30)
-      const chunk = [...new Map(group.map(pair => [hoursTaskKey(pair.task), pair.task])).values()]
-      const included = new Set(group.map(pair => `${hoursTaskKey(pair.task)}:${pair.memberId}`))
+      const chunk = group.map(pair => pair.layoutTask)
+      const sources = new Map(group.map(pair => [pair.layoutTask.sourceType + ':' + pair.layoutTask.id, pair]))
       const layout = computeLayout({ tasks: chunk, range, today: analysis.context.analysisDate, memberNames,
-        memberOrder: analysis.context.memberIds.map(id => `staff:${id}`),
-        memberKeysOf: task => task.assigneeIds.filter(id => included.has(`${hoursTaskKey(task)}:${id}`)).map(id => `staff:${id}`) })
+        memberOrder: analysis.context.memberIds.map(id => 'staff:' + id),
+        memberKeysOf: task => task.assigneeIds.map(id => 'staff:' + id) })
       const width = layout.totalWidth + layout.config.labelColumnWidth + 32
       const height = Math.max(layout.totalHeight, 44) + 144
       if (width * height > 16_000_000) throw new Error('GANTT_PAGE_TOO_LARGE')
@@ -46,12 +49,23 @@ export function ganttSvgs(analysis: TeamAnalysis): string[] {
         pieces.push(`<rect x="8" y="${y}" width="${width - 16}" height="${row.height}" fill="${row.type === 'member' ? '#edf5f6' : '#fff'}"/><text x="16" y="${y + 21}">${escapeHtml(text)}</text><path d="M8 ${y + row.height}H${width - 8}" stroke="#e8edf1"/>`)
       }
       for (const bar of layout.bars) {
-        if (bar.width <= 0) continue
+        const pair = sources.get(bar.taskId)!
         const color = /^#[\da-f]{6}$/i.test(bar.color) ? bar.color : '#167d7f'
-        pieces.push(`<g><title>${escapeHtml(bar.title)} · ${bar.startDate}—${bar.dueDate}</title><rect x="${labelWidth + bar.x}" y="${top + bar.y}" width="${bar.width}" height="${bar.height}" rx="4" fill="${color}" opacity="${bar.completed ? '.45' : '.9'}"/></g>`)
+        for (const span of pair.spans) {
+          const start = span.start < range.start ? range.start : span.start, end = span.end > range.end ? range.end : span.end
+          if (start > end) continue
+          const x = labelWidth + dateDiffInDays(range.start, start) * layout.config.dayColumnWidth
+          const width = (dateDiffInDays(start, end) + 1) * layout.config.dayColumnWidth
+          const virtual = span.kind === 'actual'
+          const title = pair.task.title + ' · ' + (virtual ? '按工时补充' : '真实排期') + ' ' + span.start + '—' + span.end + ' · ' + span.memberName
+            + ' · 原排期 ' + (pair.task.startDate ?? '缺开始日') + '—' + (pair.task.dueDate ?? '缺结束日')
+            + ' · 当前负责人 ' + pair.task.assigneeName + ' · 实际 ' + span.actualDays.map(day => day.date + ' ' + day.hours + 'h').join('、') + ' ' + (pair.task.displayWarning ?? '')
+          pieces.push('<g data-virtual="' + virtual + '"><title>' + escapeHtml(title) + '</title><rect x="' + x + '" y="' + (top + bar.y) + '" width="' + width + '" height="' + bar.height + '" rx="4" fill="' + color + '" opacity="' + (virtual ? '.9' : bar.completed ? '.45' : '.9') + '"' + (virtual ? ' stroke="#243447" stroke-width="1.5" stroke-dasharray="3 2"' : '') + '/>'
+            + (virtual ? '<text x="' + (x + width / 2) + '" y="' + (top + bar.y + bar.height / 2 + 3) + '" text-anchor="middle" fill="#ffffff" font-size="9">' + (width >= 100 ? '按工时补充' : '补') + '</text>' : '') + '</g>')
+        }
       }
       if (!chunk.length) pieces.push(`<text x="16" y="${top + 26}">当前覆盖内无可见排期；完整性以分析状态为准。</text>`)
-      pieces.push(`<text x="16" y="${height - 16}" font-size="11">配置成员范围 · 缺日期工作项保留标签 · 未扫描无负责人对象</text></g></svg>`)
+      pieces.push(`<text x="16" y="${height - 16}" font-size="11">虚线：按工时补充（连续区间不代表每天投入） · 配置成员范围</text></g></svg>`)
       pages.push(pieces.join(''))
     }
   }

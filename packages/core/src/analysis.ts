@@ -3,6 +3,7 @@ import { isHoursCompleted } from './hoursSettings.js'
 import { hoursTaskKey, parseHours } from './statistics.js'
 import type { HoursSnapshot, MemberHours } from './hoursTypes.js'
 import type { DateRange, TeamSightSettings } from './types.js'
+import type { ContributionItem } from './ganttDisplay.js'
 
 export const RULES_VERSION = 'teamsight-hours-v1.2'
 export const MCP_RULES_VERSION = 'teamsight-mcp-hours-v3'
@@ -36,6 +37,8 @@ export interface TeamAnalysis {
   members: MemberHours[]
   risks: RiskFinding[]
   limitations: string[]
+  /** Worklog references resolved for presentation only; never calculation inputs. */
+  contributionItems?: ContributionItem[]
 }
 
 export function validateAnalysisInput(range: DateRange, analysisDate: string): void {

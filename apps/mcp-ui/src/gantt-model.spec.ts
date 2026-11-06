@@ -28,9 +28,9 @@ describe('daily hours geometry and source association', () => {
    { taskKey: '1:bug:missing', projectId: '1', actual: 4, allocated: 0, explanation: '' },
   ] })])])
   expect(model.cells[0]!.related.map(row => row.key).sort()).toEqual(['1:bug:missing', '1:task:1', '1:task:2'])
-  expect(model.layout.rows.some(row => row.type === 'task' && row.title === '未匹配工时来源')).toBe(true)
+  expect(model.layout.rows.some(row => row.type === 'task' && row.title === '缺陷 #missing')).toBe(true)
   expect(model.layout.rows.some(row => row.type === 'task' && row.title === '2')).toBe(true)
-  expect(model.bars.map(bar => bar.task.id)).toEqual(['1'])
+  expect(model.bars.map(bar => bar.task.id).sort()).toEqual(['1', '2', 'missing'])
  })
  it('places an empty day in the member header and does not create a fictitious task bar', () => {
   const model = build([])
@@ -56,7 +56,8 @@ describe('daily hours geometry and source association', () => {
  })
  it('shows another member contribution without assigning that member a scheduled task bar', () => {
   const model = build([task('1')], [member(), member([day({ contributions: [{ taskKey: '1:task:1', projectId: '1', actual: 8, allocated: 0, explanation: '' }] })], '200')])
-  expect(model.bars).toHaveLength(1)
+  expect(model.bars).toHaveLength(2)
+  expect(model.bars[1]!.span.kind).toBe('actual')
   expect(model.cells[1]!.related[0]).toMatchObject({ key: '1:task:1', scheduled: false })
  })
 })

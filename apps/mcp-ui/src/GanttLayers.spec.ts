@@ -19,7 +19,7 @@ describe('dual-layer Gantt',()=>{
   await layers[0].find('g').trigger('click');expect(view.emitted('select')).toBeUndefined()
   await layers[1].find('[role=button]').trigger('click');expect(detail().textContent).toContain('剩余 5h');expect(detail().getAttribute('aria-modal')).toBe('true')
   expect(view.find('.gantt-detail').exists()).toBe(false)
-  expect(view.emitted('select')?.[0]).toEqual([{kind:'task',projectId:'1',id:'101'}])
+  expect(view.emitted('select')?.[0]).toEqual([{kind:'task',projectId:'1',id:'101',sourceType:'task',memberId:'100',displayKind:'planned'}])
  })
  it('hours mode preserves transparent interior, disables task hover/focus and shows source distinctions',async()=>{
   mountView();await view.setProps({mode:'hours'});const layers=view.findAll('[data-layer]')
@@ -30,7 +30,7 @@ describe('dual-layer Gantt',()=>{
  })
  it('members without scheduled tasks retain unknown contribution keys',async()=>{
   mountView('hours');await view.setProps({tasks:[]})
-  await view.get('[data-layer=hours] [role=button]').trigger('click');expect(detail().textContent).toContain('1:task:101')
+  await view.get('[data-layer=hours] [role=button]').trigger('click');expect(detail().textContent).toContain('任务 #101')
  })
  it('closes on cancel or button, restores focus and preserves both scroll offsets',async()=>{
   mountView();const scroll=view.get('.gantt-scroll').element;scroll.scrollTop=180;scroll.scrollLeft=96
@@ -72,4 +72,12 @@ describe('dual-layer Gantt',()=>{
   callbacks.at(-1)!([{intersectionRect:{top:85,left:0,right:760,bottom:650,width:760,height:565}} as IntersectionObserverEntry],{} as IntersectionObserver)
   await flushPromises();expect(detail().style.top).toBe('85px');expect(detail().style.height).toBe('565px')
  })
+})
+
+it('virtual bars expose original dates, contributor and actual daily hours with keyboard access',async()=>{
+ mountView();await view.setProps({tasks:[{...task,startDate:null,dueDate:null}]})
+ const bar=view.get('[data-virtual=true]');expect(bar.get('rect').attributes('stroke-dasharray')).toBe('3 2')
+ vi.useFakeTimers();await bar.trigger('mouseenter');await vi.advanceTimersByTimeAsync(250);expect(document.querySelector('[role=tooltip]')?.textContent).toContain('按工时补充')
+ await bar.trigger('keydown',{key:'Enter'});expect(detail().textContent).toContain('按工时补充');expect(detail().textContent).toContain('缺开始日');expect(detail().textContent).toContain('实际 3h')
+ await view.setProps({mode:'hours'});await view.get('[data-cell]').trigger('click');expect(detail().textContent).toContain('虚拟区间覆盖 · 工时贡献')
 })

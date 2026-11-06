@@ -1,4 +1,4 @@
-import { computeLayout, type DailyContribution, type DailyHours, type DateRange, type MemberHours, type ScheduleTask } from '@teamsight/core'
+import { computeLayout, buildGanttDisplayTasks, filterGanttDisplayTasks, ganttDisplayRows, dateDiffInDays, type GanttDisplayTask, type DailyContribution, type DailyHours, type DateRange, type MemberHours, type ScheduleTask } from '@teamsight/core'
 
 export const taskKey = (task: ScheduleTask) => [task.projectId, task.sourceType, task.id].join(':')
 export const hoursNumber = (value: number) => String(Math.floor((value + 1e-9) * 100) / 100)
@@ -13,6 +13,7 @@ export interface RelatedTask {
   key: string
   task?: ScheduleTask
   scheduled: boolean
+  virtual?: boolean
   contribution?: DailyContribution
 }
 export interface HoursCell {
@@ -27,63 +28,50 @@ export interface HoursCell {
   status: HoursStatus
 }
 const inRange = (date: string, range: DateRange) => date >= range.start && date <= range.end
-const scheduled = (task: ScheduleTask, date: string) => !!task.startDate && !!task.dueDate && task.startDate <= date && date <= task.dueDate
-const overlaps = (task: ScheduleTask, range: DateRange) => !!task.startDate && !!task.dueDate && task.startDate <= task.dueDate && task.startDate <= range.end && task.dueDate >= range.start
-const hasHours = (row: DailyContribution) => row.actual !== 0 || row.allocated !== 0
-
-/** Geometry comes from the shared layout; private display IDs preserve its original ID ordering. */
-export function buildGanttModel(tasks: ScheduleTask[], members: MemberHours[], range: DateRange, today: string, labelWidth: number, dayWidth: number) {
-  const originals = new Map(tasks.map(task => [taskKey(task), task]))
-  const contributors = new Map<string, Set<string>>()
-  for (const member of members) for (const day of member.days.filter(day => inRange(day.date, range))) {
-    for (const row of day.contributions.filter(hasHours)) {
-      if (!contributors.has(row.taskKey)) contributors.set(row.taskKey, new Set())
-      contributors.get(row.taskKey)!.add(member.member.staffId)
-    }
+/** Shared presentation rows keep raw dates intact and align virtual bars with hours. */
+export function buildGanttModel(tasks: GanttDisplayTask[], members: MemberHours[], range: DateRange, today: string, labelWidth: number, dayWidth: number) {
+  const prepared = tasks.length && tasks.every(task => task.displaySpans !== undefined) ? tasks : buildGanttDisplayTasks(tasks, members, range)
+  const slots = ganttDisplayRows(filterGanttDisplayTasks(prepared, range, members.map(member => member.member.staffId)))
+  const byId = new Map(slots.map(slot => [slot.layoutTask.sourceType + ':' + slot.layoutTask.id, slot]))
+  const layoutTasks: ScheduleTask[] = slots.map(slot => slot.layoutTask)
+  for (const { member } of members) if (!slots.some(slot => slot.memberId === member.staffId)) {
+    layoutTasks.push({ id: 'empty:' + member.staffId, sourceType: 'task', projectId: '', projectName: '', projectColor: '#999999', title: '无已排期任务', assigneeId: member.staffId, assigneeIds: [member.staffId], assigneeName: member.name, startDate: null, dueDate: null, status: '', tapdUrl: '' })
   }
-  const originalsByDisplayId = new Map<string, ScheduleTask>()
-  const displayTasks = tasks.filter(task => overlaps(task, range) || contributors.has(taskKey(task))).map((task, index) => {
-    const id = task.id + '\u0000' + String(index).padStart(12, '0')
-    originalsByDisplayId.set(id, task)
-    return { ...task, id, assigneeIds: [...new Set([...(overlaps(task, range) ? task.assigneeIds : []), ...(contributors.get(taskKey(task)) ?? [])])], startDate: overlaps(task, range) ? task.startDate : null, dueDate: overlaps(task, range) ? task.dueDate : null }
-  })
-  for (const member of members) {
-    const staffId = member.member.staffId
-    const missing = [...contributors].some(([key, owners]) => !originals.has(key) && owners.has(staffId))
-    if (missing || !displayTasks.some(task => task.assigneeIds.includes(staffId))) {
-      displayTasks.push({ id: `placeholder:${staffId}`, sourceType: 'task', title: missing ? '未匹配工时来源' : '无已排期任务', projectId: '', projectName: '', projectColor: '#999999', assigneeId: staffId, assigneeIds: [staffId], assigneeName: member.member.name, startDate: null, dueDate: null, status: '', tapdUrl: '' })
-    }
-  }
-  const displayById = new Map(displayTasks.map(task => [`${task.sourceType}:${task.id}`, task]))
-  const memberIds = new Set(members.map(member => member.member.staffId))
-  const layout = computeLayout({ tasks: displayTasks, range, today, config: { labelColumnWidth: labelWidth, dayColumnWidth: dayWidth, taskRowHeight: 42, barHeight: 16 }, memberOrder: members.map(member => `staff:${member.member.staffId}`), memberNames: new Map(members.map(member => [`staff:${member.member.staffId}`, member.member.name])), memberKeysOf: task => task.assigneeIds.filter(id => memberIds.has(id)).map(id => `staff:${id}`) })
+  const layout = computeLayout({ tasks: layoutTasks, range, today,
+    config: { labelColumnWidth: labelWidth, dayColumnWidth: dayWidth, taskRowHeight: 42, barHeight: 16 },
+    memberOrder: members.map(member => 'staff:' + member.member.staffId), memberNames: new Map(members.map(member => ['staff:' + member.member.staffId, member.member.name])),
+    memberKeysOf: task => task.assigneeIds.map(id => 'staff:' + id) })
   const bars = layout.bars.flatMap(bar => {
-    const task = originalsByDisplayId.get(displayById.get(bar.taskId)?.id ?? '')
-    return task && task.assigneeIds.includes(bar.memberKey.slice(6)) && bar.width > 0 ? [{ ...bar, task }] : []
+    const slot = byId.get(bar.taskId)!
+    return slot.spans.map(span => {
+      const start = span.start < range.start ? range.start : span.start, end = span.end > range.end ? range.end : span.end
+      return { ...bar, key: bar.key + ':' + span.kind + ':' + span.start, x: dateDiffInDays(range.start, start) * dayWidth,
+        width: (dateDiffInDays(start, end) + 1) * dayWidth, startDate: span.start, dueDate: span.end,
+        clippedStart: span.start < range.start, clippedEnd: span.end > range.end, task: slot.task, span }
+    }).filter(bar => bar.width > 0)
   })
   const cells: HoursCell[] = []
   for (const member of members) {
-    const memberKey = `staff:${member.member.staffId}`
-    const header = layout.rows.find(row => row.type === 'member' && row.memberKey === memberKey)
-    if (!header) continue
+    const memberKey = 'staff:' + member.member.staffId
+    const header = layout.rows.find(row => row.type === 'member' && row.memberKey === memberKey)!
     const rows = layout.rows.filter(row => row.type === 'task' && row.memberKey === memberKey)
     for (const day of member.days.filter(day => inRange(day.date, range))) {
-      const contributions = new Map(day.contributions.filter(hasHours).map(row => [row.taskKey, row]))
+      const contributions = new Map(day.contributions.filter(row => row.actual !== 0 || row.allocated !== 0).map(row => [row.taskKey, row]))
       const related: RelatedTask[] = []
       const relatedRows = rows.filter(row => {
         if (row.type !== 'task') return false
-        const display = displayById.get(row.taskId)!
-        if (display.id === `placeholder:${member.member.staffId}`) return [...contributions.keys()].some(key => !originals.has(key))
-        const task = originalsByDisplayId.get(display.id)!
-        const isScheduled = task.assigneeIds.includes(member.member.staffId) && scheduled(task, day.date)
+        const slot = byId.get(row.taskId)
+        if (!slot) return false
+        const task = slot.task
+        const spans = slot.spans.filter(span => span.start <= day.date && span.end >= day.date)
         const contribution = contributions.get(taskKey(task))
-        if (!isScheduled && !contribution) return false
-        related.push({ key: taskKey(task), task, scheduled: isScheduled, contribution })
+        if (!spans.length && !contribution) return false
+        related.push({ key: taskKey(task), task, scheduled: spans.some(span => span.kind === 'planned'), virtual: spans.some(span => span.kind === 'actual'), contribution })
         return true
       })
-      for (const [key, contribution] of contributions) if (!originals.has(key)) related.push({ key, scheduled: false, contribution })
       const first = relatedRows[0] ?? header, last = relatedRows.at(-1) ?? header
-      cells.push({ key: member.member.staffId + ':' + day.date, member, day, x: layout.days.indexOf(day.date) * dayWidth + 3, y: first.y + 2, width: dayWidth - 6, height: last.y + last.height - first.y - 4, related, status: hoursStatus(day, today) })
+      cells.push({ key: member.member.staffId + ':' + day.date, member, day, x: layout.days.indexOf(day.date) * dayWidth + 3,
+        y: first.y + 2, width: dayWidth - 6, height: last.y + last.height - first.y - 4, related, status: hoursStatus(day, today) })
     }
   }
   return { layout, bars, cells }

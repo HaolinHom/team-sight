@@ -15,3 +15,4 @@ export * from './analysis.js'
 
 export * from './planner.js'
 export * from './memberScope.js'
+export * from './ganttDisplay.js'
