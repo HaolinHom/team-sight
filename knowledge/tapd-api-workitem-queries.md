@@ -1,4 +1,4 @@
-# TAPD 任务/缺陷查询、字段差异与时间窗
+# TAPD 工作项查询、历史与附件接口
 
 > 验证时间：2026-10-10｜验证方式：真实接口调用（只读）＋ 官方文档字段表
 
@@ -18,14 +18,30 @@
 
 ## 成员目录查询
 
-- `GET /workspaces/users?workspace_id=<id>` 返回 `user=姓名_工号`、`name=姓名`，可建立「工号 → 姓名」索引（实测单项目 47 人）；用 `limit=200` 一页即可拉全。
-- **不支持按姓名/工号过滤**：传入 `name=陈` 或 `user=800119650` 仍返回全部成员。成员搜索必须在前端本地完成。
+- `GET /workspaces/users?workspace_id=<id>` 返回 `user=姓名_工号`、`name=姓名`，可建立「工号 → 姓名」索引（历史实测单项目 47 人，一页 200 已覆盖该样本）；当前客户端按每页 200 继续分页，不能假定所有项目均只有一页。
+- **不支持按姓名/工号过滤**：传入 `name=陈` 或 `user=800119650` 仍返回全部成员。成员搜索须在拉取目录后本地匹配；当前 MCP 在服务端完成身份解析，见[成员身份与分组范围](teamsight-mcp-config-scope.md)。
 
 ## 分页
 
-- `limit` 默认 30、最大 200（实测返回 200 条）；`page` 从 1 开始翻页。
+- 对任务／缺陷列表，`limit` 默认 30、最大 200（实测返回 200 条）；`page` 从 1 开始翻页。历史及附件接口的包装与页大小见下节。
 - 配套 `GET /tasks/count`、`GET /bugs/count` 支持相同过滤条件，可用于分页收敛判断。
 - `fields` 参数可裁剪返回字段：TAPD 默认返回数百个 `custom_field_*`，不裁剪会显著放大响应体。
+
+## 历史与附件接口的分页差异
+
+> 2026-11-06 经用户授权提升，按当前 MCP 0.3.0 客户端复核。下表不能用任务／缺陷的通用每页 200 假设替代。
+
+| 接口 | 行包装 | 当前客户端页大小 |
+| --- | --- | --- |
+| /story_changes | WorkitemChange | 100 |
+| /task_changes | WorkitemChange | 100 |
+| /attachments | Attachment | 200 |
+
+- history 返回的 story_id/task_id 须与请求匹配；过滤异常时保留缺口，不把截断、重复或权限失败当作完整结果。客户端分页最多 50 页，预算耗尽返回 incomplete。
+- /attachments/down 返回 Attachment.download_url；客户端输出 expiresAfterSeconds:300。它是链接期限契约提示，不是永久下载地址，也不证明真实链接恰好在 300 秒失效。
+- 2026-11-03 只读实测读到需求历史 4 条、任务历史 2 条；附件列表调用成功但样本为 0。真实附件下载及失效时间未验证，不能据空列表宣称下载链路通过。
+
+依据：[TAPD 客户端](../packages/tapd/src/client.ts)、[原接口测试报告](../artifacts/report/20261103_teamsight-mcp-capability-completion_测试报告.md)。本次只对照源码及已有证据，没有再次调用接口。
 
 ## 时间查询（关键约束）
 

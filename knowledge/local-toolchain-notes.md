@@ -1,5 +1,7 @@
 # Rust/Tauri 工具链与网络注意事项
 
+> 历史适用范围：独立 Tauri App 已于 MCP 0.3.0（2026-11-06）退役；本文保留旧桌面实现与验收记录，不作为当前 MCP 的安装、凭据或构建指南。当前约定见[运行知识](teamsight-server-runtime-notes.md)。
+
 > 验证时间：2026-10-10（工具链与凭据）、2026-10-11（打包与审计脚本）｜环境：macOS 26.7（Apple Silicon）、Node 22、pnpm 10.12.4
 
 ## 安装 Rust 工具链

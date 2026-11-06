@@ -4,7 +4,7 @@
 
 ## 构建及独立运行
 
-源码执行 pnpm mcp:build、pnpm mcp:test。pnpm mcp:package darwin-arm64 或 pnpm mcp:package win32-x64 生成无符号链接的生产依赖包。旧 p0:package 入口兼容转发至新打包器。版本清单包含 apps 与 packages 的工作树源码哈希；Windows 包的结构检查不能代替实机运行。网络不可用时，可将 TEAMSIGHT_MCP_NATIVE_CACHE 指向此前已验证的同目标运行包；打包器核对依赖版本、完整文件集与 SHA-256，版本清单记录缓存来源清单哈希。
+源码执行 pnpm mcp:build、pnpm mcp:test。pnpm mcp:package darwin-arm64 或 pnpm mcp:package win32-x64 生成无符号链接的生产依赖包。仅提供 mcp:package，旧阶段命令已移除。版本清单包含 apps 与 packages 的工作树源码哈希；Windows 包的结构检查不能代替实机运行。网络不可用时，可将 TEAMSIGHT_MCP_NATIVE_CACHE 指向此前已验证的同目标运行包；打包器核对依赖版本、完整文件集与 SHA-256，版本清单记录缓存来源清单哈希。
 
 在独立且含空格的目录解压对应平台包，配置 Node22 PATH。先运行 node dist/cli.js doctor，再运行 node verify-mcp.mjs --evidence-dir ./evidence。doctor会在隔离目录创建/清理系统测试凭据，输出中不含明文。verify-mcp验证真实MCP传输和模拟TAPD接口，不触及业务TAPD。
 

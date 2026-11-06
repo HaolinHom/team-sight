@@ -1,6 +1,36 @@
-# 前端测试接入：Vue 3 + Vitest 组件测试
+# MCP Apps 前端与 Vue 组件测试
 
 > 验证时间：2026-10-11｜验证方式：本项目阶段4 实际接入（组件测试 7 项全部落地并通过）
+
+## MCP 0.3.0 当前工程约定
+
+> 2026-11-06 验证并经用户授权提升；下文旧 Tauri 页面和路由测试为历史记录，相关 src 文件已移除。
+
+Vue、Vue Test Utils、jsdom、Vitest、Vite 由 `apps/mcp-ui/package.json` 自身声明并解析，根包不声明 Vue。避免将 UI 测试依赖分散到根包造成 Vue 测试运行时分裂。根 `pnpm test` 转发全量 MCP 回归；UI 单独运行 `pnpm --filter @teamsight/mcp-ui test`，构建运行 `pnpm --filter @teamsight/mcp-ui build`。
+
+实施阶段完整 110 项测试通过，其中 UI 40 项；隔离 SDK 浏览器验证设置局部保存、任务／工时切换、虚拟排期及抽屉，组件测试覆盖 hover／focus。preview 位于 `apps/mcp-ui/test/preview-mcp.mjs`，让 Vite 从 UI 包解析。隔离浏览器验证不能替代 Codex 原生 Apps 完整交互验收。
+
+依据：[0.3.0 测试报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)。本次提升未重跑测试。
+
+## MCP Apps 沙箱保存与分页一致性
+
+> 2026-11-06 经用户授权从定向界面候选提取，按 MCP 0.3.0 源码复核。
+
+### 沙箱中的保存链路
+
+2026-11-04 SDK 隔离 iframe 未包含 allow-forms 时，原生表单提交被阻拦，未进入保存链路。当前设置页以 `type="button"` 的 click 显式调用 save，保存前执行 form.reportValidity()，保留浏览器字段校验；不能只依赖原生 submit。页面仍有 submit.prevent 绑定，但它不是该沙箱下可靠的唯一保存入口。
+
+桥接调用前用 JSON 序列化生成普通参数，避免直接传递 Vue 响应式对象。settingsPatch 只提交修改字段，服务端按 hours、chinaCalendar、tapd 及 writeAccess 子字段合并并校验 expectedRevision；局部对象不能覆盖整个持久化配置。现行设置范围见[配置知识](teamsight-mcp-config-scope.md)。
+
+### 完整分页与旧响应隔离
+
+- 每次读取成员页和任务页均携带同一分析／计算／候选身份及 memberIds、projectIds、start、end 等视图范围，仅改变相应 offset；服务端先按范围筛选，再计数与分页。
+- 两类游标全部读完并合并后才提交展示。逐页检查 analysisId/snapshotId 一致和游标不重复，异常时提示重开，不能拼接不同快照或将第一页当作完整结果。
+- 每次接收新展示输入递增 generation；异步返回及最终提交前均核对代数，卸载后禁止提交，防止旧查询覆盖新范围。新范围加载时清空旧视图，避免旧结果冒充当前选择。
+
+源码：[设置表单](../apps/mcp-ui/src/FormalSettings.vue)、[变更 patch](../apps/mcp-ui/src/settings-model.ts)、[存储合并](../apps/server/src/storage.ts)、[分页与代数](../apps/mcp-ui/src/Analysis.vue)、[服务端视图](../apps/server/src/business-tools.ts)。[2026-11-04 报告](../artifacts/report/20261104_2225_teamsight-mcp-apps-ux_测试报告.md)记录 SDK 浏览器保存及重开；本次未重现沙箱阻拦或原生宿主完整交互，也未重跑组件测试。
+
+## 历史记录：Tauri 前端测试
 
 ## 依赖与启用方式
 

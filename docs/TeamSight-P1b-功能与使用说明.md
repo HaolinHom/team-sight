@@ -1,3 +1,5 @@
+> 历史文档：对应旧版本，0.3.0 已退役旧入口。当前运行与迁移请见仓库 README 和 apps/server/README.md。
+
 # TeamSight 截至 P1b 的功能与使用说明
 
 更新日期：2026-10-29。依据[技术方案 v1.2](../artifacts/plan/20261027_2341_teamsight-server-mcp-apps-technical-plan.md)、[分阶段执行方案](../artifacts/plan/20261028_teamsight-v1.2-phased-implementation.md)、当前源码及[验收报告](../artifacts/report/20261028_teamsight-p1b_测试报告.md)整理。

@@ -1,7 +1,7 @@
 schemaVersion: "knowledge-index/v1"
 
-title: "Tauri 桌面能力"
-description: "桌面端（Tauri 2）能力的接入方式、能力作用域与踩坑事实。"
+title: "历史 Tauri 桌面能力"
+description: "独立Tauri App已于MCP 0.3.0退役；仅保留旧桌面端能力与验收记录，不作为当前MCP指南。"
 
 items:
   - id: tauri-desktop-external-link

@@ -1,6 +1,6 @@
 # TeamSight MCP 能力与使用说明
 
-版本 0.2.3，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
+版本 0.3.0，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
 
 ## 配置与人员范围
 
@@ -15,7 +15,7 @@
 
 个人工作查询默认 scope:self；团队查询传 scope:team。显式 memberIds 优先，其次 groupIds；多个组会去重，未指定团队范围时使用默认组。成员与项目顺序可在卡片调整。没有指定负责人时，普通排期及批量创建采用令牌对应的已验证当前用户；目录账号不可确认时要求补充信息，不按显示名任意选人。
 
-设置入口 teamsight_open_settings 的 target 可为 overview（分类入口）、connection、projects、members、groups、hours、calendar、completed。TAPD 连接依次包含账号连接、查询内容、写入权限；不再提供团队名称、默认查询项目、写入项目名单、请假配置或旧配置导入表单。旧 target write／general 转到 connection，leave／import 转到 overview，旧导入接口仅保留兼容。明确请求“项目配置”时使用 target:projects，仅渲染项目表单。项目和成员采用对齐列表与行内编辑，启用使用开关，工时支持步进，删除需确认。局部保存仅提交已改字段，包含 writeAccess 子字段；服务端合并并校验修订，冲突保留草稿。
+设置入口 teamsight_open_settings 的 target 可为 overview（分类入口）、connection、projects、members、groups、hours、calendar、completed。TAPD 连接依次包含账号连接、查询内容、写入权限；不再提供团队名称、默认查询项目、写入项目名单、请假配置或旧配置导入表单。旧设置目标和旧配置导入接口已移除。明确请求“项目配置”时使用 target:projects，仅渲染项目表单。项目和成员采用对齐列表与行内编辑，启用使用开关，工时支持步进，删除需确认。局部保存仅提交已改字段，包含 writeAccess 子字段；服务端合并并校验修订，冲突保留草稿。
 
 ## 读取需求与期间工作事实
 
@@ -33,7 +33,7 @@ teamsight_get_work_context 接收 start/end、analysisDate 及人员／项目范
 - 缺任一日期视为未排期；实际工时仍按花费日期及填报人统计。
 - 剩余量为 max(预估−截至计算日累计实际,0)，不再额外增加50%余量。
 - 过去按实际，当天及未来按实际＋剩余预计分配判断不足，当天参与提醒。
-- 每日目标由规定工时及工作日历确定；MCP 忽略历史请假记录，leaveHours 为0，原数据保留。新排期可用容量为 max(目标−实际−其他任务预计占用,0)。
+- 每日目标由规定工时及工作日历确定；当前配置不再包含请假豁免，新工时输出不包含 leaveHours。新排期可用容量为 max(目标−实际−其他任务预计占用,0)。
 - 补排期／模拟移动只释放目标任务预计占用，保留已发生实际；负责人跨所有启用且可访问项目的占用共同计算。
 
 不完整累计、分页缺口、日历缺源或身份问题不按0处理，排期返回 needs_information。已有超负荷保留展示，新排期不会用超负荷兜底。
@@ -79,7 +79,7 @@ teamsight_write_tasks 接收稳定 batchKey 和逐项 ref/workspaceId/fields：
 2. 同时排期：提供普通 calculationId 与 candidateId，按候选补充日期及负责人。
 3. 后续补排期：传已有 id 和最新 expectedDigest，更新原任务。
 
-默认查询与写入项目范围统一为已启用且可访问的项目，不再受旧 workspaceIds 或 writeAccess.workspaceIds 名单限制。停用项目不可创建或修改，但可通过链接显式读取详情。操作与字段仍须在 TAPD 连接中允许，新安装默认无写入操作。自动同步的新启用项目进入项目范围，但不会更改操作和字段授权。最终估时与候选必须一致；写入前刷新容量来源，STALE_PLAN 返回最新分析及重算结果。每项写入仍进行字段元数据校验、修改冲突检查及读回核对。
+默认查询与写入项目范围统一为已启用且可访问的项目，配置已移除旧 workspaceIds 和 writeAccess.workspaceIds 名单。停用项目不可创建或修改，但可通过链接显式读取详情。操作与字段仍须在 TAPD 连接中允许，新安装默认无写入操作。自动同步的新启用项目进入项目范围，但不会更改操作和字段授权。最终估时与候选必须一致；写入前刷新容量来源，STALE_PLAN 返回最新分析及重算结果。每项写入仍进行字段元数据校验、修改冲突检查及读回核对。
 
 teamsight_get_task_batch 返回逐项回执、实际字段及 TAPD 链接。成功项复用；明确失败项可用 retryFailed:true 续办；unknown 项先只读核对，禁止换键重发。已知远端 ID 可以自动核对；未知创建 ID 需先搜索标记任务，再用 tapd_verify_operation 提供 candidateId。批次关联在远端请求前持久化，服务重启不会丢失未知项。
 
@@ -91,10 +91,17 @@ teamsight_open_analysis 接收 analysisId 或 calculationId，可传 mode:tasks�
 
 卡片操作区仅保留任务优先／工时优先切换，不提供筛选、查询、设置、风险页签或导出入口。前景可点击、悬浮及键盘查看详情；背景半透明且无点击、悬浮或键盘焦点。自动读取全部成员／任务分页后展示，图表内部滚动，固定名称列和日期表头。未排期任务的实际仍进入每日工时，任务清单通过对话查询。项目范围工时仅代表该项目贡献，不能等同全项目容量。
 
-模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。旧 settings-0.2.2／settings-0.2.1／settings-p1b／analysis-p1b 资源保留，新入口使用带版本 URI。
+模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。仅提供 settings-0.3.0.html 与 analysis-0.3.0.html 资源，旧卡片需重新打开。
 
 主色为 #EB732D，主按钮使用深色文字；暖中性色、青绿实际工时及橙色预计分配跟随宿主浅／深主题。固定报告与导出继续由对话调用原有工具，默认导出完整分析，不能把基线导出当作模拟结果。
 
 模拟结果仅在当前进程缓存30分钟、最多50条，重启／过期需重新读取并计算；不保存协作关系或排期计划表。配置v5和批次回执沿用 SQLite v3 JSON；旧分析、资源与工具保留。固定报告和静态导出保留，不能等同于 skills 周报／月报。
 
 使用 pnpm mcp:build、pnpm mcp:test、pnpm mcp:package darwin-arm64 或 win32-x64。运行依赖外部 Node.js 22.14+（低于23），本轮macOS验证版本22.23.2。独立运行与 Codex 操作步骤见[平台验收说明](validation/teamsight-mcp-platforms.md)。Windows实机、Codex原生卡片与真实批量写入的验收状态见本轮测试报告；浏览器预览与自动测试不能替代这些结果。
+
+
+## 0.3.0 存储与退役
+
+独立 Tauri App、probe 工具、旧配置导入、tapd_list_workspaces 别名、p0/p1a/p1b 命令、旧环境变量和旧工时算法已移除。根 build/test 执行完整 MCP。配置 v6，数据库 teamsight.sqlite（user_version 4），钥匙串 TeamSight.MCP。旧 MCP 数据必须停止服务后显式 migrate --from OLD --to NEW，不能自动覆盖或导入 Tauri JSON。迁移和回退见[服务说明](../apps/server/README.md)。
+
+历史分析保持原文件和规则版本，只读查看与导出；后续新分析、排期和模拟只使用当前 MCP v3 规则，不能把旧规则结果直接用于新的计算或写入。

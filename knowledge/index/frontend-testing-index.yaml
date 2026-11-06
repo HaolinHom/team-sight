@@ -1,15 +1,15 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "前端工程与测试"
-description: "前端工程化与测试接入的已验证做法（Vue 3 + Vitest + Tauri 模拟）。"
+description: "当前 MCP UI 的 Vue/Vitest 依赖与验收约定；保留旧 Tauri 前端测试历史。"
 
 items:
   - id: frontend-testing-notes
-    title: "Vue 3 + Vitest 组件测试接入"
+    title: "MCP Apps 前端与 Vue 组件测试"
     path: "knowledge/frontend-testing-notes.md"
-    summary: "按文件启用 jsdom；RouterLink stub、Tauri 运行时补丁、flushPromises；部分模块 mock、stubEnv 后动态 import、事件上抛后 setProps；保活用真实 memory Router 并卸载清理 watch；VTU 2.5.1 指针继承属性只读错误用 MouseEvent 加 pointerId 派发适配，捕获与坐标单独 mock，桌面拖拽需生产包实测。"
-    tags: ["frontend", "testing", "vitest", "vue", "pointer", "drag"]
-    verifiedAt: "2026-10-16"
+    summary: "0.3.0 Apps沙箱保存用button/click并先reportValidity，桥接普通JSON；局部patch分层合并与修订校验；同范围合并全部成员/任务页，核对游标/快照并丢弃旧响应；Vue及测试依赖归MCP UI，避免运行时分裂；根test转发全量，UI40项通过，隔离浏览器不替代原生Apps验收。以下为旧Tauri测试历史：按文件启用 jsdom；RouterLink stub、Tauri 运行时补丁、flushPromises；部分模块 mock、stubEnv 后动态 import、事件上抛后 setProps；保活用真实 memory Router 并卸载清理 watch；VTU 2.5.1 指针继承属性只读错误用 MouseEvent 加 pointerId 派发适配，捕获与坐标单独 mock，桌面拖拽需生产包实测。"
+    tags: ["frontend", "testing", "vitest", "vue", "pointer", "drag", "mcp-apps", "sandbox", "forms", "pagination", "async"]
+    verifiedAt: "2026-11-06"
 
   - id: frontend-reliability-notes
     title: "前端异步数据与配置一致性"
