@@ -1,7 +1,7 @@
 import { isValidDateKey } from './date.js'
 import type { ChinaCalendarSettings, HoursSettings, ProjectConfig, TeamSightSettings, WorkItemType } from './types.js'
 
-export const SETTINGS_SCHEMA_VERSION = 5
+export const SETTINGS_SCHEMA_VERSION = 6
 export const DEFAULT_TAPD_BASE_URL = 'https://api.tapd.cn'
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#6366f1', '#ec4899']
 
@@ -14,9 +14,9 @@ export function createDefaultSettings(now = new Date()): TeamSightSettings {
     members: [],
     groups: [{ id: 'default', name: '默认分组', memberIds: [] }],
     defaultGroupId: 'default',
-    hours: { dailyRequiredHours: 8, exemptions: [], completedStates: [] },
+    hours: { dailyRequiredHours: 8, completedStates: [] },
     chinaCalendar: { enabled: false, years: {} },
-    tapd: { baseUrl: DEFAULT_TAPD_BASE_URL, workspaceIds: [], defaultTypes: ['task', 'bug'] },
+    tapd: { baseUrl: DEFAULT_TAPD_BASE_URL, defaultTypes: ['task', 'bug'] },
     updatedAt: now.toISOString(),
   }
 }
@@ -27,14 +27,6 @@ function workType(value: unknown): value is WorkItemType { return value === 'tas
 function normalizeHours(raw: unknown): HoursSettings {
   const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
   const daily = Number(record.dailyRequiredHours)
-  const exemptions = Array.isArray(record.exemptions) ? record.exemptions.flatMap(item => {
-    if (!item || typeof item !== 'object') return []
-    const value = item as Record<string, unknown>
-    const hours = Number(value.hours)
-    const staffId = text(value.staffId)
-    const date = text(value.date)
-    return staffId && isValidDateKey(date) && Number.isFinite(hours) && hours > 0 ? [{ staffId, date, hours, note: text(value.note) }] : []
-  }) : []
   const completedStates = Array.isArray(record.completedStates) ? record.completedStates.flatMap(item => {
     if (!item || typeof item !== 'object') return []
     const value = item as Record<string, unknown>
@@ -43,7 +35,7 @@ function normalizeHours(raw: unknown): HoursSettings {
     const values = Array.isArray(value.values) ? value.values.map(text).filter(Boolean) : []
     return projectId && workType(type) ? [{ projectId, type, values }] : []
   }) : []
-  return { dailyRequiredHours: Number.isFinite(daily) && daily >= 0 && daily <= 24 ? daily : 8, exemptions, completedStates }
+  return { dailyRequiredHours: Number.isFinite(daily) && daily >= 0 && daily <= 24 ? daily : 8, completedStates }
 }
 
 function normalizeCalendar(raw: unknown): ChinaCalendarSettings {
@@ -99,19 +91,17 @@ export function normalizeSettings(raw: unknown, now = new Date()): { settings: T
     const value = item as Record<string, unknown>
     const id = text(value.id)
     return id ? [{ id, name: text(value.name) || id, memberIds: Array.isArray(value.memberIds) ? [...new Set(value.memberIds.map(text))].filter(id => seenMembers.has(id)) : [], testing: value.testing === true }] : []
-  }).filter((group, index, list) => list.findIndex(other => other.id === group.id) === index) : [{ id: 'default', name: '默认分组', memberIds: members.map(member => member.staffId), testing: false }]
+  }).filter((group, index, list) => list.findIndex(other => other.id === group.id) === index) : [{ id: 'default', name: '默认分组', memberIds: [], testing: false }]
   if (!groups.length) groups.push({ id: 'default', name: '默认分组', memberIds: [], testing: false })
   const defaultGroupId = groups.some(group => group.id === text(record.defaultGroupId)) ? text(record.defaultGroupId) : groups[0].id
   const userRaw = record.currentUser && typeof record.currentUser === 'object' ? record.currentUser as Record<string, unknown> : undefined
   const currentUser = userRaw && text(userRaw.staffId) && text(userRaw.account) ? { staffId: text(userRaw.staffId), name: text(userRaw.name), account: text(userRaw.account), enabled: true } : undefined
   const tapdRaw = record.tapd && typeof record.tapd === 'object' ? record.tapd as Record<string, unknown> : {}
-  const workspaceIds = Array.isArray(tapdRaw.workspaceIds) ? tapdRaw.workspaceIds.map(text).filter(Boolean) : []
   const defaultTypes: WorkItemType[] = Array.isArray(tapdRaw.defaultTypes)
     ? tapdRaw.defaultTypes.filter((item): item is WorkItemType => workType(item))
     : ['task', 'bug']
   const access = tapdRaw.writeAccess && typeof tapdRaw.writeAccess === 'object' ? tapdRaw.writeAccess as Record<string, unknown> : {}
   const writeAccess = {
-    workspaceIds: Array.isArray(access.workspaceIds) ? access.workspaceIds.map(text).filter(Boolean) : [],
     operations: Array.isArray(access.operations) ? access.operations.filter((v): v is 'create' | 'update' => v === 'create' || v === 'update') : [],
     fields: Array.isArray(access.fields) ? access.fields.map(text).filter(Boolean) : [],
   }
@@ -126,17 +116,9 @@ export function normalizeSettings(raw: unknown, now = new Date()): { settings: T
       members, groups, defaultGroupId, currentUser,
       hours: normalizeHours(record.hours),
       chinaCalendar: normalizeCalendar(record.chinaCalendar),
-      tapd: { baseUrl: text(tapdRaw.baseUrl) || DEFAULT_TAPD_BASE_URL, workspaceIds, defaultTypes, writeAccess },
+      tapd: { baseUrl: text(tapdRaw.baseUrl) || DEFAULT_TAPD_BASE_URL, defaultTypes, writeAccess },
       updatedAt: text(record.updatedAt) || now.toISOString(),
     },
     warning,
   }
-}
-
-/** 读取旧 App 的 settings.json，只迁移业务配置；凭据字段永不进入 SQLite。 */
-export function importLegacySettings(raw: unknown, now = new Date()): { settings: TeamSightSettings; ignoredCredential: boolean; warning?: string } {
-  const normalized = normalizeSettings(raw, now)
-  const serialized = JSON.stringify(raw)
-  const ignoredCredential = /personalToken|tapdToken|token|password|credential/i.test(serialized)
-  return { ...normalized, ignoredCredential }
 }

@@ -10,12 +10,12 @@ import { tmpdir } from 'node:os'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const target = process.argv[2] ?? `${process.platform}-${process.arch}`
 if (!['darwin-arm64', 'win32-x64'].includes(target)) throw new Error('MCP packages support darwin-arm64 and win32-x64 only; other architectures are not validated.')
-const output = resolve(root, 'artifacts/releases', `teamsight-mcp-${target}`)
+const source = join(root, 'apps/server')
+const pkg = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'))
+const output = resolve(root, 'artifacts/releases', pkg.version, `teamsight-mcp-${target}`)
 await mkdir(dirname(output), { recursive: true })
 // Refuse overwrite: an earlier validation package may be in use.
 await mkdir(output)
-const source = join(root, 'apps/server')
-const pkg = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'))
 const rootVersions = new Map()
 const copied = []
 async function locate(name, from) {
@@ -93,12 +93,12 @@ const prebuilds = join(output, 'node_modules/better-sqlite3/prebuilds')
 for (const name of await readdir(prebuilds)) if (name !== `${target}.node`) await rm(join(prebuilds, name))
 await cp(join(source, 'dist'), join(output, 'dist'), { recursive: true })
 await cp(join(root, 'apps/mcp-ui/dist'), join(output, 'ui'), { recursive: true })
-for (const name of ['verify-mcp.mjs', 'verify.mjs', 'status-mcp.mjs', 'launch.sh', 'launch.ps1']) await cp(join(source, name), join(output, name))
+for (const name of ['verify-mcp.mjs', 'status-mcp.mjs', 'launch.sh', 'launch.ps1']) await cp(join(source, name), join(output, name))
 await mkdir(join(output, 'docs/validation'), {recursive:true})
 await cp(join(root, 'docs/validation/teamsight-mcp-platforms.md'), join(output, 'docs/validation/teamsight-mcp-platforms.md'))
 await cp(join(root, 'docs/TeamSight-MCP-能力与使用说明.md'), join(output, 'docs/TeamSight-MCP-能力与使用说明.md'))
 const sourceHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
-const sourceFiles = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'scripts/package-mcp.mjs', 'scripts/package-p0.mjs', 'docs/validation/teamsight-mcp-platforms.md', 'docs/TeamSight-MCP-能力与使用说明.md']
+const sourceFiles = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'scripts/package-mcp.mjs', 'docs/validation/teamsight-mcp-platforms.md', 'docs/TeamSight-MCP-能力与使用说明.md']
 async function listFiles(dir) {
   const items = []
   for (const ent of await readdir(dir, { withFileTypes: true })) {

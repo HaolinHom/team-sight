@@ -1,5 +1,5 @@
 import type { ScheduleTask, MemberEntry, TimesheetRecord } from './types.js';
-export type { LeaveExemption, HoursSettings, TimesheetRecord } from './types.js';
+export type { HoursSettings, TimesheetRecord } from './types.js';
 
 /** 范围不明确的问题影响整个对应维度，不能把漏数当成零。 */
 export interface HoursIssue {
@@ -30,7 +30,6 @@ export interface DailyContribution {
 
 export interface DailyHours {
   date: string;
-  leaveHours: number;
   actual: number;
   allocated: number;
   total: number;

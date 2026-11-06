@@ -2,12 +2,12 @@
 import { readFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
-const dir = resolve(process.argv[2] ?? '.local/teamsight-p0')
+const dir = resolve(process.argv[2] ?? '.local/teamsight-mcp')
 const info = JSON.parse(readFileSync(join(dir, 'instance.json'), 'utf8'))
 const token = readFileSync(join(dir, 'access-token'), 'utf8').trim()
 const url = new URL(info.url)
 if (url.hostname !== '127.0.0.1' || url.protocol !== 'http:') throw new Error('INVALID_INSTANCE_URL')
-const client = new Client({ name: 'teamsight-p0-host-scheduler-probe', version: '1' })
+const client = new Client({ name: 'teamsight-mcp-host-scheduler', version: '1' })
 const transport = new StreamableHTTPClientTransport(url, { requestInit: { headers: { Authorization: `Bearer ${token}` } } })
 try {
   await client.connect(transport)

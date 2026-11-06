@@ -21,7 +21,6 @@ export interface DisplaySpan {
 export interface GanttDisplayTask extends ScheduleTask {
   displaySpans?: DisplaySpan[]
   /** Legacy input only; unscheduled items without actual hours no longer create rows. */
-  displayUnscheduledMemberIds?: string[]
   displayWarning?: string
 }
 
@@ -67,14 +66,13 @@ export function buildGanttDisplayTasks(tasks: ScheduleTask[], members: MemberHou
         }
       }
     }
-    return { ...task, displaySpans, displayUnscheduledMemberIds: [], ...(warnings.get(key) ? { displayWarning: warnings.get(key) } : {}) }
+    return { ...task, displaySpans, ...(warnings.get(key) ? { displayWarning: warnings.get(key) } : {}) }
   })
 }
 
 export function filterGanttDisplayTasks(tasks: GanttDisplayTask[], range: DateRange, memberIds?: string[], projectIds?: string[]) {
   return tasks.filter(task => !projectIds?.length || projectIds.includes(task.projectId)).map(task => ({ ...task,
     displaySpans: task.displaySpans?.filter(span => (!memberIds?.length || memberIds.includes(span.memberId)) && span.start <= range.end && span.end >= range.start),
-    displayUnscheduledMemberIds: [],
   })).filter(task => task.displaySpans?.length)
 }
 

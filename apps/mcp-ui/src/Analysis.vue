@@ -7,7 +7,7 @@ import { followHostTheme } from './host-theme'
 import './theme.css'
 type View = Pick<TeamAnalysis,'analysisId'|'snapshotId'|'status'|'fetchedAt'|'context'|'limitations'> & {members:TeamAnalysis['members'];tasks:ScheduleTask[];issues:HoursIssue[];counts:{issues:number};nextTaskOffset:number|null;nextMemberOffset:number|null}
 type Presentation = {analysisId?:string;calculationId?:string;candidateId?:string;mode?:'tasks'|'hours';viewFilters?:Record<string,unknown>;jobId?:string;status?:string;simulation?:unknown;baseline?:boolean}
-const app=new App({name:'TeamSight Gantt',version:'0.2.6'},{},{autoResize:true})
+const app=new App({name:'TeamSight Gantt',version:'0.3.0'},{},{autoResize:true})
 const view=ref<View>(),mode=ref<'tasks'|'hours'>('tasks'),busy=ref(true),error=ref(''),message=ref('正在连接…'),presentation=ref<Presentation>({})
 let generation=0,disposed=false,timer:ReturnType<typeof setTimeout>|undefined
 let input:Record<string,unknown>={}

@@ -61,7 +61,7 @@ function fixture() {
   }
   let store = openStore(dir, vault)
   store.saveSettings({ expectedRevision: 0, credential: 'ISOLATED_TEST_CREDENTIAL', patch: { projects: [project], groups: [{id:'default',name:'团队',memberIds:['200','100']}],defaultGroupId:'default', members: [{ staffId: '200', name: '李四' }, { staffId: '100', name: '张三' }],
-    tapd: { baseUrl: 'https://api.tapd.cn', workspaceIds: [project.id], defaultTypes: ['task', 'bug'], writeAccess: { workspaceIds: [project.id], operations: ['create', 'update'], fields } } } })
+    tapd: { baseUrl: 'https://api.tapd.cn', defaultTypes: ['task', 'bug'], writeAccess: { operations: ['create', 'update'], fields } } } })
   let business = createBusiness(store, dir, transport)
   return { dir, vault, calls, rows, task, transport, get store() { return store }, get business() { return business }, setMode(value) { mode = value }, writes: () => writeCount,
     restart() { store.close(); store = openStore(dir, vault); business = createBusiness(store, dir, transport) },
@@ -140,10 +140,10 @@ test('analysis separates actual/cumulative reads, preserves source time/order an
     assert.ok(analysis.risks.some(risk => risk.date === query.analysisDate && risk.code === 'FORECAST_SHORT'))
     const count = f.calls.length
     const current = f.store.readSettings()
-    f.store.saveSettings({ expectedRevision: current.revision, patch: { hours: { ...current.settings.hours, exemptions: [{ staffId: '100', date: '2026-10-27', hours: 4, note: '' }] }, projects: [{ ...project, name: '新名称' }] } })
+    f.store.saveSettings({ expectedRevision: current.revision, patch: { hours: { ...current.settings.hours, dailyRequiredHours: 8 }, projects: [{ ...project, name: '新名称' }] } })
     const recalculated = await f.business.analyze(query)
     assert.equal(f.calls.length, count); assert.equal(analysis.fetchedAt, recalculated.fetchedAt); assert.equal(analysis.snapshotId, recalculated.snapshotId)
-    assert.equal(recalculated.members[1].days[0].target, 8); assert.equal(recalculated.members[1].days[0].leaveHours, 0); assert.equal(recalculated.snapshot.tasks[0].projectName, '新名称')
+    assert.equal(recalculated.members[1].days[0].target, 8); assert.equal("leaveHours" in recalculated.members[1].days[0], false); assert.equal(recalculated.snapshot.tasks[0].projectName, '新名称')
     assert.notEqual(analysis.analysisId, recalculated.analysisId)
     assert.equal(f.business.getAnalysis(analysis.analysisId).snapshot.tasks[0].projectName, '测试项目')
     assert.equal(recalculated.context.rulesVersion,'teamsight-mcp-hours-v3')
@@ -197,7 +197,7 @@ test('in-flight receipts and jobs recover as unknown/interrupted without deletin
     f.restart()
     assert.equal(f.business.files.getOperation(receipt.operationId).status, 'unknown')
     assert.equal(f.business.files.getJob('interrupted-job').status, 'interrupted')
-    assert.equal(f.store.db.pragma('user_version', { simple: true }), 3)
+    assert.equal(f.store.db.pragma('user_version', { simple: true }), 4)
   } finally { await f.close() }
 })
 
@@ -268,7 +268,7 @@ test('MCP exposes catalog, analysis Apps, writes, artifacts and applies validati
     assert.equal(opened.structuredContent.mode,'hours')
     assert.deepEqual(opened.structuredContent.viewFilters.memberIds,['100'])
     assert.equal((await call('teamsight_open_analysis',{analysisId:analyzed.analysisId,start:'2026-10-01'})).structuredContent.code,'VIEW_OUTSIDE_ANALYSIS')
-    assert.match((await client.readResource({uri:'ui://teamsight/analysis-p1b.html'})).contents[0].text,/排期与工时/)
+    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.0.html'})).contents[0].text,/排期与工时/)
     const directed=await call('teamsight_open_settings',{target:'projects'})
     assert.equal(directed.structuredContent.target,'projects')
     const automatic=await call('teamsight_open_analysis')
@@ -292,7 +292,7 @@ test('enabled projects override legacy lists while disabled projects remain read
  const f=fixture()
  try {
   const change=patch=>f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch})
-  change({tapd:{workspaceIds:['obsolete'],writeAccess:{workspaceIds:['obsolete']}}})
+  assert.throws(()=>change({tapd:{writeAccess:{workspaceIds:['obsolete']}}}),/INVALID_CONFIG/)
   assert.deepEqual((await f.business.analyze(query)).context.projectIds,[project.id])
   assert.deepEqual((await f.business.schedule({start:query.start,end:query.end})).coverage.projectIds,[project.id])
   const created=await f.business.write(createInput(),'create');assert.equal(created.status,'succeeded')

@@ -9,12 +9,12 @@ export type Settings = {
   groups: Array<{id:string;name:string;memberIds:string[];testing?:boolean}>
   defaultGroupId: string
   currentUser?: Member
-  hours: { dailyRequiredHours: number; exemptions: Array<{ staffId: string; date: string; hours: number; note: string }>; completedStates: Array<{ projectId: string; type: 'task' | 'bug'; values: string[] }> }
+  hours: { dailyRequiredHours: number; completedStates: Array<{ projectId: string; type: 'task' | 'bug'; values: string[] }> }
   chinaCalendar: { enabled: boolean; years: Record<string, unknown> }
-  tapd: { baseUrl: string; workspaceIds: string[]; defaultTypes: Array<'task' | 'bug'>; writeAccess?: { workspaceIds: string[]; operations: Array<'create' | 'update'>; fields: string[] } }
+  tapd: { baseUrl: string; defaultTypes: Array<'task' | 'bug'>; writeAccess?: { operations: Array<'create' | 'update'>; fields: string[] } }
   updatedAt: string
 }
-export type Snapshot = { revision: number; settings: Settings; credentialPresent: boolean; importedFrom?: string; warning?: string }
+export type Snapshot = { revision: number; settings: Settings; credentialPresent: boolean; warning?: string }
 
 export const categories = [
   { id: 'connection', title: 'TAPD 连接', description: '账号连接、查询内容与写入权限' },
@@ -27,8 +27,9 @@ export const categories = [
 ] as const
 export type SettingsTarget = 'overview' | typeof categories[number]['id']
 export function settingsTarget(value: unknown): SettingsTarget {
-  value = ({write:'connection',general:'connection',leave:'overview',import:'overview'} as Record<string,string>)[String(value)] ?? value
-  return categories.some(item => item.id === value) ? value as SettingsTarget : 'overview'
+  if(value === undefined || value === 'overview') return 'overview'
+  if(categories.some(item => item.id === value)) return value as SettingsTarget
+  throw new Error('INVALID_SETTINGS_TARGET')
 }
 // Only changed fields are submitted. Nested settings are merged by the server under revision checking.
 export function settingsPatch(before: Settings, after: Settings): Record<string, unknown> {

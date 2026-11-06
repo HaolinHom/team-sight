@@ -7,8 +7,7 @@ import { McpServer } from '@modelcontextprotocol/server'
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
 import { registerAppTool, registerAppResource, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server'
 import { z } from 'zod'
-import { openStore, configSchema, ProbeError } from './storage.js'
-import { renderProbe } from './render.js'
+import { openStore, StorageError } from './storage.js'
 import { type TapdTransport } from '@teamsight/tapd'
 import { createBusiness } from './business.js'
 import { registerBusinessTools } from './business-tools.js'
@@ -17,28 +16,22 @@ import { registerScenarioTools } from './scenario-tools.js'
 import type { Vault } from './storage.js'
 import { type TeamSightSettings } from '@teamsight/core'
 
-export const UI_URI = 'ui://teamsight/p0-settings.html'
-export const SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.3.html'
-const PREVIOUS_SETTINGS_UI_URI_V2 = 'ui://teamsight/settings-0.2.2.html'
-const PREVIOUS_SETTINGS_UI_URI = 'ui://teamsight/settings-0.2.1.html'
-const LEGACY_SETTINGS_UI_URI = 'ui://teamsight/settings-p1b.html'
-export const sentinelSchema = z.string().regex(/^TEAMSIGHT_P0_SENTINEL_[A-Za-z0-9_-]{1,80}$/)
+export const SETTINGS_UI_URI = 'ui://teamsight/settings-0.3.0.html'
 const here = fileURLToPath(new URL('.', import.meta.url))
-export const defaultUiPath = existsSync(resolve(here, '../ui/index.html'))
-  ? resolve(here, '../ui/index.html') : resolve(here, '../../mcp-ui/dist/index.html')
 export const defaultSettingsUiPath = existsSync(resolve(here, '../ui/settings.html'))
   ? resolve(here, '../ui/settings.html') : resolve(here, '../../mcp-ui/dist/settings.html')
 export const defaultAnalysisUiPath = existsSync(resolve(here, '../ui/analysis.html'))
   ? resolve(here, '../ui/analysis.html') : resolve(here, '../../mcp-ui/dist/analysis.html')
 const result = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value) }], structuredContent: value })
 
-export async function startServer(options: { dataDir: string; port: number; uiPath?: string; settingsUiPath?: string; analysisUiPath?: string; vault?: Vault; tapdTransport?: TapdTransport }) {
+export async function startServer(options: { dataDir: string; port: number; settingsUiPath?: string; analysisUiPath?: string; vault?: Vault; tapdTransport?: TapdTransport }) {
   const dataDir = resolve(options.dataDir)
   mkdirSync(dataDir, { recursive: true, mode: 0o700 })
+  if(existsSync(join(dataDir,'.migration'))) throw new StorageError('MIGRATION_IN_PROGRESS')
   const lockPath = join(dataDir, 'instance.lock')
   const instanceId = randomUUID()
   try { writeFileSync(lockPath, JSON.stringify({ pid: process.pid, instanceId }), { flag: 'wx', mode: 0o600 }) }
-  catch { throw new ProbeError('INSTANCE_LOCKED: inspect instance.lock; do not terminate unknown processes') }
+  catch { throw new StorageError('INSTANCE_LOCKED: inspect instance.lock; do not terminate unknown processes') }
   let store: ReturnType<typeof openStore> | undefined
   const transports = new Map<string, NodeStreamableHTTPServerTransport>()
   let closing = false
@@ -52,8 +45,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     const tokenPath = join(dataDir, 'access-token')
     if (!existsSync(tokenPath)) writeFileSync(tokenPath, randomBytes(32).toString('hex'), { mode: 0o600, flag: 'wx' })
     const token = readFileSync(tokenPath, 'utf8').trim()
-    if (!/^[a-f0-9]{64}$/.test(token)) throw new ProbeError('INVALID_ACCESS_TOKEN_FILE')
-    const html = readFileSync(options.uiPath ?? defaultUiPath, 'utf8')
+    if (!/^[a-f0-9]{64}$/.test(token)) throw new StorageError('INVALID_ACCESS_TOKEN_FILE')
     const settingsHtml = readFileSync(options.settingsUiPath ?? defaultSettingsUiPath, 'utf8')
     store = openStore(dataDir, options.vault)
     const shared = store
@@ -61,37 +53,15 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     const scenarios = createScenarios(business, shared)
     const analysisHtml = readFileSync(options.analysisUiPath ?? defaultAnalysisUiPath, 'utf8')
     const startedAt = new Date().toISOString()
-    const status = () => ({ phase: 'MCP', version: '0.2.6', pid: process.pid, instanceId, startedAt, node: process.versions.node,
+    const status = () => ({ phase: 'MCP', version: '0.3.0', pid: process.pid, instanceId, startedAt, node: process.versions.node,
       napi: process.versions.napi, platform: process.platform, arch: process.arch,
-      revision: shared.read().revision, credentialPresent: shared.read().credentialPresent,
+      revision: shared.readSettings().revision, credentialPresent: shared.readSettings().credentialPresent,
       settingsRevision: shared.readSettings().revision, sessions: transports.size, tapdEnabled: true })
     function mcp() {
-      const server = new McpServer({ name: 'TeamSight', version: '0.2.6' }, {
-        instructions: 'When CONFIG_REQUIRED, immediately call teamsight_open_settings with target connection and continueRead true when credentials are missing; for a missing team or project scope open the relevant configuration target. After Apps reports configuration completion, continue the original read request; never request a token in chat. Use currentUser for self and default owners. Team defaults use exactly the default group, not every cached identity. Use context and scheduling tools for scenario data; urgent tools only simulate. Dependencies are rebuilt from TAPD and current conversation. TeamSight provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Enabled accessible projects define default query and write scopes; configure allowed write operations and fields in connection settings. MCP ignores historical leave records. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Open only the requested settings target; do not show unrelated configuration. Gantt cards only offer task/hour mode switching; determine people, project and dates in conversation. Analyze first then open the analysisId; exports, risk interpretation and simulation candidate comparisons are requested in conversation. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
+      const server = new McpServer({ name: 'TeamSight', version: '0.3.0' }, {
+        instructions: 'When CONFIG_REQUIRED, immediately call teamsight_open_settings with target connection and continueRead true when credentials are missing; for a missing team or project scope open the relevant configuration target. After Apps reports configuration completion, continue the original read request; never request a token in chat. Use currentUser for self and default owners. Team defaults use exactly the default group, not every cached identity. Use context and scheduling tools for scenario data; urgent tools only simulate. Dependencies are rebuilt from TAPD and current conversation. TeamSight provides TAPD story/task writes, immutable hours/schedule/risk analyses, Apps charts and file reports. Enabled accessible projects define default query and write scopes; configure allowed write operations and fields in connection settings. Reuse idempotency keys and verify unknown writes; do not retry mutations automatically. Open only the requested settings target; do not show unrelated configuration. Gantt cards only offer task/hour mode switching; determine people, project and dates in conversation. Analyze first then open the analysisId; exports, risk interpretation and simulation candidate comparisons are requested in conversation. Use one analysisId for related outputs. Incomplete data is not zero. Credentials are never returned by tools.',
       })
       server.registerTool('teamsight_status', { description: 'Read-only TeamSight service status; includes the shared process and instance identity.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false } }, () => result(status()))
-      const ui = { resourceUri: UI_URI }
-      const safely = (fn: () => unknown) => {
-        try { return result(fn()) }
-        catch (error) {
-          const code = error instanceof ProbeError ? error.code : 'PROBE_FAILED'
-          return { ...result({ code, current: shared.read() }), isError: true }
-        }
-      }
-      registerAppTool(server, 'teamsight_probe_open_settings', { description: 'Open the P0 MCP Apps configuration prototype.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui } }, () => result(shared.read()))
-      registerAppTool(server, 'teamsight_probe_read_config', { description: 'Read the isolated prototype config and revision.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: { ...ui, visibility: ['app'] } } }, () => result(shared.read()))
-      registerAppTool(server, 'teamsight_probe_save_config', {
-        description: 'Save a prototype patch with optimistic revision checking. Test sentinel only; never submit a real TAPD credential.',
-        inputSchema: z.object({ expectedRevision: z.number().int().min(0), patch: configSchema.partial(), testCredential: sentinelSchema.optional(), simulateFailure: z.boolean().optional() }).strict(),
-        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { ...ui, visibility: ['app'] } },
-      }, args => safely(() => shared.save(args)))
-      registerAppTool(server, 'teamsight_probe_check_credential', { description: 'Compare a test sentinel with the OS credential entry; return booleans only.', inputSchema: z.object({ expected: sentinelSchema }).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: { ...ui, visibility: ['app'] } } }, args => safely(() => shared.verifyCredential(args.expected)))
-      registerAppTool(server, 'teamsight_probe_clear_credential', { description: 'Remove this isolated prototype test credential.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false }, _meta: { ui: { ...ui, visibility: ['app'] } } }, () => safely(() => { shared.clearCredential(); return shared.read() }))
-      server.registerTool('teamsight_probe_render', { description: 'Generate the P0 Chinese SVG/PNG sample. This is a rendering probe, not business data.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } }, () => {
-        const rendered = renderProbe(join(dataDir, 'artifacts'))
-        return { ...result({ mimeType: 'image/png', sha256: rendered.sha256, width: 720, height: 180 }), content: [{ type: 'image' as const, mimeType: 'image/png', data: rendered.png.toString('base64') }] }
-      })
-      registerAppResource(server, 'TeamSight P0 settings', UI_URI, { description: 'Self-contained Vue configuration probe', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
       const settingsUi = { resourceUri: SETTINGS_UI_URI }
       const settingsPatchSchema = z.object({
         teamName: z.string().trim().min(1).max(80).optional(),
@@ -108,15 +78,15 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
       const settingsSafely = async (fn: () => unknown) => {
         try { return settingsResult(await fn()) }
         catch (error) {
-          const code = error instanceof ProbeError ? error.code : 'SETTINGS_FAILED'
+          const code = error instanceof StorageError ? error.code : 'SETTINGS_FAILED'
           return { ...settingsResult({ code, current: shared.readSettings() }), isError: true }
         }
       }
       registerAppTool(server, 'teamsight_open_settings', {
         description: 'Open only the requested settings target. Omit target for the category chooser; use connection for credentials, query types and write operations/fields; projects, members, groups, hours, calendar or completed for the other settings. Set continueRead when configuration blocked a read request.',
-        inputSchema: z.object({ target: z.enum(['overview','connection','projects','members','groups','hours','calendar','leave','completed','write','general','import']).optional(), continueRead: z.boolean().optional() }).strict(),
+        inputSchema: z.object({ target: z.enum(['overview','connection','projects','members','groups','hours','calendar','completed']).optional(), continueRead: z.boolean().optional() }).strict(),
         annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: settingsUi },
-      }, args => { const snapshot = shared.readSettings(); return settingsResult({ ...snapshot, target: ({write:'connection',general:'connection',leave:'overview',import:'overview'} as Record<string,string>)[args.target ?? ''] ?? args.target ?? (snapshot.credentialPresent ? 'overview' : 'connection'), continueRead: args.continueRead ?? false }) })
+      }, args => { const snapshot = shared.readSettings(); return settingsResult({ ...snapshot, target: args.target ?? (snapshot.credentialPresent ? 'overview' : 'connection'), continueRead: args.continueRead ?? false }) })
       registerAppTool(server, 'teamsight_read_settings', { description: 'Read current TeamSight settings and revision. Secrets are represented only by credentialPresent.', inputSchema: z.object({}).strict(), annotations: { readOnlyHint: true, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } } }, () => settingsResult(shared.readSettings()))
       registerAppTool(server, 'teamsight_save_settings', {
         description: 'Save a validated settings patch using an expected revision. A TAPD token, when supplied by the Apps UI, is stored in the OS credential vault and never returned.',
@@ -127,15 +97,9 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
         if (!args.tapdToken) return saved
         try { return await scenarios.syncProjects() } catch { return { ...shared.readSettings(), bootstrap: { status: 'partial', code: 'BOOTSTRAP_FAILED', next: 'teamsight_sync_projects' } } }
       }))
-      registerAppTool(server, 'teamsight_import_settings', {
-        description: 'Import an old TeamSight settings JSON snapshot. Credential fields are ignored and must be entered separately in the settings Apps UI.',
-        inputSchema: z.object({ expectedRevision: z.number().int().min(0), settingsJson: z.string().min(2).max(1_000_000), source: z.string().min(1).max(200).default('legacy-settings.json') }).strict(),
-        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }, _meta: { ui: { ...settingsUi, visibility: ['app'] } },
-      }, args => settingsSafely(() => shared.importSettings({ expectedRevision: args.expectedRevision, raw: JSON.parse(args.settingsJson), source: args.source })))
-
       registerBusinessTools(server, business, shared, analysisHtml, scenarios)
       registerScenarioTools(server, scenarios)
-      for (const uri of [SETTINGS_UI_URI, PREVIOUS_SETTINGS_UI_URI_V2, PREVIOUS_SETTINGS_UI_URI, LEGACY_SETTINGS_UI_URI]) registerAppResource(server, 'TeamSight settings '+uri, uri, { description: 'Self-contained focused settings card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
+      for (const uri of [SETTINGS_UI_URI]) registerAppResource(server, 'TeamSight settings '+uri, uri, { description: 'Self-contained focused settings card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: settingsHtml, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
       return server
     }
     const answer = (res: ServerResponse, code: number, value: unknown) => {
@@ -153,7 +117,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
       if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) return answer(res, 401, { code: 'UNAUTHORIZED' })
       if (closing) return answer(res, 503, { code: 'SHUTTING_DOWN' })
       if (req.url === '/health' && req.method === 'GET') return answer(res, 200, status())
-      if (req.url === '/_p0/stop' && req.method === 'POST') {
+      if (req.url === '/_internal/stop' && req.method === 'POST') {
         answer(res, 200, { instanceId, stopping: true })
         setImmediate(() => { void close() })
         return
@@ -218,7 +182,7 @@ export async function startServer(options: { dataDir: string; port: number; uiPa
     listener?.close()
     store?.close()
     release()
-    if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') throw new ProbeError('PORT_IN_USE: choose another loopback port; no existing process was stopped')
+    if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') throw new StorageError('PORT_IN_USE: choose another loopback port; no existing process was stopped')
     throw error
   }
 }

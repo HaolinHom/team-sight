@@ -9,19 +9,17 @@ test('business day is explicit across timezone boundaries and invalid ranges are
   assert.equal(businessDate('UTC', now), '2026-10-28')
   for (const invalid of [{ start: '2026-02-30', end: '2026-03-01' }, { start: '2026-10-29', end: '2026-10-28' }, { start: '2025-01-01', end: '2027-01-01' }]) assert.throws(() => validateAnalysisInput(invalid, today))
 })
-test('shared hours/risk rules preserve leave, calendar, member order and open-day progress', () => {
+test('MCP hours/risk rules preserve calendar and member order and include the open day', () => {
   const settings = createDefaultSettings()
-  settings.hours.exemptions = [{ staffId: '1', date: '2026-10-27', hours: 3, note: '' }]
   settings.chinaCalendar = { enabled: true, years: { 2026: { year: 2026, days: { '2026-10-29': { working: false, name: '测试休息日' } }, papers: [], fetchedAt: '2026-01-01T00:00:00Z' } } }
   const snapshot = { tasks: [], records: [], issues: [], status: 'complete' }
   const result = calculateHours({ snapshot, members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar) })
   assert.deepEqual(result.map(member => member.member.staffId), ['2', '1'])
-  assert.equal(result[1].days[0].target, 5); assert.equal(result[1].days[0].leaveHours, 3); assert.equal(result[1].days[2].target, 0)
-  const mcp=calculateHours({ snapshot, members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar), policy:'mcp' })
-  assert.equal(mcp[1].days[0].target,8);assert.equal(mcp[1].days[0].leaveHours,0);assert.equal(mcp[1].days[2].target,0)
-  assert.equal(settings.hours.exemptions[0].hours,3)
+  assert.equal(result[1].days[0].target, 8); assert.equal("leaveHours" in result[1].days[0], false); assert.equal(result[1].days[2].target, 0)
+  const mcp=calculateHours({ snapshot, members, settings: settings.hours, range, today, calendar: mergeCalendar(settings.chinaCalendar),  })
+  assert.equal(mcp[1].days[0].target,8);assert.equal("leaveHours" in mcp[1].days[0],false);assert.equal(mcp[1].days[2].target,0)
   const risks = checkRisks(snapshot, result, settings, today)
-  assert.equal(risks.length, 2); assert.ok(risks.every(risk => risk.code === 'HISTORICAL_HOURS_SHORT' && risk.date < today))
+  assert.equal(risks.length, 4); assert.ok(risks.some(risk => risk.code === 'FORECAST_SHORT' && risk.date === today))
 })
 test('unknown source gaps do not become zero-hours risk findings', () => {
   const settings = createDefaultSettings()

@@ -9,11 +9,7 @@ import { generateReport, renderGantt } from './outputs.js'
 import type { TeamSightScenarios } from './scenarios.js'
 import type { FileRecord } from './business-storage.js'
 
-export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.2.6.html'
-const PREVIOUS_ANALYSIS_UI_URI_V5 = 'ui://teamsight/analysis-0.2.5.html'
-const PREVIOUS_ANALYSIS_UI_URI_V4 = 'ui://teamsight/analysis-0.2.4.html'
-const PREVIOUS_ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.2.1.html'
-const LEGACY_ANALYSIS_UI_URI = 'ui://teamsight/analysis-p1b.html'
+export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.3.0.html'
 const id = z.string().min(1).max(100)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const analysisInput = z.object({ start: date, end: date, analysisDate: date.optional(), projectIds: z.array(id).min(1).max(100).optional(), memberIds: z.array(id).min(1).max(100).optional(), groupIds: z.array(id).min(1).optional(), scope: z.enum(['self','team']).optional(), refresh: z.boolean().optional() }).strict()
@@ -48,7 +44,6 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     else server.registerTool(name, config, callback)
   }
   add('tapd_list_projects', 'List TAPD projects visible to the configured credential.', z.object({}).strict(), () => business.client(store.readSettings()).listProjects().then(projects => ({ projects })))
-  add('tapd_list_workspaces', 'Alias of tapd_list_projects; list visible workspaces.', z.object({}).strict(), () => business.client(store.readSettings()).listProjects().then(projects => ({ projects })))
   add('tapd_get_workspace_schema', 'Read project members, supported fields and state values before a story/task mutation. Task states use the documented task schema.', schemaInput, args => {
     const snapshot = store.readSettings()
     const api = business.client(snapshot)
@@ -192,5 +187,5 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     const artifactId = String(variables.artifactId), meta = business.files.getFile(artifactId), bytes = business.files.readFile(artifactId)
     return { contents: [meta.mimeType === 'image/png' ? { uri: uri.href, mimeType: meta.mimeType, blob: bytes.toString('base64') } : { uri: uri.href, mimeType: meta.mimeType, text: bytes.toString('utf8') }] }
   })
-  for(const uri of [ANALYSIS_UI_URI, PREVIOUS_ANALYSIS_UI_URI_V5, PREVIOUS_ANALYSIS_UI_URI_V4, PREVIOUS_ANALYSIS_UI_URI, LEGACY_ANALYSIS_UI_URI]) registerAppResource(server, 'TeamSight analysis '+uri, uri, { description: 'Focused task/hours Gantt result card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
+  for(const uri of [ANALYSIS_UI_URI]) registerAppResource(server, 'TeamSight analysis '+uri, uri, { description: 'Focused task/hours Gantt result card', _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }, () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html, _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] } } } }] }))
 }

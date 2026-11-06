@@ -61,7 +61,7 @@ test('distinct project/type IDs, missing metadata, nonpositive actuals and scope
 test('October regression actual totals remain 8.5, 8, 8, 4 and presentation never changes calculation inputs',()=>{
  const tasks=[task('t'),task('recycle',{assigneeIds:['b'],startDate:null,dueDate:null})]
  const records=[['a','2026-10-15','task','t',8],['a','2026-10-15','bug','b1',.5],['a','2026-10-19','task','t',1],['a','2026-10-19','bug','b2',6],['a','2026-10-19','bug','b3',1],['b','2026-10-09','task','t',4],['b','2026-10-09','task','recycle',4],['b','2026-10-10','task','recycle',4]].map(([staffId,spentDate,entityType,entityId,hours],i)=>({id:String(i),projectId:'p',staffId,spentDate,entityType,entityId,hours}))
- const input={snapshot:{tasks,records,issues:[],status:'complete'},members:[{staffId:'a',name:'A'},{staffId:'b',name:'B'}],settings:{dailyRequiredHours:8,exemptions:[],completedStates:[]},range,today:'2026-11-05',policy:'mcp'}
+ const input={snapshot:{tasks,records,issues:[],status:'complete'},members:[{staffId:'a',name:'A'},{staffId:'b',name:'B'}],settings:{dailyRequiredHours:8,completedStates:[]},range,today:'2026-11-05',}
  const before=JSON.stringify(input),hours=calculateHours(input)
  buildGanttDisplayTasks(tasks,hours,range,[{taskKey:'p:bug:b1',task:task('b1',{sourceType:'bug',assigneeIds:['test']})}])
  assert.equal(JSON.stringify(input),before)

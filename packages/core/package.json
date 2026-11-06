@@ -1,6 +1,6 @@
 {
   "name": "@teamsight/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.json",
     "test": "node --test test/*.test.mjs"
   }
 }

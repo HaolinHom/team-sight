@@ -4,9 +4,9 @@ import { planSchedule, normalizeSettings, createDefaultSettings, resolveMemberSc
 const range={start:'2026-11-02',end:'2026-11-06'}
 const capacity=(values)=>Object.fromEntries(Object.entries(values).map(([id,hours])=>[id,hours.map((available,index)=>({date:'2026-11-0'+(index+2),target:8,actual:0,occupied:8-available,available}))]))
 const task=(ref,hours)=>({ref,title:ref,hours,memberIds:['1'],storyId:'s'})
-test('v4 identities migrate into one default group; v5 discovery does not silently join it',()=>{
- const old=normalizeSettings({schemaVersion:4,members:[{staffId:'1',name:'A'}]}).settings
- assert.equal(old.schemaVersion,5);assert.deepEqual(resolveMemberScope(old,{}).map(m=>m.staffId),['1'])
+test('current identities use explicit default group membership',()=>{
+ const old=normalizeSettings({schemaVersion:6,members:[{staffId:'1',name:'A'}],groups:[{id:'default',name:'默认',memberIds:['1']}]}).settings
+ assert.equal(old.schemaVersion,6);assert.deepEqual(resolveMemberScope(old,{}).map(m=>m.staffId),['1'])
  const fresh=createDefaultSettings();fresh.members=[{staffId:'1',name:'A'}]
  assert.throws(()=>resolveMemberScope(fresh,{}),/TEAM_SCOPE_REQUIRED/)
  fresh.groups=[{id:'a',name:'A',memberIds:['1']},{id:'b',name:'B',memberIds:['1']}];fresh.defaultGroupId='a'
@@ -44,12 +44,12 @@ test('multi-person search assigns indivisible work units independently',()=>{
  const result=planSchedule({range,tasks:[{...task('a',8),memberIds:['1','2']},{...task('b',8),memberIds:['1','2']}],capacities:capacity({'1':[8,0,0,0,0],'2':[8,0,0,0,0]})})
  assert.equal(result.status,'feasible');assert.equal(new Set(result.candidates[0].placements.map(p=>p.memberId)).size,2)
 })
-test('MCP missing estimate uses zero, actuals survive missing dates, today gets shortage; legacy remains unchanged',()=>{
+test('MCP missing estimate uses zero, actuals survive missing dates and today gets shortage',()=>{
  const settings=createDefaultSettings(),members=[{staffId:'1',name:'A'}],today='2026-11-02'
  const source={tasks:[{id:'t',projectId:'p',sourceType:'task',title:'missing',assigneeIds:['1'],status:'open',startDate:null,dueDate:null}],records:[{id:'r',projectId:'p',entityType:'task',entityId:'t',staffId:'1',spentDate:today,hours:3}],issues:[],status:'complete'}
- const modern=calculateHours({snapshot:source,members,settings:settings.hours,range,today,policy:'mcp'})
+ const modern=calculateHours({snapshot:source,members,settings:settings.hours,range,today,})
  assert.equal(modern[0].days[0].actual,3);assert.equal(modern[0].days[0].state,'short')
- assert.ok(checkRisks(source,modern,settings,today,'mcp').some(r=>r.date===today))
- assert.equal(checkRisks(source,modern,settings,today).some(r=>r.date===today&&r.code==='FORECAST_SHORT'),false)
- const legacy=calculateHours({snapshot:source,members,settings:settings.hours,range,today});assert.equal(legacy[0].pending[0].hours,null)
+ assert.ok(checkRisks(source,modern,settings,today).some(r=>r.date===today))
+ assert.equal(checkRisks(source,modern,settings,today).some(r=>r.date===today&&r.code==='FORECAST_SHORT'),true)
+ assert.equal(modern[0].pending.length,0)
 })

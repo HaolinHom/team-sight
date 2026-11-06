@@ -4,8 +4,8 @@ import { mkdtempSync,readFileSync,rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { startServer } from '../dist/server.js'
-import { openStore } from '../dist/storage.js'
+import { startServer } from '../../server/dist/server.js'
+import { openStore } from '../../server/dist/storage.js'
 import { Client,StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 const root=fileURLToPath(new URL('../../../',import.meta.url)),dir=mkdtempSync(join(tmpdir(),'teamsight-browser-')),secrets=new Map()
 // Optional saved read-only analysis, for long-window UI checks without new TAPD requests.
@@ -29,7 +29,7 @@ const tapdTransport=async(path,p,_signal,request)=>{
  if(path.endsWith('/count'))return ok({count:values.length})
  return ok(values.map(row=>({[key]:row})))
 }
-const store=openStore(dir,vault);store.saveSettings({expectedRevision:0,credential:'PREVIEW_FIXTURE_ONLY',patch:{projects:[{id:'1',name:'交互验证项目',enabled:true,color:'#167d7f'}],members,currentUser:members[0],groups:[{id:'default',name:'研发与测试',memberIds:members.map(m=>m.staffId)},{id:'qa',name:'测试组',memberIds:['300'],testing:true}],defaultGroupId:'default',tapd:{baseUrl:'https://api.tapd.cn',workspaceIds:['1'],defaultTypes:['task','bug']}}});store.close()
+const store=openStore(dir,vault);store.saveSettings({expectedRevision:0,credential:'PREVIEW_FIXTURE_ONLY',patch:{projects:[{id:'1',name:'交互验证项目',enabled:true,color:'#167d7f'}],members,currentUser:members[0],groups:[{id:'default',name:'研发与测试',memberIds:members.map(m=>m.staffId)},{id:'qa',name:'测试组',memberIds:['300'],testing:true}],defaultGroupId:'default',tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task','bug']}}});store.close()
 const service=await startServer({dataDir:dir,port:0,vault,tapdTransport}),client=new Client({name:'browser-preview',version:'1'}),transport=new StreamableHTTPClientTransport(new URL(service.info.url),{requestInit:{headers:{Authorization:'Bearer '+readFileSync(join(dir,'access-token'),'utf8').trim()}}});await client.connect(transport)
 const analysis=await client.callTool({name:'teamsight_analyze_hours',arguments:{start:'2026-11-02',end:'2026-11-06',analysisDate:'2026-11-02',scope:'team'}})
 if(!analysis.structuredContent.analysisId)throw new Error('PREVIEW_ANALYSIS_FAILED')

@@ -4,7 +4,7 @@ import GanttLayers from './GanttLayers.vue'
 import type { ScheduleTask, MemberHours } from '@teamsight/core'
 const range={start:'2026-11-02',end:'2026-11-03'}
 const task:ScheduleTask={id:'101',sourceType:'task',projectId:'1',projectName:'One',projectColor:'#167d7f',title:'Task',assigneeId:'100',assigneeIds:['100'],assigneeName:'A',startDate:range.start,dueDate:range.end,status:'done',tapdUrl:'https://www.tapd.cn/tapd_fe/1/task/detail/101',storyId:'9',effort:'8',hours:{estimate:8,estimateMissing:false,actual:3,actualCoverage:'cumulative',remaining:5}}
-const member:MemberHours={member:{staffId:'100',name:'A'},days:[{date:range.start,leaveHours:0,target:8,actual:3,allocated:5,total:8,deficit:0,basis:'forecast',state:'enough',contributions:[{taskKey:'1:task:101',projectId:'1',actual:3,allocated:5,explanation:'source'}],reasons:[]}],pending:[],historicalShortDays:0,forecastShortDays:0}
+const member:MemberHours={member:{staffId:'100',name:'A'},days:[{date:range.start,target:8,actual:3,allocated:5,total:8,deficit:0,basis:'forecast',state:'enough',contributions:[{taskKey:'1:task:101',projectId:'1',actual:3,allocated:5,explanation:'source'}],reasons:[]}],pending:[],historicalShortDays:0,forecastShortDays:0}
 let view:VueWrapper
 const mountView=(mode:'tasks'|'hours'='tasks')=>view=mount(GanttLayers,{attachTo:document.body,props:{tasks:[task],members:[member],range,today:range.start,mode}})
 const detail=()=>document.querySelector<HTMLDialogElement>('dialog')!

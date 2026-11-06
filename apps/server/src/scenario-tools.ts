@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/server'
 import { BusinessError } from './business.js'
-import { ProbeError } from './storage.js'
+import { StorageError } from './storage.js'
 import type { TeamSightScenarios } from './scenarios.js'
 import { isValidDateKey, type TeamSightSettings } from '@teamsight/core'
 const id=z.string().trim().min(1).max(160)
@@ -12,7 +12,7 @@ export const publicConfigPatch=z.object({
   teamName:z.string().trim().min(1).max(80).optional(),timeZone:z.enum(['Asia/Shanghai','UTC']).optional(),
   projects:z.array(z.object({id,name:z.string().min(1),enabled:z.boolean(),color:z.string().regex(/^#[a-fA-F0-9]{6}$/),alias:z.string().optional(),order:z.number().int().nonnegative().optional(),available:z.boolean().optional()}).strict()).optional(),
   members:z.array(member).optional(),groups:z.array(group).min(1).optional(),defaultGroupId:id.optional(),
-  hours:z.object({dailyRequiredHours:z.number().min(0).max(24),exemptions:z.array(z.object({staffId:id,date,hours:z.number().positive().max(24),note:z.string()}).strict()),completedStates:z.array(z.object({projectId:id,type:z.enum(['task','bug']),values:z.array(z.string())}).strict())}).strict().optional(),
+  hours:z.object({dailyRequiredHours:z.number().min(0).max(24),completedStates:z.array(z.object({projectId:id,type:z.enum(['task','bug']),values:z.array(z.string())}).strict())}).strict().optional(),
   chinaCalendar:z.object({enabled:z.boolean()}).strict().optional(),
 }).strict()
 const scope={scope:z.enum(['self','team']).optional(),memberIds:z.array(id).min(1).max(100).optional(),groupIds:z.array(id).min(1).optional()}
@@ -27,7 +27,7 @@ export function registerScenarioTools(server:McpServer,scenarios:TeamSightScenar
   function add<S extends z.ZodRawShape>(name:string,description:string,schema:z.ZodObject<S>,run:(input:z.infer<z.ZodObject<S>>)=>unknown,readOnly=true) {
     server.registerTool(name,{description,inputSchema:schema,annotations:{readOnlyHint:readOnly,destructiveHint:false,openWorldHint:true}},async input=>{
       try {const value=await run(schema.parse(input));return {content:[{type:'text' as const,text:JSON.stringify(value)}],structuredContent:value as Record<string,unknown>}}
-      catch(error) {const code=error instanceof BusinessError||error instanceof ProbeError?error.code:error instanceof z.ZodError?'INVALID_ARGUMENTS':error instanceof RangeError?'INVALID_RANGE':'OPERATION_FAILED';const value={code,...(error instanceof BusinessError?error.details:{}),...(code==='REVISION_CONFLICT'?{current:scenarios.getConfig()}:{}),...(code==='CONFIG_REQUIRED'?{next:'teamsight_open_settings'}:{})};return {isError:true,content:[{type:'text' as const,text:JSON.stringify(value)}],structuredContent:value}}
+      catch(error) {const code=error instanceof BusinessError||error instanceof StorageError?error.code:error instanceof z.ZodError?'INVALID_ARGUMENTS':error instanceof RangeError?'INVALID_RANGE':'OPERATION_FAILED';const value={code,...(error instanceof BusinessError?error.details:{}),...(code==='REVISION_CONFLICT'?{current:scenarios.getConfig()}:{}),...(code==='CONFIG_REQUIRED'?{next:'teamsight_open_settings'}:{})};return {isError:true,content:[{type:'text' as const,text:JSON.stringify(value)}],structuredContent:value}}
     })
   }
   add('teamsight_get_config','Read non-secret settings, current user, identity directory, groups and default team. Discovered identities are not automatically team members.',z.object({}).strict(),()=>scenarios.getConfig())

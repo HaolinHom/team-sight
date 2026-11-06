@@ -17,16 +17,8 @@ export interface ProjectConfig {
 export interface MemberEntry { staffId: string; name: string; account?: string; enabled?: boolean; order?: number }
 export interface MemberGroup { id: string; name: string; memberIds: string[]; testing?: boolean }
 
-export interface LeaveExemption {
-  staffId: string
-  date: string
-  hours: number
-  note: string
-}
-
 export interface HoursSettings {
   dailyRequiredHours: number
-  exemptions: LeaveExemption[]
   completedStates: Array<{ projectId: string; type: WorkItemType; values: string[] }>
 }
 
@@ -35,9 +27,8 @@ import type { ChinaCalendarSettings } from './calendar.js'
 
 export interface TapdSettings {
   baseUrl: string
-  workspaceIds: string[]
   defaultTypes: WorkItemType[]
-  writeAccess?: { workspaceIds: string[]; operations: Array<'create' | 'update'>; fields: string[] }
+  writeAccess?: { operations: Array<'create' | 'update'>; fields: string[] }
 }
 
 export interface TeamSightSettings {
@@ -91,13 +82,6 @@ export interface TimesheetRecord {
   hours: number
 }
 
-export interface DailyHoursSummary {
-  date: string
-  target: number
-  actual: number
-  deficit: number
-  state: 'short' | 'enough' | 'over' | 'exempt'
-}
 
 export interface BasicQueryResult {
   status: 'complete' | 'partial' | 'failed'

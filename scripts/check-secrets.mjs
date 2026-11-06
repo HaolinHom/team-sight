@@ -12,8 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_TARGETS = [
-  'dist',
-  'src-tauri/target/release',
+  'apps/server/dist',
+  'apps/mcp-ui/dist',
+  'packages/core/dist',
+  'packages/tapd/dist',
   'README.md',
   'docs',
   'artifacts',

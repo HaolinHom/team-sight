@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { businessDate, normalizeDateKey, parseAssignees, resolveMemberScope, hoursTaskKey, parseHours, isHoursCompleted, planSchedule, checkRisks,
+import { businessDate, normalizeDateKey, parseAssignees, resolveMemberScope, hoursTaskKey, parseHours, isHoursCompleted, planSchedule, checkRisks, MCP_RULES_VERSION,
   type TeamSightSettings, type MemberEntry, type RawRow, type TeamAnalysis, type PlanningTask, type PlanningDependency, type PlanningInput, type PlanningResult, type CapacityDay, type ScheduleTask } from '@teamsight/core'
 import { BusinessError, type TeamSightBusiness, type AnalysisInput } from './business.js'
 import { digest, fieldHashes, type OperationReceipt } from './business-storage.js'
@@ -58,7 +58,7 @@ export function createScenarios(business:TeamSightBusiness,store:TeamSightStore)
     if(candidates.size===1) currentUser=[...candidates.values()][0]
     if(settings().revision!==before.revision) throw new BusinessError('REVISION_CONFLICT',{current:settings()})
     projects.sort((a,b)=>(a.order??0)-(b.order??0))
-    const saved=store.saveSettings({expectedRevision:before.revision,patch:{projects,currentUser,members:currentUser&&!before.settings.members.some(member=>member.staffId===currentUser!.staffId)?[...before.settings.members,currentUser]:before.settings.members,tapd:{...before.settings.tapd,workspaceIds:visible.map(project=>project.id)}}})
+    const saved=store.saveSettings({expectedRevision:before.revision,patch:{projects,currentUser,members:currentUser&&!before.settings.members.some(member=>member.staffId===currentUser!.staffId)?[...before.settings.members,currentUser]:before.settings.members,tapd:{...before.settings.tapd}}})
     business.files.invalidateCache()
     return {...saved,bootstrap:{projects:'complete',currentUser:currentUser?'complete':'unresolved',next:currentUser?'Continue the original read request.':'Current user could not be verified; resolve the account before using self scope.'}}
   }
@@ -154,6 +154,7 @@ export function createScenarios(business:TeamSightBusiness,store:TeamSightStore)
   }
 
   function capacities(analysis:TeamAnalysis,released:string[]):Record<string,CapacityDay[]> {
+    if(analysis.context.rulesVersion!==MCP_RULES_VERSION) throw new BusinessError('ANALYSIS_RULES_OUTDATED',{next:'Generate a new analysis before planning or writing.'})
     return Object.fromEntries(analysis.members.map(member=>[member.member.staffId,member.days.map(day=>{
       const occupied=day.contributions.filter(row=>!released.includes(row.taskKey)).reduce((sum,row)=>sum+row.allocated,0)
       return {date:day.date,target:day.target,actual:day.actual,occupied,available:Math.max(day.target-day.actual-occupied,0),unknown:analysis.status!=='complete'||day.reasons.length>0}
@@ -168,6 +169,7 @@ export function createScenarios(business:TeamSightBusiness,store:TeamSightStore)
   function getCalculation(id:string) {
     const value=calculations.get(id)
     if(!value||Date.now()-value.createdAt>30*60_000) {calculations.delete(id);throw new BusinessError('CALCULATION_EXPIRED',{next:'Re-read TAPD and calculate again.'})}
+    if(value.analysis.context.rulesVersion!==MCP_RULES_VERSION) throw new BusinessError('ANALYSIS_RULES_OUTDATED',{next:'Generate a new analysis before planning or writing.'})
     return value
   }
   async function prepare(input:ScheduleRequest,team=false) {
@@ -257,7 +259,7 @@ export function createScenarios(business:TeamSightBusiness,store:TeamSightStore)
       day.allocated=day.contributions.reduce((sum,row)=>sum+row.allocated,0);day.total=day.actual+(day.basis==='forecast'?day.allocated:0);day.deficit=Math.max(day.target-day.total,0);day.available=Math.max(day.target-day.total,0)
       day.state=day.reasons.length?'unknown':day.target===0?'exempt':day.deficit>1e-8?'short':day.total>day.target?'over':'enough'
     }
-    view.risks=checkRisks(view.snapshot,view.members,current,base.context.analysisDate,'mcp')
+    view.risks=checkRisks(view.snapshot,view.members,current,base.context.analysisDate)
     view.limitations.push('模拟结果：日期和分配尚未写入TAPD；原始分析 '+base.analysisId)
     return view
   }

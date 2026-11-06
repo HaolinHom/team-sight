@@ -8,8 +8,8 @@ import RemoveSetting from './RemoveSetting.vue'
 import './theme.css'
 import './settings-theme.css'
 
-const app = new App({ name: 'TeamSight settings', version: '0.2.3' }, {}, { autoResize: true })
-const settings = reactive<Settings>({ schemaVersion: 5, teamName: '', timeZone: 'Asia/Shanghai', projects: [], members: [], groups: [{ id:'default', name:'默认分组', memberIds:[] }], defaultGroupId:'default', hours:{dailyRequiredHours:8,exemptions:[],completedStates:[]}, chinaCalendar:{enabled:false,years:{}},tapd:{baseUrl:'https://api.tapd.cn',workspaceIds:[],defaultTypes:['task','bug'],writeAccess:{workspaceIds:[],operations:[],fields:[]}},updatedAt:'' })
+const app = new App({ name: 'TeamSight settings', version: '0.3.0' }, {}, { autoResize: true })
+const settings = reactive<Settings>({ schemaVersion: 6, teamName: '', timeZone: 'Asia/Shanghai', projects: [], members: [], groups: [{ id:'default', name:'默认分组', memberIds:[] }], defaultGroupId:'default', hours:{dailyRequiredHours:8,completedStates:[]}, chinaCalendar:{enabled:false,years:{}},tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task','bug'],writeAccess:{operations:[],fields:[]}},updatedAt:'' })
 const formEl=ref<HTMLFormElement>()
 const baseline = ref<Settings>(), revision = ref(0), credentialPresent = ref(false), tapdToken = ref('')
 const target = ref<SettingsTarget | null>(null), fromOverview = ref(false), connected = ref(false), busy = ref(false), failed = ref(false), conflict = ref(false), message = ref('正在连接…')
@@ -29,7 +29,7 @@ const split = (value: string) => value.split(',').map(value=>value.trim()).filte
 let disposed = false
 function snapshot(value: Snapshot) {
   Object.assign(settings,JSON.parse(JSON.stringify(value.settings)))
-  settings.tapd.writeAccess ??= {workspaceIds:[],operations:[],fields:[]}
+  settings.tapd.writeAccess ??= {operations:[],fields:[]}
   baseline.value = JSON.parse(JSON.stringify(settings))
   revision.value = value.revision; credentialPresent.value = value.credentialPresent; conflict.value = false
 }

@@ -4,7 +4,7 @@ const state=vi.hoisted(()=>({instance:null as any,call:vi.fn(),context:vi.fn(),s
 vi.mock('@modelcontextprotocol/ext-apps',()=>({applyDocumentTheme:vi.fn(),applyHostStyleVariables:vi.fn(),App:class {ontoolresult:any;ontoolinput:any;constructor(){state.instance=this}async connect(){}getHostContext(){return {theme:'light'}}callServerTool=state.call;updateModelContext=state.context;sendMessage=state.send}}))
 import FormalSettings from './FormalSettings.vue'
 import {categories,settingsTarget} from './settings-model'
-const settings={schemaVersion:5,teamName:'Team',timeZone:'Asia/Shanghai',projects:[{id:'1',name:'One',enabled:true,color:'#EB732D',alias:'Alias'}],members:[],groups:[{id:'default',name:'默认组',memberIds:[]}],defaultGroupId:'default',currentUser:{staffId:'100',name:'Me'},hours:{dailyRequiredHours:8,exemptions:[{staffId:'100',date:'2026-11-03',hours:2}],completedStates:[]},chinaCalendar:{enabled:true,years:{}},tapd:{baseUrl:'https://api.tapd.cn',workspaceIds:['1'],defaultTypes:['task'],writeAccess:{workspaceIds:[],operations:[],fields:[]}},updatedAt:''}
+const settings={schemaVersion:6,teamName:'Team',timeZone:'Asia/Shanghai',projects:[{id:'1',name:'One',enabled:true,color:'#EB732D',alias:'Alias'}],members:[],groups:[{id:'default',name:'默认组',memberIds:[]}],defaultGroupId:'default',currentUser:{staffId:'100',name:'Me'},hours:{dailyRequiredHours:8,completedStates:[]},chinaCalendar:{enabled:true,years:{}},tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task'],writeAccess:{operations:[],fields:[]}},updatedAt:''}
 const snapshot={settings,revision:4,credentialPresent:true}
 const response=(value:unknown)=>({structuredContent:JSON.parse(JSON.stringify(value)),content:[]})
 beforeEach(()=>{state.call.mockReset();state.context.mockReset();state.send.mockReset();state.context.mockResolvedValue({});state.send.mockResolvedValue({});state.call.mockResolvedValue(response(snapshot))})
@@ -23,9 +23,9 @@ describe('directed settings',()=>{
 })
 
 describe('simplified connection settings',()=>{
- it('offers seven categories and maps legacy targets without removed forms',async()=>{
+ it('offers seven categories and rejects retired targets',async()=>{
   expect(categories.map(item=>item.id)).toEqual(['connection','projects','members','groups','hours','calendar','completed'])
-  for(const [old,next] of Object.entries({write:'connection',general:'connection',leave:'overview',import:'overview'}))expect(settingsTarget(old)).toBe(next)
+  for(const old of ['write','general','leave','import'])expect(()=>settingsTarget(old)).toThrow('INVALID_SETTINGS_TARGET')
   const view=await open('overview');expect(view.findAll('.category-row')).toHaveLength(7)
   for(const removed of ['请假配置','旧配置导入','TAPD 写入范围','其他设置'])expect(view.text()).not.toContain(removed)
   view.unmount()

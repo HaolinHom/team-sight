@@ -9,7 +9,7 @@ let service,client,transport,cleanup
 try {
  const {runtimeProblem}=await import('./dist/runtime.js');if(runtimeProblem())throw new Error('NODE_UNSUPPORTED')
  const {startServer}=await import('./dist/server.js'),{openStore}=await import('./dist/storage.js'),{Client,StreamableHTTPClientTransport}=await import('@modelcontextprotocol/client')
- cleanup=()=>{if(existsSync(join(dir,'probe.sqlite'))){const store=openStore(dir);try{store.clearCredential()}finally{store.close()}}}
+ cleanup=()=>{if(existsSync(join(dir,'teamsight.sqlite'))){const store=openStore(dir);try{store.clearCredential()}finally{store.close()}}}
  const rows=new Map([['101',{id:'101',workspace_id:'1',name:'Isolated requirement',description:'Offline fixture'}]])
  let posts=0
  const ok=data=>({status:1,info:'success',httpStatus:200,data})
@@ -31,7 +31,7 @@ try {
  const missing=await client.callTool({name:'tapd_list_projects',arguments:{}});assert.equal(missing.structuredContent.code,'CONFIG_REQUIRED')
  const initial=await call('teamsight_get_config')
  const saved=await call('teamsight_save_settings',{expectedRevision:initial.revision,patch:{},tapdToken:'TEAMSIGHT_MCP_ISOLATED_SENTINEL'})
- assert.equal(saved.settings.schemaVersion,5);assert.equal(saved.settings.currentUser.staffId,'100');assert.equal(saved.settings.projects[0].enabled,true);assert.deepEqual(saved.settings.groups[0].memberIds,[])
+ assert.equal(saved.settings.schemaVersion,6);assert.equal(saved.settings.currentUser.staffId,'100');assert.equal(saved.settings.projects[0].enabled,true);assert.deepEqual(saved.settings.groups[0].memberIds,[])
  await call('teamsight_update_config',{expectedRevision:saved.revision,patch:{groups:[{id:'default',name:'Offline team',memberIds:['100']}],defaultGroupId:'default'}})
  const planned=await call('teamsight_plan_schedule',{tasks:[{ref:'new',title:'Offline task',hours:4,projectId:'1',storyId:'101'}],start:'2026-11-02',end:'2026-11-06',analysisDate:'2026-11-02'})
  assert.equal(planned.status,'feasible')

@@ -32,7 +32,3 @@ setting.json
 # env
 .env.local
 .env.*.local
-
-# Rust / Tauri
-/src-tauri/target
-/src-tauri/gen/schemas

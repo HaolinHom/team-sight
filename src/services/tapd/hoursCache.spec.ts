@@ -1,5 +1,0 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { createHoursCache } from './hoursCache';
-afterEach(()=>vi.restoreAllMocks());
-it('缓存有有效期，失败和超大响应不驻留',()=>{let now=100;vi.spyOn(Date,'now').mockImplementation(()=>now);const cache=createHoursCache(60);const result={rows:[{id:'1'}],complete:true,fetchedAt:100};cache.set('a',result);expect(cache.get('a')).toBe(result);now=161;expect(cache.get('a')).toBeUndefined();cache.set('failed',{rows:[],complete:false});expect(cache.get('failed')).toBeUndefined();cache.set('large',{rows:Array.from({length:2001},()=>({id:'x'})),complete:true});expect(cache.get('large')).toBeUndefined();});
-it('按上下文清理且遵守缓存数量上限',()=>{const cache=createHoursCache();cache.set('user1|a',{rows:[],complete:true});cache.set('user2|a',{rows:[],complete:true});cache.clear('user1|');expect(cache.get('user1|a')).toBeUndefined();expect(cache.get('user2|a')).toBeDefined();for(let i=0;i<513;i++)cache.set(String(i),{rows:[],complete:true});expect(cache.get('0')).toBeUndefined();expect(cache.get('512')).toBeDefined();});

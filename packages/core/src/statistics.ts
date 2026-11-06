@@ -21,7 +21,7 @@ export function formatHours(value: number): string {
 interface Allocation { task: ScheduleTask; key: string; remaining: number; dates: string[]; overtimeDates: string[]; explanation: string }
 
 export function calculateHours(input: {
-  snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string; calendar?: WorkingCalendar; policy?: 'legacy' | 'mcp';
+  snapshot: HoursSnapshot; members: readonly MemberEntry[]; settings: HoursSettings; range: DateRange; today: string; calendar?: WorkingCalendar;
 }): MemberHours[] {
   const { snapshot, members, settings, range, today } = input;
   const dates = eachDateKey(range);
@@ -43,7 +43,7 @@ export function calculateHours(input: {
   const taskIssues = new Set(snapshot.issues.filter(issue => issue.taskKey && issue.affects !== 'actual').map(issue => issue.taskKey));
   for (const task of tasks) {
     if (isHoursCompleted(task, settings)) continue;
-    const key = hoursTaskKey(task), estimate = (parseHours(task.effort) ?? (input.policy === 'mcp' && (task.effort === undefined || !String(task.effort).trim()) ? 0 : null));
+    const key = hoursTaskKey(task), estimate = (parseHours(task.effort) ?? ((task.effort === undefined || !String(task.effort).trim()) ? 0 : null));
     const remaining = estimate === null ? null : Math.max(estimate - (totals.get(key) ?? 0), 0);
     const share = estimate === null ? 0 : estimate / task.assigneeIds.length;
     const deficits = task.assigneeIds.map(id => Math.max(share - (personal.get(key + ':' + id) ?? 0), 0));
@@ -54,7 +54,6 @@ export function calculateHours(input: {
       owned.push(task); tasksByMember.set(id, owned);
     }
   }
-  const exemptions = new Map((input.policy === 'mcp' ? [] : settings.exemptions).map(item => [item.staffId + ':' + item.date, item.hours]));
   const weekdays = new Map<string, boolean>();
   return members.map(member => {
     const dayMap = new Map<string, DailyHours>();
@@ -70,7 +69,7 @@ export function calculateHours(input: {
     const targetFor = (date: string): number => {
       let target = targetCache.get(date);
       if (target === undefined) {
-        target = workingFor(date) ? Math.max(settings.dailyRequiredHours - (exemptions.get(member.staffId + ':' + date) ?? 0), 0) : 0;
+        target = workingFor(date) ? settings.dailyRequiredHours : 0;
         targetCache.set(date, target);
       }
       return target;
@@ -78,7 +77,7 @@ export function calculateHours(input: {
     function getDay(date: string): DailyHours {
       let day = dayMap.get(date);
       if (!day) {
-        day = { date, leaveHours: exemptions.get(member.staffId + ':' + date) ?? 0, actual: 0, allocated: 0, total: 0, target: targetFor(date), deficit: 0, basis: date < today ? 'actual' : 'forecast', state: 'enough', contributions: [], reasons: [] };
+        day = { date, actual: 0, allocated: 0, total: 0, target: targetFor(date), deficit: 0, basis: date < today ? 'actual' : 'forecast', state: 'enough', contributions: [], reasons: [] };
         dayMap.set(date, day);
       }
       return day;
@@ -114,7 +113,7 @@ export function calculateHours(input: {
       const taskDates = validInterval ? eachDateKey({ start: task.startDate!, end: task.dueDate! }) : [];
       const trailingRestDates: string[] = [];
       for (let index = taskDates.length - 1; index >= 0 && !workingFor(taskDates[index]); index--) trailingRestDates.unshift(taskDates[index]);
-      const overtimeEligible = trailingRestDates.filter(date => date >= today && !exemptions.has(member.staffId + ':' + date));
+      const overtimeEligible = trailingRestDates.filter(date => date >= today);
       taskOvertimeDates.set(key, new Set(overtimeEligible));
       for (const date of overtimeEligible) overtimeDates.add(date);
       if (taskIssues.has(key)) {

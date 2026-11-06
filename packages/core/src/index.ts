@@ -2,7 +2,6 @@ export * from './types.js'
 export * from './date.js'
 export * from './settings.js'
 export * from './schedule.js'
-export * from './hours.js'
 
 export * from './calendar.js'
 export * from './hoursSettings.js'

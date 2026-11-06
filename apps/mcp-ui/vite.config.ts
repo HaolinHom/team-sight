@@ -7,8 +7,8 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 const root = dirname(fileURLToPath(import.meta.url))
 const entry = process.env.TEAMSIGHT_MCP_ENTRY
 const input = entry ? resolve(root, entry) : {
-  index: resolve(root, 'index.html'),
   settings: resolve(root, 'settings.html'),
+  analysis: resolve(root, 'analysis.html'),
 }
 
 export default defineConfig({

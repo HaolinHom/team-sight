@@ -4,7 +4,7 @@ import { buildGanttModel, hoursStatus } from './gantt-model'
 
 const range = { start: '2026-10-01', end: '2026-10-31' }, today = '2026-10-15'
 const task = (id: string, start = '2026-10-08', due = start): ScheduleTask => ({ id, sourceType: 'task', projectId: '1', projectName: '项目', projectColor: '#123456', title: id, assigneeId: '100', assigneeIds: ['100'], assigneeName: '成员', startDate: start, dueDate: due, status: 'open', tapdUrl: '' })
-const day = (values: Partial<DailyHours> = {}): DailyHours => ({ date: '2026-10-08', leaveHours: 0, actual: 8, allocated: 0, total: 8, target: 8, deficit: 0, basis: 'actual', state: 'enough', contributions: [], reasons: [], ...values })
+const day = (values: Partial<DailyHours> = {}): DailyHours => ({ date: '2026-10-08', actual: 8, allocated: 0, total: 8, target: 8, deficit: 0, basis: 'actual', state: 'enough', contributions: [], reasons: [], ...values })
 const member = (days = [day()], staffId = '100'): MemberHours => ({ member: { staffId, name: staffId }, days, pending: [], historicalShortDays: 0, forecastShortDays: 0 })
 const build = (tasks: ScheduleTask[], members = [member()]) => buildGanttModel(tasks, members, range, today, 190, 48)
 
@@ -45,7 +45,7 @@ describe('daily hours geometry and source association', () => {
   expect(model.layout.rows).toEqual(baseline.layout.rows)
   expect(model.cells).toEqual(baseline.cells)
   expect(model.bars).toEqual(baseline.bars)
-  const legacy: GanttDisplayTask = { ...empty, displaySpans: [], displayUnscheduledMemberIds: ['100', '200'] }
+  const legacy: GanttDisplayTask = Object.assign({ ...empty, displaySpans: [] }, { displayUnscheduledMemberIds: ['100', '200'] })
   const prepared: GanttDisplayTask = { ...planned, displaySpans: [{ memberId: '100', memberName: '100', start: planned.startDate!, end: planned.dueDate!, kind: 'planned', actualDays: [] }] }
   expect(buildGanttModel([prepared, legacy], people, range, today, 190, 48).layout.rows).toEqual(baseline.layout.rows)
  })
