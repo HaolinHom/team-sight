@@ -1,6 +1,6 @@
 # TeamSight MCP 平台与 Codex 验收
 
-当前发行目标：macOS arm64、Windows x64，外部 Node.js 22.14+ 且低于23，本轮macOS验证22.23.2（历史运行基线22.23.4）。Linux及其他架构未验收。配置 v6，SQLite user_version 为 4。0.3.0 → 0.3.1 不需要迁移。
+当前发行目标：macOS arm64、Windows x64，外部 Node.js 22.14+ 且低于23，本轮macOS验证22.23.2（历史运行基线22.23.4）。Linux及其他架构未验收。配置 v6，SQLite user_version 为 4。0.3.0／0.3.1 → 0.3.2 不需要迁移；本次仅更新 macOS arm64，Windows 0.3.2 未构建或验收。
 
 ## 构建及独立运行
 

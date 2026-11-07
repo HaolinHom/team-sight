@@ -1,12 +1,12 @@
 # TeamSight Server / MCP Apps 运行知识
 
-> 适用版本：MCP 0.3.0。2026-11-06 按仓库源码与版本文档复核；本机服务实时状态需调用 teamsight_status，不以历史部署记录代替。
+> 适用版本：MCP 0.3.2。基础运行规则于 2026-11-06 按源码复核，2026-11-07 更新版本资源与无迁移升级边界；本机服务实时状态需调用 teamsight_status，不以历史部署记录代替。
 
 ## 工程与服务入口
 
 服务位于 `apps/server`，Vue MCP Apps 位于 `apps/mcp-ui`，共享计算与 TAPD 客户端位于 `packages/core`、`packages/tapd`。根 `src`、`src-tauri`、Rust 和旧路由已退役。根 `pnpm build`、`pnpm test` 转发全部 MCP 构建和测试，包级构建先清理 dist；Vue 依赖由 MCP UI 自身声明。
 
-使用 Node.js 22.14+ 且低于 23、Node-API 10、pnpm 10.12.4。当前注册 37 个工具与 `ui://teamsight/settings-0.3.0.html`、`ui://teamsight/analysis-0.3.0.html` 两项资源。旧 probe、导入接口、tapd_list_workspaces 别名、p0/p1a/p1b 命令及旧资源地址已移除，旧卡片须重新打开。
+使用 Node.js 22.14+ 且低于 23、Node-API 10、pnpm 10.12.4。当前注册 37 个工具与 `ui://teamsight/settings-0.3.2.html`、`ui://teamsight/analysis-0.3.2.html` 两项资源。旧 probe、导入接口、tapd_list_workspaces 别名、p0/p1a/p1b 命令及旧资源地址已移除，旧卡片须重新打开。
 
 服务、MCP、SQLite 和资源管理共用一个 Node 进程。HTTP 仅监听 127.0.0.1，校验 Bearer、Host 和 Origin；MCP 路径为 /mcp，Apps 通过宿主桥通信。只保留 `TEAMSIGHT_DATA_DIR` 和 `TEAMSIGHT_UI_PATH`（正式设置 HTML 覆盖路径），停止接口为经鉴权的 `POST /_internal/stop`。开发启动、doctor 和隔离验收命令见[服务 README](../apps/server/README.md)。
 
@@ -46,8 +46,10 @@
 
 Windows 可通过 `TEAMSIGHT_MCP_NATIVE_CACHE` 显式引用可信同目标包；复用前校验目标、依赖版本、完整文件集合及 SHA-256，拒绝符号链接并记录来源清单哈希。结构、哈希及 PE 校验不代表 Windows 原生模块加载通过。详见[打包脚本](../scripts/package-mcp.mjs)与[平台验收](../docs/validation/teamsight-mcp-platforms.md)。
 
-KeepAlive LaunchAgent 升级先验证运行包、doctor 和隔离迁移，再 bootout 并确认旧进程退出，备份静止数据与启动配置，迁移核对后更新脚本并 bootstrap。保留旧包、源数据和旧钥匙串条目；失败时停止新版并恢复旧启动配置，不删除未知实例的锁。
+KeepAlive LaunchAgent 升级先验证运行包、doctor 和隔离 MCP，检查无活动分析或待发送写入，再 bootout 并确认旧进程退出，备份静止数据与启动配置，更新脚本并 bootstrap。跨存储版本时还须隔离迁移与迁移核对；0.3.1 → 0.3.2 沿用 DB v4／配置 v6，不执行迁移。保留旧包、源数据和旧钥匙串条目；失败时停止新版并恢复旧启动配置，不删除未知实例的锁。
 
 [0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)保存该版本的构建、回归、迁移、历史导出和 macOS 升级证据。测试数量、PID、revision、项目数及安装目录属于该次验收记录，不作为当前环境常量。Windows 实机、Linux、其他架构、原生 Apps 完整交互、真实 TAPD 写入及重启／休眠仍需对应验收；隔离浏览器和 app-only 可见性不代表原生宿主完整验收或凭据保密保证。
 
-本轮仅整理知识并静态核对，未重新构建、部署或执行业务测试。迁移实现见[迁移模块](../apps/server/src/migration.ts)，服务注册见[server](../apps/server/src/server.ts)。
+[0.3.2 展示精简与更新报告](../artifacts/report/20261107_甘特图展示精简与MCP032_测试报告.md)记录当次 macOS arm64 安装、状态及资源哈希核对、配置／凭据／历史文件保留验证。130 项回归及隔离浏览器通过，Windows 0.3.2 未构建，原生侧栏无可用 App tab，原生完整交互与视觉仍未验收。部署状态是当次证据，不替代实时 teamsight_status。
+
+本次知识提升仅静态核对，未重新构建、部署或执行业务测试。迁移实现见[迁移模块](../apps/server/src/migration.ts)，服务注册见[server](../apps/server/src/server.ts)。

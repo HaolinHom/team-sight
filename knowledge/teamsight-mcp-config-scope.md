@@ -1,12 +1,12 @@
 # TeamSight MCP 配置、项目范围与工时规则
 
-> 适用版本：MCP 0.3.0／配置 schema v6。2026-11-06 按源码复核。旧分析按快照读取；本轮为知识整理，未进行 Windows 实机、Codex 原生 Apps 完整交互或真实 TAPD 写入验收。
+> 适用版本：MCP 0.3.2／配置 schema v6。配置规则于 2026-11-06 按源码复核，2026-11-07 更新资源版本。旧分析按快照读取；本轮为知识整理，未进行 Windows 实机、Codex 原生 Apps 完整交互或真实 TAPD 写入验收。
 
 ## 设置入口与局部保存
 
 设置页保留七类：TAPD 连接（connection）、项目（projects）、成员（members）、分组（groups）、工时（hours）、节假日与调休（calendar）、完成状态（completed）。TAPD 连接依次集中账号连接、查询工作项类型、允许的写入操作与字段；不提供团队名称、默认查询项目、写入项目名单、请假配置或旧配置导入表单。
 
-指定设置类型时只显示对应表单；overview 为分类选择页。旧目标 write／general／leave／import 已拒绝，旧导入接口已移除。资源仅注册 `ui://teamsight/settings-0.3.0.html` 与 `ui://teamsight/analysis-0.3.0.html`，旧卡片需要重新打开。
+指定设置类型时只显示对应表单；overview 为分类选择页。旧目标 write／general／leave／import 已拒绝，旧导入接口已移除。资源仅注册 `ui://teamsight/settings-0.3.2.html` 与 `ui://teamsight/analysis-0.3.2.html`，旧卡片需要重新打开。
 
 writeAccess 保存只提交改变的子字段，服务端合并并校验配置修订，避免回传旧项目名单或覆盖未修改配置。已有自定义字段保留。凭据继续通过 Apps 填写并保存至系统凭据库，不在对话或工具结果中回显。
 

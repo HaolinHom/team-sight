@@ -1,15 +1,15 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "MCP 运行与配置"
-description: "TeamSight MCP 0.3.0 的工程、存储、迁移、排期恢复及配置规则；不收录退役 Rust/Tauri 工具链。"
+description: "TeamSight MCP 0.3.2 的工程、存储、迁移、排期恢复及配置规则；不收录退役 Rust/Tauri 工具链。"
 
 items:
   - id: teamsight-server-runtime-notes
     title: "TeamSight Server / MCP Apps 运行与验收边界"
     path: "knowledge/teamsight-server-runtime-notes.md"
-    summary: "MCP 0.3.0、37 工具/2 资源，Node 22.14+ 且低于 23；DB v4/配置 v6/TeamSight.MCP 钥匙串；显式迁移旧 DB v3/配置 v5，保留源并失败补偿；完整查询缓存 60 秒，计算缓存 30 分钟/50 条，搜索预算 50000；模拟只读、POST 前持久化批次回执、unknown 核对不重发；运行包和 LaunchAgent 升级/回退及平台验收边界。"
+    summary: "MCP 0.3.2、37 工具/2 项 0.3.2 资源，Node 22.14+ 且低于 23；DB v4/配置 v6/TeamSight.MCP 钥匙串，0.3.1 升级无迁移；显式迁移旧 DB v3/配置 v5，保留源并失败补偿；完整查询缓存 60 秒，计算缓存 30 分钟/50 条，搜索预算 50000；模拟只读、POST 前持久化批次回执、unknown 核对不重发；运行包和 LaunchAgent 升级/回退；macOS 安装证据见报告，Windows 0.3.2 未构建、原生 Apps 未完整验收。"
     tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "validation", "planning", "simulation", "batch", "recovery", "cache"]
-    verifiedAt: "2026-11-06"
+    verifiedAt: "2026-11-07"
 
   - id: teamsight-mcp-config-scope
     title: "TeamSight MCP 配置、项目范围与工时规则"
