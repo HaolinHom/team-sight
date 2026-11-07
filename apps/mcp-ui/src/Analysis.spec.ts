@@ -13,6 +13,8 @@ describe('focused analysis card',()=>{
   expect(view.findAll('form,input,select,nav')).toHaveLength(0)
   expect(view.findAll('button').map(button=>button.text())).toEqual(['任务优先','工时优先'])
   expect(view.get('[aria-label="甘特图模式"] button[aria-pressed=true]').text()).toBe('工时优先')
+  await view.get('[aria-label="甘特图模式"] button').trigger('click');await flushPromises()
+  expect(view.get('[aria-pressed=true]').text()).toBe('任务优先')
   expect(state.call).toHaveBeenCalledWith({name:'teamsight_read_analysis',arguments:{analysisId:'analysis',start:'2026-11-03',end:'2026-11-04',projectIds:['1']}})
   expect(state.context.mock.calls.at(-1)![0].content[0].text).toContain('snapshot');view.unmount()
  })
@@ -35,12 +37,25 @@ describe('focused analysis card',()=>{
  })
 })
 
-it('passes the saved calendar to the Gantt and explains missing historical calendar data',async()=>{
+it('passes the saved calendar to the Gantt without showing historical calendar notices',async()=>{
  const view=mount(Analysis);await flushPromises();await state.instance.ontoolresult(response({analysisId:'analysis'}));await flushPromises()
- expect(view.text()).toContain('此分析未保存日历明细')
+ expect(view.text()).not.toContain('此分析未保存日历明细')
  const calendar={'2026-11-03':{working:false,name:'假日'}}
  state.call.mockResolvedValue(response({...facts,calendar}));await state.instance.ontoolresult(response({analysisId:'analysis'}));await flushPromises()
  expect(view.text()).not.toContain('此分析未保存日历明细');expect(view.findAll('.date')[1].classes()).toContain('rest')
  state.call.mockResolvedValue(response({...facts,calendar:{}}));await state.instance.ontoolresult(response({analysisId:'analysis'}));await flushPromises()
  expect(view.text()).not.toContain('此分析未保存日历明细');view.unmount()
+})
+
+it.each(['complete','partial','failed'])('only shows the requested header and source footer for %s data',async status=>{
+ state.call.mockResolvedValue(response({...facts,status,limitations:['范围限制'],issues:[{projectId:'1',message:'来源问题'}],counts:{issues:10}}))
+ const view=mount(Analysis);await flushPromises()
+ expect(view.get('[role=status]').text()).toBe('正在连接…')
+ await state.instance.ontoolresult(response({analysisId:'analysis',simulation:{},viewFilters:{projectIds:['1']}}));await flushPromises()
+ expect(view.get('header').text()).toBe('模拟排期'+range.start+' — '+range.end+'任务优先工时优先')
+ expect(view.findAll('.legend,details,summary,.warning,.notice')).toHaveLength(0)
+ expect(view.get('footer').text()).toBe((status==='complete'?'数据完整':'部分 / 未知数据')+' · 来源 '+facts.fetchedAt+' · Asia/Shanghai')
+ expect(view.get('footer').element.children).toHaveLength(1)
+ expect(view.text()).not.toContain('范围限制');expect(view.text()).not.toContain('来源问题')
+ view.unmount()
 })

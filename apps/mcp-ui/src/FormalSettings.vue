@@ -8,7 +8,7 @@ import RemoveSetting from './RemoveSetting.vue'
 import './theme.css'
 import './settings-theme.css'
 
-const app = new App({ name: 'TeamSight settings', version: '0.3.1' }, {}, { autoResize: true })
+const app = new App({ name: 'TeamSight settings', version: '0.3.2' }, {}, { autoResize: true })
 const settings = reactive<Settings>({ schemaVersion: 6, teamName: '', timeZone: 'Asia/Shanghai', projects: [], members: [], groups: [{ id:'default', name:'默认分组', memberIds:[] }], defaultGroupId:'default', hours:{dailyRequiredHours:8,completedStates:[]}, chinaCalendar:{enabled:false,years:{}},tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task','bug'],writeAccess:{operations:[],fields:[]}},updatedAt:'' })
 const formEl=ref<HTMLFormElement>()
 const baseline = ref<Settings>(), revision = ref(0), credentialPresent = ref(false), tapdToken = ref('')

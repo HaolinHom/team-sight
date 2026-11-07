@@ -268,7 +268,7 @@ test('MCP exposes catalog, analysis Apps, writes, artifacts and applies validati
     assert.equal(opened.structuredContent.mode,'hours')
     assert.deepEqual(opened.structuredContent.viewFilters.memberIds,['100'])
     assert.equal((await call('teamsight_open_analysis',{analysisId:analyzed.analysisId,start:'2026-10-01'})).structuredContent.code,'VIEW_OUTSIDE_ANALYSIS')
-    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.1.html'})).contents[0].text,/排期与工时/)
+    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.2.html'})).contents[0].text,/排期与工时/)
     const directed=await call('teamsight_open_settings',{target:'projects'})
     assert.equal(directed.structuredContent.target,'projects')
     const automatic=await call('teamsight_open_analysis')
