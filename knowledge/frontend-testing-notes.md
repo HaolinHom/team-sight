@@ -1,6 +1,6 @@
 # MCP Apps 前端与 Vue 组件测试
 
-> 适用版本：MCP 0.3.0。2026-11-06 按源码复核。历史 Tauri 页面、路由、拖拽及运行时 mock 已退役，不再作为当前测试约定。
+> 适用版本：MCP 0.3.0。2026-11-06 按源码复核；2026-11-07 补充 SVG 模式渐变与隔离 Chrome 验证。历史 Tauri 页面、路由、拖拽及运行时 mock 已退役，不再作为当前测试约定。
 
 ## 工程与测试入口
 
@@ -21,10 +21,17 @@ SDK 隔离 iframe 缺少 allow-forms 时，原生表单提交曾被阻拦。当�
 - 接收新展示输入时递增 generation；异步返回和最终提交前均核对代数，卸载后禁止提交。新范围加载时清空旧视图，防止旧结果冒充当前选择。
 - 甘特图卸载时清理 ResizeObserver、定时器和滚动／窗口监听；模式或分析数据变化时关闭旧详情及提示。
 
+## SVG 图层切换与动画验收
+
+- 甘特图通过移动 keyed SVG 图层交换前后顺序。隔离 Chrome 实测发现，Vue 使用 insertBefore 移动层时，该层及后代上的局部 CSS transition 可能中断；只检查 DOM 节点、属性终值或 jsdom 组件测试无法发现颜色跳变。
+- 当前在稳定的 `.gantt-scroll` 上，用 `@property` 注册可继承的数值属性：任务透明度、工时填充强度、工时装饰强调。容器对这些属性执行 200ms ease-in-out 过渡，后代消费当前插值，避免图层移动重置局部动画。现有 `prefers-reduced-motion` 规则取消容器过渡。
+- 浏览器应采样两个方向的中间计算样式及最终值，并检查快速反向切换、节点身份、块几何、横纵滚动位置及即时 tabindex；减少动态效果时确认运行中动画数为 0。初末截图和属性终值不能单独证明渐变正确。
+- [2026-11-07 实施报告](../artifacts/report/20261107_甘特图节假日与模式切换_测试报告.md)附隔离 SDK 宿主验收脚本、fixture、结果与明暗／窄屏／导出截图。动画依赖 CSS `@property`，当次仅验证本机 Chrome headless，未验证 Safari／Firefox、真实移动设备或原生 Apps。
+
 ## 源码与验收边界
 
 - [设置表单](../apps/mcp-ui/src/FormalSettings.vue)、[变更 patch](../apps/mcp-ui/src/settings-model.ts)、[存储合并](../apps/server/src/storage.ts)。
 - [分页与代数](../apps/mcp-ui/src/Analysis.vue)、[服务端视图](../apps/server/src/business-tools.ts)、[图层清理](../apps/mcp-ui/src/GanttLayers.vue)。
 - [设置测试](../apps/mcp-ui/src/FormalSettings.spec.ts)、[分析测试](../apps/mcp-ui/src/Analysis.spec.ts)、[图层测试](../apps/mcp-ui/src/GanttLayers.spec.ts)、[模型测试](../apps/mcp-ui/src/gantt-model.spec.ts)。
 - [2026-11-04 报告](../artifacts/report/20261104_2225_teamsight-mcp-apps-ux_测试报告.md)记录沙箱保存问题及浏览器验证；[0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)记录该版本回归及隔离浏览器结果。历史测试数量不作为当前测试状态。
-- 组件测试、隔离 SDK 浏览器和 Codex 原生 Apps 属不同验收范围。本轮为知识静态核对，未重跑 UI 测试或原生宿主完整交互。
+- 组件测试、隔离 SDK 浏览器和 Codex 原生 Apps 属不同验收范围。2026-11-07 实施时完成了组件及隔离 Chrome 回归；此次知识提升仅做静态核对，未重新运行 UI 测试或原生宿主完整交互。

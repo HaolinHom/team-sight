@@ -1,6 +1,6 @@
 # TeamSight MCP 平台与 Codex 验收
 
-当前发行目标：macOS arm64、Windows x64，外部 Node.js 22.14+ 且低于23，本轮macOS验证22.23.2（历史运行基线22.23.4）。Linux及其他架构未验收。配置v5，SQLite user_version仍为3。
+当前发行目标：macOS arm64、Windows x64，外部 Node.js 22.14+ 且低于23，本轮macOS验证22.23.2（历史运行基线22.23.4）。Linux及其他架构未验收。配置 v6，SQLite user_version 为 4。0.3.0 → 0.3.1 不需要迁移。
 
 ## 构建及独立运行
 
@@ -8,7 +8,7 @@
 
 在独立且含空格的目录解压对应平台包，配置 Node22 PATH。先运行 node dist/cli.js doctor，再运行 node verify-mcp.mjs --evidence-dir ./evidence。doctor会在隔离目录创建/清理系统测试凭据，输出中不含明文。verify-mcp验证真实MCP传输和模拟TAPD接口，不触及业务TAPD。
 
-运行 node dist/cli.js serve --data-dir ./data --port 43127，使用 node dist/cli.js status/stop --data-dir ./data 查看/停止实例。仍支持原 TEAMSIGHT_P0_DATA_DIR，优先使用 TEAMSIGHT_DATA_DIR。原配置/凭据/回执不被新目录自动覆盖。
+运行 node dist/cli.js serve --data-dir ./data --port 43127，使用 node dist/cli.js status/stop --data-dir ./data 查看/停止实例。使用 TEAMSIGHT_DATA_DIR；旧 TEAMSIGHT_P0_DATA_DIR 已移除。原配置/凭据/回执不被新目录自动覆盖。
 
 ## Codex 接入
 

@@ -7,13 +7,13 @@ items:
   - id: frontend-testing-notes
     title: "MCP Apps 前端与 Vue 组件测试"
     path: "knowledge/frontend-testing-notes.md"
-    summary: "UI 包独立声明 Vue 与测试依赖；根 test 转发全部 MCP 回归；沙箱保存用 button/click 和 reportValidity，桥接参数转普通 JSON；局部 patch 分层合并并校验修订；成员和任务游标在同一范围读全后提交，校验快照与 generation；组件和隔离浏览器不替代原生 Apps 验收。"
-    tags: ["frontend", "testing", "vitest", "vue", "mcp-apps", "sandbox", "forms", "pagination", "async"]
-    verifiedAt: "2026-11-06"
+    summary: "UI 包独立声明 Vue 与测试依赖；沙箱保存走 click 和普通 JSON；分页同范围读全并检查快照/generation；SVG 层移动可中断局部渐变，稳定容器以可继承注册数值属性驱动动画，须采样双向中间样式及快速切换；隔离 Chrome 不替代原生 Apps 验收。"
+    tags: ["frontend","testing","vitest","vue","mcp-apps","sandbox","forms","pagination","async","svg","animation"]
+    verifiedAt: "2026-11-07"
 
   - id: china-calendar-notes
     title: "中国节假日及调休与年度缓存"
     path: "knowledge/china-calendar-notes.md"
-    summary: "MCP schema v6 默认关闭中国日历；core 共享工作日规则，Node 固定双源获取并校验 holiday-cn，12 月补查次年公告、较后来源覆盖；年度缓存无 TTL，缺失自动尝试一次、已有仅显式刷新；失败保留旧值，缺来源使分析 partial 并标注目标待确认；当前不扣请假。"
-    tags: ["calendar", "holiday-cn", "settings", "cache", "hours", "mcp"]
-    verifiedAt: "2026-11-06"
+    summary: "schema v6 默认关闭中国日历；共享工作日规则与年度缓存，缺失来源标 partial；分析保存范围内 calendar 覆盖，空对象回退普通周历、缺字段为旧分析；界面/导出及模拟沿用快照日历，视图按日期裁剪，不以零目标推断休息日。"
+    tags: ["calendar","holiday-cn","settings","cache","hours","mcp","snapshot","gantt"]
+    verifiedAt: "2026-11-07"
