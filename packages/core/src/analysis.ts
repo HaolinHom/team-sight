@@ -4,6 +4,7 @@ import { hoursTaskKey, parseHours } from './statistics.js'
 import type { HoursSnapshot, MemberHours } from './hoursTypes.js'
 import type { DateRange, TeamSightSettings } from './types.js'
 import type { ContributionItem } from './ganttDisplay.js'
+import type { WorkingCalendar } from './calendar.js'
 
 export const MCP_RULES_VERSION = 'teamsight-mcp-hours-v3'
 export interface AnalysisContext {
@@ -36,6 +37,8 @@ export interface TeamAnalysis {
   members: MemberHours[]
   risks: RiskFinding[]
   limitations: string[]
+  /** Calendar overrides used for this range; absent on historical analyses. */
+  calendar?: WorkingCalendar
   /** Worklog references resolved for presentation only; never calculation inputs. */
   contributionItems?: ContributionItem[]
 }

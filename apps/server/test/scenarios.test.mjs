@@ -144,7 +144,11 @@ test('real MCP transport exposes new tools, enforces generic schemas, and filter
  const f=fixture();let service,client,transport
  try{
   for(let i=0;i<205;i++)f.rows.set('task:'+String(1000+i),{id:String(1000+i),workspace_id:'2',name:'Page '+i,owner:'B_200',begin:today,due:today,effort:'0',status:'open'})
+  const calendar={'2026-11-03':{working:false,name:'假日'},'2026-11-05':{working:true,name:'调休'}}
+  f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{chinaCalendar:{enabled:true,years:{'2026':{year:2026,fetchedAt:'2026-01-01T00:00:00Z',papers:['https://example.test/2026'],days:calendar}}}}})
   const analysis=await f.business.analyze({...range,memberIds:['100','200']})
+  const historical=structuredClone(analysis);delete historical.calendar
+  const historicalFile=f.business.files.putFile('analysis',JSON.stringify(historical),'json','application/json')
   await f.business.close();f.store.close();service=await startServer({dataDir:f.dir,port:0,vault:f.vault,tapdTransport:f.transport})
   client=new Client({name:'scene-test',version:'1'});transport=new StreamableHTTPClientTransport(new URL(service.info.url),{requestInit:{headers:{Authorization:'Bearer '+readFileSync(join(f.dir,'access-token'),'utf8').trim()}}});await client.connect(transport)
   const call=(name,args={})=>client.callTool({name,arguments:args})
@@ -152,8 +156,10 @@ test('real MCP transport exposes new tools, enforces generic schemas, and filter
   const tools=await client.listTools();assert.ok(tools.tools.some(t=>t.name==='teamsight_simulate_urgent'));assert.ok(tools.tools.some(t=>t.name==='teamsight_write_tasks'))
   const invalid=await call('tapd_call_operation',{operationId:'users.current',parameters:{url:'https://elsewhere.test'}});assert.equal(invalid.isError,true)
   const current=await call('tapd_call_operation',{operationId:'users.current',parameters:{}});assert.equal(current.structuredContent.nick,'A_100')
-  const view=await call('teamsight_read_analysis',{analysisId:analysis.analysisId,projectIds:['2'],memberIds:['200'],taskOffset:200});assert.equal(view.structuredContent.tasks.length,5);assert.equal(view.structuredContent.members.length,1)
-  const narrowed=await call('teamsight_read_analysis',{analysisId:analysis.analysisId,projectIds:['2'],start:'2026-11-03',end:'2026-11-04'});assert.equal(narrowed.structuredContent.counts.tasks,0);assert.deepEqual(narrowed.structuredContent.context.range,{start:'2026-11-03',end:'2026-11-04'})
+  const view=await call('teamsight_read_analysis',{analysisId:analysis.analysisId,projectIds:['2'],memberIds:['200'],taskOffset:200});assert.equal(view.structuredContent.tasks.length,5);assert.equal(view.structuredContent.members.length,1);assert.deepEqual(view.structuredContent.calendar,calendar)
+  const firstPage=await call('teamsight_read_analysis',{analysisId:analysis.analysisId,projectIds:['2'],memberIds:['200']});assert.deepEqual(firstPage.structuredContent.calendar,view.structuredContent.calendar)
+  assert.equal('calendar' in (await call('teamsight_read_analysis',{analysisId:historicalFile.id})).structuredContent,false)
+  const narrowed=await call('teamsight_read_analysis',{analysisId:analysis.analysisId,projectIds:['2'],start:'2026-11-03',end:'2026-11-04'});assert.equal(narrowed.structuredContent.counts.tasks,0);assert.deepEqual(narrowed.structuredContent.context.range,{start:'2026-11-03',end:'2026-11-04'});assert.deepEqual(narrowed.structuredContent.calendar,{'2026-11-03':calendar['2026-11-03']})
   assert.doesNotMatch(JSON.stringify((await call('teamsight_get_config')).structuredContent),/ISOLATED_SCENARIO_TOKEN/)
  }finally{await transport?.terminateSession().catch(()=>{});await client?.close();await service?.close();rmSync(f.dir,{recursive:true,force:true})}
 })
@@ -209,5 +215,15 @@ test('batches apply enabled project scope per item without the old write whiteli
   ]})
   assert.deepEqual(result.items.map(item=>item.status),['failed','succeeded']);assert.equal(result.items[0].code,'WRITE_NOT_ALLOWED');assert.equal(f.writes(),1)
   assert.equal((await f.scenarios.requirementContext('https://www.tapd.cn/tapd_fe/1/story/detail/101',{includeMaterials:false})).story.id,'101')
+ }finally{await f.close()}
+})
+
+test('simulation copies the saved calendar independently of current settings',async()=>{
+ const f=fixture();try{
+  const planned=await f.scenarios.plan(proposed(2)),calculation=f.scenarios.getCalculation(planned.calculationId)
+  const calendar={'2026-11-06':{working:false,name:'快照假日'}};calculation.analysis.calendar=calendar
+  const view=f.scenarios.calculationView(planned.calculationId)
+  assert.deepEqual(view.calendar,calendar);view.calendar['2026-11-06'].working=true;assert.equal(calendar['2026-11-06'].working,false)
+  delete calculation.analysis.calendar;assert.equal(f.scenarios.calculationView(planned.calculationId).calendar,undefined)
  }finally{await f.close()}
 })

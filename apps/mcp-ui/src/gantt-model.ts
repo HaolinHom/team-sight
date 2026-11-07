@@ -1,4 +1,4 @@
-import { computeLayout, buildGanttDisplayTasks, filterGanttDisplayTasks, ganttDisplayRows, dateDiffInDays, type GanttDisplayTask, type DailyContribution, type DailyHours, type DateRange, type MemberHours, type ScheduleTask } from '@teamsight/core'
+import { computeLayout, buildGanttDisplayTasks, filterGanttDisplayTasks, ganttDisplayRows, dateDiffInDays, isWorkingDay, type WorkingCalendar, type GanttDisplayTask, type DailyContribution, type DailyHours, type DateRange, type MemberHours, type ScheduleTask } from '@teamsight/core'
 
 export const taskKey = (task: ScheduleTask) => [task.projectId, task.sourceType, task.id].join(':')
 export const hoursNumber = (value: number) => String(Math.floor((value + 1e-9) * 100) / 100)
@@ -29,7 +29,7 @@ export interface HoursCell {
 }
 const inRange = (date: string, range: DateRange) => date >= range.start && date <= range.end
 /** Shared presentation rows keep raw dates intact and align virtual bars with hours. */
-export function buildGanttModel(tasks: GanttDisplayTask[], members: MemberHours[], range: DateRange, today: string, labelWidth: number, dayWidth: number) {
+export function buildGanttModel(tasks: GanttDisplayTask[], members: MemberHours[], range: DateRange, today: string, labelWidth: number, dayWidth: number, calendar?: WorkingCalendar) {
   const prepared = tasks.length && tasks.every(task => task.displaySpans !== undefined) ? tasks : buildGanttDisplayTasks(tasks, members, range)
   const slots = ganttDisplayRows(filterGanttDisplayTasks(prepared, range, members.map(member => member.member.staffId)))
   const byId = new Map(slots.map(slot => [slot.layoutTask.sourceType + ':' + slot.layoutTask.id, slot]))
@@ -70,6 +70,7 @@ export function buildGanttModel(tasks: GanttDisplayTask[], members: MemberHours[
         return true
       })
       const first = relatedRows[0] ?? header, last = relatedRows.at(-1) ?? header
+      if (!relatedRows.length && !isWorkingDay(day.date, calendar) && day.actual === 0 && day.allocated === 0 && day.total === 0 && day.state !== 'unknown' && !day.reasons.length) continue
       cells.push({ key: member.member.staffId + ':' + day.date, member, day, x: layout.days.indexOf(day.date) * dayWidth + 3,
         y: first.y + 2, width: dayWidth - 6, height: last.y + last.height - first.y - 4, related, status: hoursStatus(day, today) })
     }

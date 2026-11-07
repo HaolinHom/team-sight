@@ -88,7 +88,7 @@ test('current HTTP clients share settings, enforce auth, expose only current res
   assert.ok(!tools.some(t=>t.name.startsWith('teamsight_probe_')))
   assert.ok(tools.some(t=>t.name==='teamsight_open_settings'&&t._meta.ui.resourceUri===SETTINGS_UI_URI))
   const resources=(await a.listResources()).resources.map(r=>r.uri)
-  assert.deepEqual(resources.sort(),[SETTINGS_UI_URI,'ui://teamsight/analysis-0.3.0.html'].sort())
+  assert.deepEqual(resources.sort(),[SETTINGS_UI_URI,'ui://teamsight/analysis-0.3.1.html'].sort())
   const resource=await a.readResource({uri:SETTINGS_UI_URI});assert.equal(resource.contents[0].mimeType,'text/html;profile=mcp-app');assert.doesNotMatch(resource.contents[0].text,/<script[^>]*\bsrc=/)
   const saved=await call(a,'teamsight_save_settings',{expectedRevision:0,patch:{teamName:'并发会话'}})
   assert.equal(saved.structuredContent.revision,1)

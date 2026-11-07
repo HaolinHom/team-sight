@@ -268,7 +268,7 @@ test('MCP exposes catalog, analysis Apps, writes, artifacts and applies validati
     assert.equal(opened.structuredContent.mode,'hours')
     assert.deepEqual(opened.structuredContent.viewFilters.memberIds,['100'])
     assert.equal((await call('teamsight_open_analysis',{analysisId:analyzed.analysisId,start:'2026-10-01'})).structuredContent.code,'VIEW_OUTSIDE_ANALYSIS')
-    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.0.html'})).contents[0].text,/排期与工时/)
+    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.1.html'})).contents[0].text,/排期与工时/)
     const directed=await call('teamsight_open_settings',{target:'projects'})
     assert.equal(directed.structuredContent.target,'projects')
     const automatic=await call('teamsight_open_analysis')
@@ -320,4 +320,53 @@ test('disabling a project during metadata loading prevents the pending POST',asy
   const result=await pending.write({...createInput(),idempotencyKey:'disable-during-write'},'create')
   assert.equal(changed,true);assert.equal(result.status,'failed');assert.equal(result.code,'CONFIG_CHANGED');assert.equal(f.writes(),0)
  }finally{await pending.close();await f.close()}
+})
+
+test('analysis saves the calendar actually used, bounds overrides and keeps old snapshots immutable',async()=>{
+ const f=fixture();try{
+  const original=await f.business.analyze(query);assert.deepEqual(original.calendar,{})
+  const days={'2026-10-28':{working:false,name:'假日'},'2026-10-31':{working:true,name:'调休'},'2026-12-25':{working:false,name:'范围外'}}
+  f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{chinaCalendar:{enabled:true,years:{'2026':{year:2026,fetchedAt:'2026-01-01T00:00:00Z',papers:['https://example.test/2026'],days}}}}})
+  const analysis=await f.business.analyze(query)
+  assert.deepEqual(analysis.calendar,{'2026-10-28':days['2026-10-28'],'2026-10-31':days['2026-10-31']})
+  assert.equal(analysis.members[0].days.find(d=>d.date==='2026-10-28').target,0)
+  assert.equal(analysis.members[0].days.find(d=>d.date==='2026-10-31').target,8)
+  f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{chinaCalendar:{enabled:false}}})
+  assert.deepEqual((await f.business.analyze(query)).calendar,{})
+  assert.deepEqual(f.business.getAnalysis(analysis.analysisId).calendar,analysis.calendar)
+  assert.deepEqual(f.business.getAnalysis(original.analysisId).calendar,{})
+ }finally{await f.close()}
+})
+
+test('missing calendar sources retain existing partial-data warnings and ordinary-week fallback',async t=>{
+ const f=fixture();t.mock.method(globalThis,'fetch',async()=>{throw new Error('fixture offline')})
+ try{
+  f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{chinaCalendar:{enabled:true}}})
+  const analysis=await f.business.analyze(query)
+  assert.equal(analysis.status,'partial');assert.deepEqual(analysis.calendar,{})
+  assert.ok(analysis.members[0].days.some(day=>day.reasons.some(reason=>reason.message.includes('中国日历来源不完整'))))
+ }finally{await f.close()}
+})
+
+test('all Gantt export pages shade holidays before grids/bars and preserve makeup workdays and historical notices',async()=>{
+ const f=fixture();try{
+  const analysis=await f.business.analyze(query)
+  analysis.calendar={'2026-10-28':{working:false,name:'假日'},'2026-10-31':{working:true,name:'调休'},'2026-11-28':{working:true,name:'调休'}}
+  analysis.context.range.end='2026-12-02'
+  analysis.snapshot.tasks=Array.from({length:35},(_,i)=>({...analysis.snapshot.tasks[0],id:'page-'+i,startDate:query.start,dueDate:'2026-12-02',assigneeIds:['100']}))
+  const pages=ganttSvgs(analysis);assert.equal(pages.length,4)
+  assert.ok(pages.slice(0,2).every(svg=>svg.includes('data-rest-date="2026-10-28"')))
+  assert.ok(pages.every(svg=>!svg.includes('data-rest-date="2026-10-31"')&&!svg.includes('data-rest-date="2026-11-28"')))
+  const svg=pages[0],rest=svg.indexOf('data-rest-date="2026-10-28"')
+  assert.ok(rest>svg.indexOf('fill="#edf5f6"'));assert.ok(rest<svg.indexOf('data-virtual='))
+  assert.match(svg,/<rect data-rest-date="2026-10-28"[^>]*fill="#f8f3ef"/)
+  assert.match(svg,/stroke-dasharray="4 4"/);assert.doesNotMatch(svg,/未保存日历明细/)
+  const html=renderGantt(analysis,f.business.files,'html')[0];assert.match(f.business.files.readFile(html.id).toString(),/data-rest-date="2026-10-28"/)
+  const png=renderGantt(analysis,f.business.files,'png')[0];assert.equal(f.business.files.readFile(png.id).subarray(1,4).toString(),'PNG')
+  delete analysis.calendar;assert.ok(ganttSvgs(analysis).every(svg=>svg.includes('未保存日历明细')))
+  assert.ok(ganttSvgs(analysis)[0].includes('data-rest-date="2026-10-31"'))
+  analysis.context.range={start:query.analysisDate,end:query.analysisDate}
+  const singleDay=ganttSvgs(analysis)[0];assert.match(singleDay,/普通周历展示。<\/text><text[^>]*>请重新分析/)
+  assert.ok(renderGantt(analysis,f.business.files,'png').length)
+ }finally{await f.close()}
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { DailyHours, GanttDisplayTask, MemberHours, ScheduleTask } from '@teamsight/core'
+import type { WorkingCalendar, DailyHours, GanttDisplayTask, MemberHours, ScheduleTask } from '@teamsight/core'
 import { buildGanttModel, hoursStatus } from './gantt-model'
 
 const range = { start: '2026-10-01', end: '2026-10-31' }, today = '2026-10-15'
@@ -80,4 +80,27 @@ describe('daily status uses the analysis date and target', () => {
   [day({ target: 0, total: 0, state: 'exempt' }), 'enough'],
   [day({ state: 'unknown' }), 'unknown'], [day({ reasons: [{ message: '来源不完整' }] }), 'unknown'],
  ] as const)('classifies %o as %s', (value, expected) => { expect(hoursStatus(value, today)).toBe(expected) })
+})
+
+describe('rest-day header hours visibility follows the calendar rather than targets',()=>{
+ it.each([
+  ['ordinary weekday', '2026-10-12', {}, {}, 1],
+  ['ordinary weekend', '2026-10-11', {}, {}, 0],
+  ['weekday holiday', '2026-10-01', {'2026-10-01':{working:false,name:'国庆'}}, {}, 0],
+  ['makeup Saturday', '2026-10-10', {'2026-10-10':{working:true,name:'调休'}}, {}, 1],
+  ['holiday actuals', '2026-10-01', {'2026-10-01':{working:false,name:'国庆'}}, {actual:2,total:2}, 1],
+  ['holiday forecast', '2026-10-01', {'2026-10-01':{working:false,name:'国庆'}}, {allocated:2,total:2}, 1],
+  ['holiday unknown', '2026-10-01', {'2026-10-01':{working:false,name:'国庆'}}, {state:'unknown' as const}, 1],
+  ['holiday incomplete', '2026-10-01', {'2026-10-01':{working:false,name:'国庆'}}, {reasons:[{message:'日历来源不完整'}]}, 1],
+ ] as Array<[string,string,WorkingCalendar,Partial<DailyHours>,number]>)('%s',(_name,date,calendar,values,count)=>{
+  const days=[day({date,actual:0,allocated:0,total:0,target:0,state:'exempt',...values})]
+  const model=buildGanttModel([], [member(days)], range,today,190,48,calendar)
+  expect(model.cells).toHaveLength(count);expect(model.bars).toEqual([])
+  expect(days[0].target).toBe(0)
+ })
+ it('keeps zero-hour boxes on task rows during holidays',()=>{
+  const calendar={'2026-10-01':{working:false,name:'国庆'}}
+  const model=buildGanttModel([task('holiday','2026-10-01')],[member([day({date:'2026-10-01',actual:0,allocated:0,total:0,target:0,state:'exempt'})])],range,today,190,48,calendar)
+  expect(model.cells).toHaveLength(1);expect(model.cells[0]!.y).toBeGreaterThan(30)
+ })
 })

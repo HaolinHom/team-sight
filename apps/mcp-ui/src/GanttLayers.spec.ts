@@ -15,17 +15,17 @@ describe('dual-layer Gantt',()=>{
  it('keeps only the foreground interactive and opens task details in a modal drawer',async()=>{
   mountView();const layers=view.findAll('[data-layer]')
   expect(layers.map(layer=>layer.attributes('data-layer'))).toEqual(['hours','tasks'])
-  expect(layers[0].attributes('opacity')).toBe('0.22');expect(layers[0].attributes('style')).toContain('pointer-events: none')
+  expect(layers[0].get('.hours-box').attributes('fill-opacity')).toBe('0.22');expect(layers[0].attributes('style')).toContain('pointer-events: none')
   await layers[0].find('g').trigger('click');expect(view.emitted('select')).toBeUndefined()
   await layers[1].find('[role=button]').trigger('click');expect(detail().textContent).toContain('剩余 5h');expect(detail().getAttribute('aria-modal')).toBe('true')
   expect(view.find('.gantt-detail').exists()).toBe(false)
   expect(view.emitted('select')?.[0]).toEqual([{kind:'task',projectId:'1',id:'101',sourceType:'task',memberId:'100',displayKind:'planned'}])
  })
- it('hours mode preserves transparent interior, disables task hover/focus and shows source distinctions',async()=>{
+ it('hours mode deepens the fill, disables task hover/focus and shows source distinctions',async()=>{
   mountView();await view.setProps({mode:'hours'});const layers=view.findAll('[data-layer]')
   expect(layers.map(layer=>layer.attributes('data-layer'))).toEqual(['tasks','hours']);expect(layers[0].find('g').attributes('tabindex')).toBe('-1')
   await layers[0].find('g').trigger('mouseenter');expect(document.querySelector('[role=tooltip]')).toBeNull()
-  expect(layers[1].get('.hours-box').attributes('fill')).toBe('transparent')
+  expect(layers[1].get('.hours-box').attributes('fill')).toBe('var(--hours-color)');expect(layers[1].get('.hours-box').attributes('fill-opacity')).toBe('0.3')
   await layers[1].find('[role=button]').trigger('keydown',{key:'Enter'});expect(detail().textContent).toContain('实际 3h');expect(detail().textContent).toContain('排期覆盖 · 工时贡献')
  })
  it('members without scheduled tasks retain unknown contribution keys',async()=>{
@@ -80,4 +80,30 @@ it('virtual bars expose original dates, contributor and actual daily hours with 
  vi.useFakeTimers();await bar.trigger('mouseenter');await vi.advanceTimersByTimeAsync(250);expect(document.querySelector('[role=tooltip]')?.textContent).toContain('按工时补充')
  await bar.trigger('keydown',{key:'Enter'});expect(detail().textContent).toContain('按工时补充');expect(detail().textContent).toContain('缺开始日');expect(detail().textContent).toContain('实际 3h')
  await view.setProps({mode:'hours'});await view.get('[data-cell]').trigger('click');expect(detail().textContent).toContain('虚拟区间覆盖 · 工时贡献')
+})
+
+it('uses calendar overrides across years for headers and full-height columns, including today',async()=>{
+ mountView();await view.setProps({range:{start:'2026-12-31',end:'2027-01-03'},today:'2026-12-31',calendar:{'2026-12-31':{working:false,name:'假日'},'2027-01-01':{working:false,name:'假日'},'2027-01-02':{working:true,name:'调休'}}})
+ const dates=view.findAll('.date')
+ expect(dates.map(date=>date.classes().includes('rest'))).toEqual([true,true,false,true])
+ expect(dates[0].classes()).toContain('today')
+ expect(view.findAll('[data-rest-date]').map(column=>column.attributes('data-rest-date'))).toEqual(['2026-12-31','2027-01-01','2027-01-03'])
+ expect(view.get('[data-rest-date="2026-12-31"]').attributes('fill')).toBe('var(--ts-soft)')
+ await view.setProps({calendar:{}});expect(view.findAll('.date').map(date=>date.classes().includes('rest'))).toEqual([false,false,true,true])
+})
+
+it('preserves layer and block nodes through repeated switches and immediately updates keyboard access',async()=>{
+ mountView();const taskNode=view.get('[data-task]').element,cell=view.get('[data-cell]').element,box=view.get('.hours-box').element
+ for(const mode of ['hours','tasks','hours'] as const){
+  await view.setProps({mode})
+  expect(view.get('[data-task]').element).toBe(taskNode);expect(view.get('[data-cell]').element).toBe(cell);expect(view.get('.hours-box').element).toBe(box)
+  expect(view.get('.hours-box').attributes('fill-opacity')).toBe(mode==='hours'?'0.3':'0.22')
+  expect(view.get('[data-task]').attributes('tabindex')).toBe(mode==='tasks'?'0':'-1')
+  expect(view.get('[data-cell]').attributes('tabindex')).toBe(mode==='hours'?'0':'-1')
+ }
+})
+
+it('removes the entire empty rest-day header cell from rendering and focus order',async()=>{
+ mountView('hours');await view.setProps({tasks:[],calendar:{[range.start]:{working:false,name:'假日'}},members:[{...member,days:[{...member.days[0],actual:0,allocated:0,total:0,target:0,state:'exempt',contributions:[]}]}]})
+ expect(view.find('[data-cell]').exists()).toBe(false);expect(view.find('[data-layer=hours] [tabindex="0"]').exists()).toBe(false)
 })

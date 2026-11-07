@@ -1,5 +1,5 @@
 import { Resvg } from '@resvg/resvg-js'
-import { computeLayout, eachDateKey, buildGanttDisplayTasks, filterGanttDisplayTasks, ganttDisplayRows, dateDiffInDays, type TeamAnalysis } from '@teamsight/core'
+import { computeLayout, eachDateKey, buildGanttDisplayTasks, filterGanttDisplayTasks, ganttDisplayRows, dateDiffInDays, isWorkingDay, type TeamAnalysis } from '@teamsight/core'
 import type { BusinessStorage, FileRecord } from './business-storage.js'
 
 export const escapeHtml = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)
@@ -33,21 +33,24 @@ export function ganttSvgs(analysis: TeamAnalysis): string[] {
         memberOrder: analysis.context.memberIds.map(id => 'staff:' + id),
         memberKeysOf: task => task.assigneeIds.map(id => 'staff:' + id) })
       const width = layout.totalWidth + layout.config.labelColumnWidth + 32
-      const height = Math.max(layout.totalHeight, 44) + 144
+      const height = Math.max(layout.totalHeight, 44) + 144 + (analysis.calendar === undefined ? 16 : 0)
       if (width * height > 16_000_000) throw new Error('GANTT_PAGE_TOO_LARGE')
       const labelWidth = layout.config.labelColumnWidth, top = 96
       const pieces = [`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#ffffff"/><g font-family="PingFang SC,Microsoft YaHei,Noto Sans CJK SC,sans-serif" font-size="13" fill="#243447">`,
         `<text x="16" y="28" font-size="20">TeamSight · 当前排期</text><text x="16" y="52">${range.start} — ${range.end} · ${analysis.status} · 来源 ${escapeHtml(analysis.fetchedAt)}</text>`,
         `<text x="16" y="74" font-size="11">分析 ${analysis.analysisId} · 分页 ${pages.length + 1}</text>`]
-      layout.days.forEach((date, index) => {
-        const x = labelWidth + index * layout.config.dayColumnWidth
-        pieces.push(`<path d="M${x} ${top - 20}v${layout.totalHeight + 20}" stroke="#e8edf1"/><text x="${x + 3}" y="${top - 7}" font-size="10">${date.slice(5)}</text>`)
-      })
       for (const row of layout.rows) {
         const y = top + row.y
         const text = row.type === 'member' ? `${row.memberName} · ${row.taskCount}` : short(row.title, 18)
-        pieces.push(`<rect x="8" y="${y}" width="${width - 16}" height="${row.height}" fill="${row.type === 'member' ? '#edf5f6' : '#fff'}"/><text x="16" y="${y + 21}">${escapeHtml(text)}</text><path d="M8 ${y + row.height}H${width - 8}" stroke="#e8edf1"/>`)
+        pieces.push(`<rect x="8" y="${y}" width="${width - 16}" height="${row.height}" fill="${row.type === 'member' ? '#edf5f6' : '#fff'}"/><text x="16" y="${y + 21}">${escapeHtml(text)}</text>`)
       }
+      layout.days.forEach((date, index) => {
+        const x = labelWidth + index * layout.config.dayColumnWidth
+        const rest = !isWorkingDay(date, analysis.calendar), today = date === analysis.context.analysisDate
+        if (rest || today) pieces.push(`<rect${rest ? ` data-rest-date="${date}"` : ''} x="${x}" y="${top - 20}" width="${layout.config.dayColumnWidth}" height="${Math.max(layout.totalHeight, 44) + 20}" fill="${rest ? '#f8f3ef' : '#fff4ec'}"/>`)
+        pieces.push(`<path d="M${x} ${top - 20}v${layout.totalHeight + 20}" stroke="#e8edf1"/><text x="${x + 3}" y="${top - 7}" font-size="10"${today ? ' fill="#a63f09"' : ''}>${date.slice(5)}</text>`)
+      })
+      for (const row of layout.rows) pieces.push(`<path d="M8 ${top + row.y + row.height}H${width - 8}" stroke="#e8edf1"/>`)
       for (const bar of layout.bars) {
         const pair = sources.get(bar.taskId)!
         const color = /^#[\da-f]{6}$/i.test(bar.color) ? bar.color : '#167d7f'
@@ -64,7 +67,9 @@ export function ganttSvgs(analysis: TeamAnalysis): string[] {
             + (virtual ? '<text x="' + (x + width / 2) + '" y="' + (top + bar.y + bar.height / 2 + 3) + '" text-anchor="middle" fill="#ffffff" font-size="9">' + (width >= 100 ? '按工时补充' : '补') + '</text>' : '') + '</g>')
         }
       }
+      if (layout.todayX !== null) pieces.push(`<path d="M${labelWidth + layout.todayX} ${top}v${layout.totalHeight}" stroke="#a63f09" stroke-dasharray="4 4"/>`)
       if (!chunk.length) pieces.push(`<text x="16" y="${top + 26}">当前覆盖内无可见排期；完整性以分析状态为准。</text>`)
+      if (analysis.calendar === undefined) pieces.push(`<text x="16" y="${height - 48}" font-size="11">未保存日历明细，底色按普通周历展示。</text><text x="16" y="${height - 32}" font-size="11">请重新分析以获取准确的节假日及调休显示。</text>`)
       pieces.push(`<text x="16" y="${height - 16}" font-size="11">虚线：按工时补充（连续区间不代表每天投入） · 配置成员范围</text></g></svg>`)
       pages.push(pieces.join(''))
     }

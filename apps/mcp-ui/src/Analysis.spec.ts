@@ -34,3 +34,13 @@ describe('focused analysis card',()=>{
   state.instance.ontoolresult({...response({code:'CALCULATION_EXPIRED'}),isError:true});await flushPromises();expect(view.find('.gantt-scroll').exists()).toBe(false);expect(view.find('[role=alert]').exists()).toBe(true);view.unmount()
  })
 })
+
+it('passes the saved calendar to the Gantt and explains missing historical calendar data',async()=>{
+ const view=mount(Analysis);await flushPromises();await state.instance.ontoolresult(response({analysisId:'analysis'}));await flushPromises()
+ expect(view.text()).toContain('此分析未保存日历明细')
+ const calendar={'2026-11-03':{working:false,name:'假日'}}
+ state.call.mockResolvedValue(response({...facts,calendar}));await state.instance.ontoolresult(response({analysisId:'analysis'}));await flushPromises()
+ expect(view.text()).not.toContain('此分析未保存日历明细');expect(view.findAll('.date')[1].classes()).toContain('rest')
+ state.call.mockResolvedValue(response({...facts,calendar:{}}));await state.instance.ontoolresult(response({analysisId:'analysis'}));await flushPromises()
+ expect(view.text()).not.toContain('此分析未保存日历明细');view.unmount()
+})

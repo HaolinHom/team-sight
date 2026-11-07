@@ -9,7 +9,7 @@ import { generateReport, renderGantt } from './outputs.js'
 import type { TeamSightScenarios } from './scenarios.js'
 import type { FileRecord } from './business-storage.js'
 
-export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.3.0.html'
+export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.3.1.html'
 const id = z.string().min(1).max(100)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const analysisInput = z.object({ start: date, end: date, analysisDate: date.optional(), projectIds: z.array(id).min(1).max(100).optional(), memberIds: z.array(id).min(1).max(100).optional(), groupIds: z.array(id).min(1).optional(), scope: z.enum(['self','team']).optional(), refresh: z.boolean().optional() }).strict()
@@ -149,7 +149,7 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     const visibleTasks = filterGanttDisplayTasks(displayTasks, { start, end }, args.memberIds, args.projectIds)
     analysis.risks=analysis.risks.filter(risk=>(!risk.date||risk.date>=start&&risk.date<=end)&&(!args.memberIds?.length||!risk.staffId||args.memberIds.includes(risk.staffId))&&(!args.projectIds?.length||!risk.taskKey||args.projectIds.some(project=>risk.taskKey!.startsWith(project+':'))))
     analysis.context={...analysis.context,range:{start,end}}
-    return { ...analysisSummary(analysis), risks:analysis.risks.slice(args.riskOffset??0,(args.riskOffset??0)+30),risksTruncated:analysis.risks.length>(args.riskOffset??0)+30,sourceContext:source.context, viewFilters:{projectIds:args.projectIds,memberIds:args.memberIds,start,end}, calculationId: args.calculationId, candidateId: args.candidateId, members: analysis.members.slice(memberOffset, memberOffset + 20).map(member => ({ ...member, days: member.days.filter(day => day.date >= start && day.date <= end), pending: member.pending.slice(0, 50), pendingCount: member.pending.length, pendingTruncated: member.pending.length > 50 })),
+    return { ...analysisSummary(analysis), ...(source.calendar === undefined ? {} : { calendar: Object.fromEntries(Object.entries(source.calendar).filter(([date]) => date >= start && date <= end)) }), risks:analysis.risks.slice(args.riskOffset??0,(args.riskOffset??0)+30),risksTruncated:analysis.risks.length>(args.riskOffset??0)+30,sourceContext:source.context, viewFilters:{projectIds:args.projectIds,memberIds:args.memberIds,start,end}, calculationId: args.calculationId, candidateId: args.candidateId, members: analysis.members.slice(memberOffset, memberOffset + 20).map(member => ({ ...member, days: member.days.filter(day => day.date >= start && day.date <= end), pending: member.pending.slice(0, 50), pendingCount: member.pending.length, pendingTruncated: member.pending.length > 50 })),
       counts: { ...analysisSummary(analysis).counts, tasks: visibleTasks.length }, tasks: visibleTasks.slice(taskOffset, taskOffset + 200), issues: analysis.snapshot.issues.slice(0, 100),
       nextMemberOffset: analysis.members.length > memberOffset + 20 ? memberOffset + 20 : null, nextTaskOffset: visibleTasks.length > taskOffset + 200 ? taskOffset + 200 : null }
   })

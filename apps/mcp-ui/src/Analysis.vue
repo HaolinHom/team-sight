@@ -5,9 +5,9 @@ import type { TeamAnalysis, ScheduleTask, HoursIssue } from '@teamsight/core'
 import GanttLayers from './GanttLayers.vue'
 import { followHostTheme } from './host-theme'
 import './theme.css'
-type View = Pick<TeamAnalysis,'analysisId'|'snapshotId'|'status'|'fetchedAt'|'context'|'limitations'> & {members:TeamAnalysis['members'];tasks:ScheduleTask[];issues:HoursIssue[];counts:{issues:number};nextTaskOffset:number|null;nextMemberOffset:number|null}
+type View = Pick<TeamAnalysis,'analysisId'|'snapshotId'|'status'|'fetchedAt'|'context'|'limitations'|'calendar'> & {members:TeamAnalysis['members'];tasks:ScheduleTask[];issues:HoursIssue[];counts:{issues:number};nextTaskOffset:number|null;nextMemberOffset:number|null}
 type Presentation = {analysisId?:string;calculationId?:string;candidateId?:string;mode?:'tasks'|'hours';viewFilters?:Record<string,unknown>;jobId?:string;status?:string;simulation?:unknown;baseline?:boolean}
-const app=new App({name:'TeamSight Gantt',version:'0.3.0'},{},{autoResize:true})
+const app=new App({name:'TeamSight Gantt',version:'0.3.1'},{},{autoResize:true})
 const view=ref<View>(),mode=ref<'tasks'|'hours'>('tasks'),busy=ref(true),error=ref(''),message=ref('正在连接…'),presentation=ref<Presentation>({})
 let generation=0,disposed=false,timer:ReturnType<typeof setTimeout>|undefined
 let input:Record<string,unknown>={}
@@ -79,9 +79,10 @@ onUnmounted(()=>{disposed=true;++generation;clearTimeout(timer)})
   <p v-if="busy" class="notice" role="status">{{message}}</p><p v-if="error" class="error" role="alert">{{error}}</p>
   <template v-if="view">
    <p v-if="view.status!=='complete'" class="warning">{{view.status==='partial'?'数据不完整，以下仅展示已知结果。':'取数失败，当前结果无法作为完整依据。'}}</p>
+   <p v-if="view.calendar===undefined" class="notice">此分析未保存日历明细，日期底色按普通周历展示；请重新分析以获取准确的节假日及调休显示。</p>
    <p v-if="presentation.simulation" class="notice">{{presentation.baseline?'当前 TAPD 安排':'模拟结果，尚未写入 TAPD'}} · 通过对话指定其他候选或对比范围</p>
    <div class="legend"><span><i class="actual"></i>工时达标</span><span><i class="past-short"></i>过去工时不足</span><span><i class="forecast"></i>当天 / 未来工时不足</span><span><i class="unknown"></i>未知</span><span>盒子包含当天关联任务 · 仅优先层可交互</span><span>虚线任务条：按工时补充</span></div>
-   <GanttLayers :tasks="view.tasks" :members="view.members" :range="view.context.range" :today="view.context.analysisDate" :mode="mode" @select="selection" @open="url=>app.openLink({url}).catch(()=>{error='无法打开 TAPD 链接'})" />
+   <GanttLayers :tasks="view.tasks" :members="view.members" :range="view.context.range" :today="view.context.analysisDate" :calendar="view.calendar" :mode="mode" @select="selection" @open="url=>app.openLink({url}).catch(()=>{error='无法打开 TAPD 链接'})" />
 
    <footer><small>{{view.status==='complete'?'数据完整':'部分 / 未知数据'}} · 来源 {{view.fetchedAt}} · {{view.context.timeZone}}</small><details v-if="view.limitations.length||view.issues.length||presentation.viewFilters?.projectIds"><summary>范围与数据说明</summary><p v-if="presentation.viewFilters?.projectIds">项目范围内的工时与每日完整目标进行对照；不代表成员在其他项目没有投入。</p><p v-for="item in view.limitations" :key="item">{{item}}</p><p v-for="(issue,index) in view.issues" :key="index">{{issue.projectId}}：{{issue.message}}</p><p v-if="view.counts?.issues>view.issues.length">问题共 {{view.counts.issues}} 条，此处展示前 {{view.issues.length}} 条，完整依据可在对话中查询。</p></details></footer>
   </template>
