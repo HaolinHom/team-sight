@@ -1,21 +1,47 @@
-// Build-time only: copy the resolved production graph into a portable, symlink-free package.
-import { cp, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+// Build once per platform, then produce portable bundled and external editions.
+import { chmod, cp, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { resolve, join, dirname, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { NODE_VERSION, packageTargets, prepareRuntime, fileHashes, requireAbsent, withStaging, publishFiles, run, sha256 } from './package-mcp-lib.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const target = process.argv[2] ?? `${process.platform}-${process.arch}`
-if (!['darwin-arm64', 'win32-x64'].includes(target)) throw new Error('MCP packages support darwin-arm64 and win32-x64 only; other architectures are not validated.')
+const targets = packageTargets(process.argv.slice(2))
 const source = join(root, 'apps/server')
 const pkg = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'))
-const output = resolve(root, 'artifacts/releases', pkg.version, `teamsight-mcp-${target}`)
-await mkdir(dirname(output), { recursive: true })
-// Refuse overwrite: an earlier validation package may be in use.
-await mkdir(output)
+const releases = resolve(root, 'artifacts/releases', pkg.version)
+const variants = ['bundled', 'external']
+const names = targets.flatMap(target => variants.map(variant => ({ target, variant, name: 'teamsight-mcp-' + target + '-' + variant,
+  archive: 'teamsight-mcp-' + pkg.version + '-' + target + '-' + variant + (target === 'win32-x64' ? '.zip' : '.tar.gz') })))
+const checksumName = targets.length === 2 ? 'SHA256SUMS.txt' : 'SHA256SUMS-' + targets[0] + '.txt'
+await mkdir(releases, { recursive: true })
+// Reserve publication before any download; concurrent writers must not overwrite each other.
+await requireAbsent([...names.flatMap(item => [join(releases, item.name), join(releases, item.archive)]), join(releases, checksumName)])
+const lock = join(releases, '.package-lock')
+await mkdir(lock)
+try {
+await withStaging(releases, async staging => {
+  const sourceHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
+  const sourceFiles = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'README.md', 'scripts/package-mcp.mjs', 'scripts/package-mcp-lib.mjs', 'scripts/verify-mcp-packages.mjs', 'scripts/test/package-mcp.test.mjs', 'docs/validation/teamsight-mcp-platforms.md', 'docs/TeamSight-MCP-能力与使用说明.md']
+  async function listFiles(dir) {
+    const items = []
+    for (const ent of await readdir(dir, { withFileTypes: true })) {
+      if (['node_modules', 'dist'].includes(ent.name)) continue
+      const p = join(dir, ent.name)
+      if (ent.isDirectory()) items.push(...await listFiles(p)); else items.push(p)
+    }
+    return items
+  }
+  sourceFiles.push(...(await listFiles(join(root, 'apps'))).map(p => relative(root, p)), ...(await listFiles(join(root, 'packages'))).map(p => relative(root, p)))
+  const sourceHashes = {}
+  for (const name of sourceFiles.sort()) sourceHashes[name] = sha256(await readFile(join(root, name)))
+  const publications = [], archiveHashes = [], results = []
+  for (const target of targets) {
+    const output = join(staging, 'base-' + target)
+    await mkdir(output)
 const rootVersions = new Map()
 const copied = []
 async function locate(name, from) {
@@ -93,36 +119,55 @@ const prebuilds = join(output, 'node_modules/better-sqlite3/prebuilds')
 for (const name of await readdir(prebuilds)) if (name !== `${target}.node`) await rm(join(prebuilds, name))
 await cp(join(source, 'dist'), join(output, 'dist'), { recursive: true })
 await cp(join(root, 'apps/mcp-ui/dist'), join(output, 'ui'), { recursive: true })
-for (const name of ['verify-mcp.mjs', 'status-mcp.mjs', 'launch.sh', 'launch.ps1']) await cp(join(source, name), join(output, name))
+for (const name of ['verify-mcp.mjs', 'status-mcp.mjs', 'launch.sh', 'launch.ps1', 'run-node.sh', 'run-node.ps1']) await cp(join(source, name), join(output, name))
 await mkdir(join(output, 'docs/validation'), {recursive:true})
 await cp(join(root, 'docs/validation/teamsight-mcp-platforms.md'), join(output, 'docs/validation/teamsight-mcp-platforms.md'))
 await cp(join(root, 'docs/TeamSight-MCP-能力与使用说明.md'), join(output, 'docs/TeamSight-MCP-能力与使用说明.md'))
-const sourceHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
-const sourceFiles = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'scripts/package-mcp.mjs', 'docs/validation/teamsight-mcp-platforms.md', 'docs/TeamSight-MCP-能力与使用说明.md']
-async function listFiles(dir) {
-  const items = []
-  for (const ent of await readdir(dir, { withFileTypes: true })) {
-    if (['node_modules', 'dist'].includes(ent.name)) continue
-    const p = join(dir, ent.name)
-    if (ent.isDirectory()) items.push(...await listFiles(p)); else items.push(p)
+
+    const baseHashes = await fileHashes(output)
+    const runtime = await prepareRuntime(root, target, staging)
+    for (const item of names.filter(item => item.target === target)) {
+      const destination = join(staging, item.name)
+      await cp(output, destination, { recursive: true })
+      const bundled = item.variant === 'bundled'
+      if (bundled) await cp(runtime.directory, join(destination, 'runtime'), { recursive: true })
+      for (const script of ['run-node.sh', 'run-node.ps1']) {
+        let text = await readFile(join(destination, script), 'utf8')
+        if (bundled) text = text.replace(script.endsWith('.sh') ? 'MODE=external' : "$runtimeMode = 'external'", script.endsWith('.sh') ? 'MODE=bundled' : "$runtimeMode = 'bundled'")
+          .replace(script.endsWith('.sh') ? 'EXPECTED_SHA256=none' : "$expectedSha256 = 'none'", script.endsWith('.sh') ? 'EXPECTED_SHA256=' + runtime.executableSha256 : "$expectedSha256 = '" + runtime.executableSha256 + "'")
+        await writeFile(join(destination, script), text)
+      }
+      for (const name of ['run-node.sh', 'launch.sh']) await chmod(join(destination, name), 0o755)
+      const bundledRuntime = bundled ? Object.fromEntries(Object.entries(runtime).filter(([key]) => key !== 'directory')) : null
+      await writeFile(join(destination, 'package.json'), JSON.stringify({ name: 'teamsight-mcp', version: pkg.version, type: 'module', private: true, engines: pkg.engines, dependencies: pkg.dependencies }, null, 2) + '\n')
+      await writeFile(join(destination, 'versions.json'), JSON.stringify({ version: pkg.version, phase: 'MCP', target, variant: item.variant,
+        builtAt: new Date().toISOString(), sourceHead, sourceState: 'working tree; source hashes identify the exact implementation', sourceHashes,
+        commonPayloadSha256: sha256(JSON.stringify(baseHashes)), buildNode: process.versions.node, validatedNode: null,
+        runtimeAcceptance: 'pending; see separate acceptance evidence', pnpm: '10.12.4', runtimeBundled: bundled, runtime: bundledRuntime,
+        dependencies: copied.sort((a, b) => a.name.localeCompare(b.name)), windowsRuntimeAcceptance: 'pending', codexAppsAcceptance: 'pending' }, null, 2) + '\n')
+      const shell = target === 'win32-x64' ? 'powershell' : 'sh'
+      const launch = target === 'win32-x64' ? '.\\launch.ps1' : './launch.sh'
+      const runner = target === 'win32-x64' ? '.\\run-node.ps1' : './run-node.sh'
+      const readme = '# TeamSight MCP ' + pkg.version + ' — ' + item.variant + '\n\n' +
+        (bundled ? 'Recommended: private Node.js ' + NODE_VERSION + ' included; no global Node installation or PATH change. Runtime integrity is checked at launch.\n' : 'Requires external Node.js 22.14+ (<23), Node-API 10+. No Node runtime included.\n') +
+        '\nExtract the complete archive to a writable directory. In that directory run:\n\n' +
+        '~~~' + shell + '\n' + launch + ' doctor\n' + runner + ' verify-mcp.mjs --evidence-dir ./evidence\n' + launch + ' serve --data-dir ./data --port 43127\n' +
+        '# In another terminal:\n' + launch + ' status --data-dir ./data\n' + launch + ' stop --data-dir ./data\n' + '~~~\n\n' +
+        'Use an absolute --data-dir for upgrades or switching editions. Stop the previous instance first; both editions share DB v4/config v6. Do not overwrite a running package. No TAPD configuration or tokens are bundled. Read docs/validation/teamsight-mcp-platforms.md for acceptance and host setup. Never paste access-token or TAPD credentials into chat or public logs.\n\n' +
+        'Build metadata is not runtime acceptance. Windows native execution and Codex Apps require separate validation. On Windows, use the PowerShell entrypoints under your existing execution policy; no policy changes are made.\n'
+      await writeFile(join(destination, 'README.md'), readme)
+      const hashes = await fileHashes(destination)
+      await writeFile(join(destination, 'checksums.json'), JSON.stringify(hashes, null, 2) + '\n')
+      const archive = join(staging, item.archive)
+      run('tar', ['-a', '-cf', archive, '-C', staging, item.name])
+      archiveHashes.push(sha256(await readFile(archive)) + '  ' + item.archive)
+      publications.push({ from: destination, to: join(releases, item.name) }, { from: archive, to: join(releases, item.archive) })
+      results.push({ target, variant: item.variant, output: join(releases, item.name), archive: join(releases, item.archive), runtimeBundled: bundled, files: Object.keys(hashes).length })
+    }
   }
-  return items
-}
-sourceFiles.push(...(await listFiles(join(root, 'apps'))).map(p => relative(root, p)), ...(await listFiles(join(root, 'packages'))).map(p=>relative(root,p)))
-const sourceHashes = {}
-for (const name of sourceFiles.sort()) sourceHashes[name] = createHash('sha256').update(await readFile(join(root, name))).digest('hex')
-await writeFile(join(output, 'package.json'), JSON.stringify({ name: 'teamsight-mcp-validation', version: pkg.version, type: 'module', private: true, engines: pkg.engines, scripts: { start: 'node dist/cli.js serve', verify: 'node verify-mcp.mjs' }, dependencies: pkg.dependencies }, null, 2))
-await writeFile(join(output, 'versions.json'), JSON.stringify({ version: pkg.version, phase: 'MCP', target, builtAt: new Date().toISOString(), sourceHead, sourceState: 'working tree; source hashes identify the exact implementation', sourceHashes, buildNode: process.versions.node, validatedNode: process.versions.node, pnpm: '10.12.4', runtimeBundled: false, dependencies: copied.sort((a, b) => a.name.localeCompare(b.name)), windowsRuntimeAcceptance: 'pending', codexAppsAcceptance: 'pending' }, null, 2))
-await writeFile(join(output, 'README.md'), '# TeamSight MCP validation package\n\nRequires external Node.js 22.14.0+ (<23), baseline 22.23.4. No Node runtime or TAPD configuration is bundled.\n\nRun `node dist/cli.js doctor`, `node verify-mcp.mjs --evidence-dir ./evidence`, then `node dist/cli.js serve --data-dir ./data --port 43127`. Read instance.json for the URL and access-token for the local bearer token. Never paste the token into an Agent message or public log. Follow docs/validation/teamsight-mcp-platforms.md for Codex and manual Apps acceptance. Automatic verification does not certify Codex Apps or host scheduling.\n')
-const hashes = {}
-async function hashFiles(dir) {
-  for (const item of await readdir(dir, { withFileTypes: true })) {
-    const path = join(dir, item.name)
-    if (item.isSymbolicLink()) throw new Error(`UNEXPECTED_SYMLINK: ${path}`)
-    if (item.isDirectory()) await hashFiles(path)
-    else hashes[relative(output, path).split(sep).join('/')] = createHash('sha256').update(await readFile(path)).digest('hex')
-  }
-}
-await hashFiles(output)
-await writeFile(join(output, 'checksums.json'), JSON.stringify(hashes, null, 2))
-console.log(JSON.stringify({ output, target, files: Object.keys(hashes).length, noSymlinks: true, nodeRuntimeBundled: false }))
+  await writeFile(join(staging, checksumName), archiveHashes.join('\n') + '\n')
+  publications.push({ from: join(staging, checksumName), to: join(releases, checksumName) })
+  await publishFiles(publications)
+  console.log(JSON.stringify({ version: pkg.version, packages: results, archiveChecksums: join(releases, checksumName) }))
+})
+} finally { await rm(lock, { recursive: true, force: true }) }

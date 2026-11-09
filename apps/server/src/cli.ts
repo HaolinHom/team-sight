@@ -49,7 +49,7 @@ async function main() {
       console.log(JSON.stringify({ ok: true, node: process.versions.node, napi: process.versions.napi, platform: process.platform, arch: process.arch, sqlite: store.db.prepare('SELECT sqlite_version() AS version').get(), revision: saved.revision, keyringMatches: true, pngBytes: png.png.length, pngSha256: png.sha256 }))
     } finally { cleanup?.(); rmSync(dir, { recursive: true, force: true }) }
   } else {
-    console.log('TeamSight MCP: serve [--data-dir PATH] [--port PORT] | status | stop | doctor | migrate --from OLD --to NEW. Requires external Node.js 22.14.0+ (<23). TAPD writes require an explicit project, action and field scope in settings.')
+    console.log('TeamSight MCP: serve [--data-dir PATH] [--port PORT] | status | stop | doctor | migrate --from OLD --to NEW. Requires Node.js 22.14.0+ (<23). TAPD writes require an explicit project, action and field scope in settings.')
   }
 }
 main().catch(error => {

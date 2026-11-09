@@ -1,6 +1,6 @@
 {
   "name": "team-sight",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "TeamSight MCP：TAPD 排期、工时与团队分析",
   "type": "module",
   "private": true,
@@ -10,7 +10,7 @@
     "verify:secrets": "node scripts/check-secrets.mjs",
     "verify:tapd": "node scripts/verify-tapd.mjs",
     "mcp:build": "pnpm --filter @teamsight/core build && pnpm --filter @teamsight/tapd build && pnpm --filter @teamsight/server build && pnpm --filter @teamsight/mcp-ui build",
-    "mcp:test": "pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test && pnpm --filter @teamsight/mcp-ui test",
+    "mcp:test": "pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test && pnpm --filter @teamsight/mcp-ui test && node --test scripts/test/*.test.mjs",
     "mcp:serve": "node apps/server/dist/cli.js serve",
     "mcp:package": "node scripts/package-mcp.mjs"
   },
