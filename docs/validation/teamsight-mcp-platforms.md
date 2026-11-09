@@ -1,14 +1,44 @@
 # TeamSight MCP 平台与 Codex 验收
 
-当前发行目标：macOS arm64、Windows x64，外部 Node.js 22.14+ 且低于23，本轮macOS验证22.23.2（历史运行基线22.23.4）。Linux及其他架构未验收。配置 v6，SQLite user_version 为 4。0.3.0／0.3.1 → 0.3.2 不需要迁移；本次仅更新 macOS arm64，Windows 0.3.2 未构建或验收。
+当前版本 0.3.3。目标为 macOS arm64、Windows x64；Windows 实机、其他平台和 Codex 原生 Apps 需对应环境单独验收。
 
-## 构建及独立运行
+## 0.3.3 双版本发行
 
-源码执行 pnpm mcp:build、pnpm mcp:test。pnpm mcp:package darwin-arm64 或 pnpm mcp:package win32-x64 生成无符号链接的生产依赖包。仅提供 mcp:package，旧阶段命令已移除。版本清单包含 apps 与 packages 的工作树源码哈希；Windows 包的结构检查不能代替实机运行。网络不可用时，可将 TEAMSIGHT_MCP_NATIVE_CACHE 指向此前已验证的同目标运行包；打包器核对依赖版本、完整文件集与 SHA-256，版本清单记录缓存来源清单哈希。
+默认推荐 bundled 自带运行时版，包含私有 Node 22.23.4；external 精简版要求外部 Node 22.14+（低于23）、Node-API 10+。两种包业务文件和生产依赖相同，均无需安装 pnpm；自带版不安装全局 Node，不修改 PATH 或 nvm，启动时清除子进程 NODE_OPTIONS/NODE_PATH，并校验私有可执行文件 SHA-256。运行时缺失或损坏直接失败，不回退系统 Node。
 
-在独立且含空格的目录解压对应平台包，配置 Node22 PATH。先运行 node dist/cli.js doctor，再运行 node verify-mcp.mjs --evidence-dir ./evidence。doctor会在隔离目录创建/清理系统测试凭据，输出中不含明文。verify-mcp验证真实MCP传输和模拟TAPD接口，不触及业务TAPD。
+源码开发使用 Node 22.23.4 / pnpm 10.12.4。先执行 pnpm build、pnpm test，再执行 pnpm mcp:package all；也可指定 darwin-arm64 或 win32-x64，每个目标均生成两种包。不传目标时选择本机平台。发行产物位于 artifacts/releases/0.3.3：macOS 为 tar.gz，Windows 为 zip，文件名包含版本、平台及 bundled/external；同目录保留解压目录与 SHA256SUMS.txt。单平台命令生成对应 SHA256SUMS-<target>.txt，既有产物拒绝覆盖。
 
-运行 node dist/cli.js serve --data-dir ./data --port 43127，使用 node dist/cli.js status/stop --data-dir ./data 查看/停止实例。使用 TEAMSIGHT_DATA_DIR；旧 TEAMSIGHT_P0_DATA_DIR 已移除。原配置/凭据/回执不被新目录自动覆盖。
+Node 官方归档固定版本与 SHA-256，缓存位于 .local/node-runtime-cache；复用仍校验，缓存损坏须删除对应缓存后重试。Windows 原生依赖沿用 TEAMSIGHT_MCP_NATIVE_CACHE 的可信缓存校验。打包使用 bsdtar（macOS、Windows 自带 tar）处理 ZIP/tar.gz；只附带 Node 可执行文件及其 LICENSE，不附带 npm 或开发头文件。
+
+解压后在包目录使用以下命令；路径允许包含空格：
+
+~~~sh
+# macOS，两种包使用相同命令
+./launch.sh doctor
+./run-node.sh verify-mcp.mjs --evidence-dir ./evidence
+./launch.sh serve --data-dir /absolute/team-sight-data --port 43127
+# 另一终端
+./launch.sh status --data-dir /absolute/team-sight-data
+./launch.sh stop --data-dir /absolute/team-sight-data
+# 宿主定时调用辅助脚本
+./run-node.sh status-mcp.mjs /absolute/team-sight-data
+~~~
+
+~~~powershell
+# Windows，两种包使用相同命令
+.\launch.ps1 doctor
+.\run-node.ps1 verify-mcp.mjs --evidence-dir .\evidence
+.\launch.ps1 serve --data-dir 'C:\TeamSight Data' --port 43127
+.\launch.ps1 status --data-dir 'C:\TeamSight Data'
+.\launch.ps1 stop --data-dir 'C:\TeamSight Data'
+.\run-node.ps1 status-mcp.mjs 'C:\TeamSight Data'
+~~~
+
+使用现有 PowerShell 执行策略，不自动降低策略。系统 Node 缺失或不兼容时请选择自带版。不要通过系统 node 或 npm start 绕过包内启动入口。
+
+每包 versions.json 区分 variant/runtimeBundled、buildNode 和 validatedNode；打包时 validatedNode 为 null，验收结果保存在独立证据中，不修改已封装的包。自带版记录 Node 来源、归档与可执行文件哈希；checksums.json 覆盖包内全部文件（不包括自身），归档另有 SHA-256 清单。Windows 结构/PE 校验不代表 Windows 实机或原生 Apps 验收通过。
+
+0.3.2 → 0.3.3 沿用 DB v4、配置 v6，无需迁移。升级或切换两种包时先停止并确认旧实例退出，备份静止数据，再使用同一绝对 --data-dir 启动新包；不覆盖旧运行目录。MCP 资源更新为 settings-0.3.3.html 与 analysis-0.3.3.html，重新打开卡片。打包本身不更新本机服务、不上传发布，也不包含 TAPD 凭据或用户数据。
 
 ## Codex 接入
 

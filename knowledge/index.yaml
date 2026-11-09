@@ -1,6 +1,6 @@
 schemaVersion: "root-index/v1"
 
-title: "TeamSight MCP 0.3.2 正式知识"
+title: "TeamSight MCP 0.3.3 正式知识"
 description: "仅收录当前 MCP 实现仍适用的知识；历史部署、测试与退役实现见 artifacts 中对应版本记录，不作为当前操作指南。"
 
 indexes:

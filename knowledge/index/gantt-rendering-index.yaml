@@ -1,7 +1,7 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "甘特图渲染"
-description: "MCP 0.3.2 成员分组 SVG、共享展示转换与交互规则。"
+description: "MCP 0.3.3 成员分组 SVG、共享展示转换与交互规则。"
 
 items:
   - id: gantt-rendering-decision
@@ -14,6 +14,6 @@ items:
   - id: mcp-gantt-interaction-notes
     title: "MCP 甘特图工时关联、虚拟排期与交互"
     path: "knowledge/mcp-gantt-interaction-notes.md"
-    summary: "0.3.2 顶部仅标题／日期／模式按钮，底部仅状态／来源／时区；图例及特殊说明隐藏，加载和错误保留，详细依据通过对话查询；工时资料独立补查、虚拟区间与空任务过滤；Apps/导出共用展示转换；按快照日历绘制休息日表头及整列，隐藏成员行无未知提示的休息日零工时；工时填充 .22/.30 与 200ms 渐变，稳定容器驱动避免图层移动中断；隔离 Chrome 已验收，原生 Apps 仍需验收。"
+    summary: "0.3.3 沿用 0.3.2 卡片精简，顶部仅标题／日期／模式按钮，底部仅状态／来源／时区；图例及特殊说明隐藏，加载和错误保留，详细依据通过对话查询；工时资料独立补查、虚拟区间与空任务过滤；Apps/导出共用展示转换；按快照日历绘制休息日表头及整列，隐藏成员行无未知提示的休息日零工时；工时填充 .22/.30 与 200ms 渐变，稳定容器驱动避免图层移动中断；隔离 Chrome 已验收，原生 Apps 仍需验收。"
     tags: ["mcp-apps","gantt","hours","worklog","virtual-schedule","export","drawer","tooltip","iframe","validation","calendar","animation"]
     verifiedAt: "2026-11-07"

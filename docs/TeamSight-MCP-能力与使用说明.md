@@ -1,6 +1,6 @@
 # TeamSight MCP 能力与使用说明
 
-版本 0.3.2，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
+版本 0.3.3，对应《TeamSight MCP 场景与能力职责梳理》的 MCP 实现。MCP 负责配置、取数、计算、任务操作与页面；需求理解、拆解方法、最终估时、报告格式和业务风险判断仍由 Agent／后续 skills 负责。
 
 ## 配置与人员范围
 
@@ -91,13 +91,13 @@ teamsight_open_analysis 接收 analysisId 或 calculationId，可传 mode:tasks�
 
 卡片顶部仅显示标题、日期范围和任务优先／工时优先切换，底部仅显示完整性、来源时间及时区。图例、范围说明及特殊状态说明不再展示；加载和失败反馈保留，详细依据通过对话查询。卡片不提供筛选、查询、设置、风险页签或导出入口。前景可点击、悬浮及键盘查看详情；背景半透明且无点击、悬浮或键盘焦点。自动读取全部成员／任务分页后展示，图表内部滚动，固定名称列和日期表头。未排期任务的实际仍进入每日工时，任务清单通过对话查询。项目范围工时仅代表该项目贡献，不能等同全项目容量。
 
-模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。仅提供 settings-0.3.2.html 与 analysis-0.3.2.html 资源，旧卡片需重新打开。
+模拟候选用 candidateId 指定，baseline:true 查看调整前；二者均通过对话打开，不在卡片提供入口，模拟始终只读。选择对象与当前模式通过 updateModelContext 反馈宿主。仅提供 settings-0.3.3.html 与 analysis-0.3.3.html 资源，旧卡片需重新打开。
 
 主色为 #EB732D，主按钮使用深色文字；暖中性色、青绿实际工时及橙色预计分配跟随宿主浅／深主题。固定报告与导出继续由对话调用原有工具，默认导出完整分析，不能把基线导出当作模拟结果。
 
 模拟结果仅在当前进程缓存30分钟、最多50条，重启／过期需重新读取并计算；不保存协作关系或排期计划表。配置 v6 和批次回执使用 SQLite v4；历史分析只读保留，旧版本卡片须重新打开。固定报告和静态导出保留，不能等同于 skills 周报／月报。
 
-使用 pnpm mcp:build、pnpm mcp:test、pnpm mcp:package darwin-arm64 或 win32-x64。运行依赖外部 Node.js 22.14+（低于23），本轮macOS验证版本22.23.2。独立运行与 Codex 操作步骤见[平台验收说明](validation/teamsight-mcp-platforms.md)。Windows实机、Codex原生卡片与真实批量写入的验收状态见本轮测试报告；浏览器预览与自动测试不能替代这些结果。
+使用 pnpm mcp:build、pnpm mcp:test 和 pnpm mcp:package all。每个平台生成 bundled 自带运行时版（推荐，私有 Node 22.23.4）和 external 精简版（外部 Node 22.14+、低于23、Node-API 10+）。通过 launch 与 run-node 脚本运行，无需 pnpm；0.3.3 沿用 DB v4／配置 v6。独立运行与 Codex 操作步骤见[平台验收说明](validation/teamsight-mcp-platforms.md)。Windows实机、Codex原生卡片与真实批量写入的验收状态见本轮测试报告；浏览器预览与自动测试不能替代这些结果。
 
 
 ## 0.3.0 存储与退役
