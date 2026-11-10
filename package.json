@@ -12,10 +12,15 @@
     "mcp:build": "pnpm --filter @teamsight/core build && pnpm --filter @teamsight/tapd build && pnpm --filter @teamsight/server build && pnpm --filter @teamsight/mcp-ui build",
     "mcp:test": "pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test && pnpm --filter @teamsight/mcp-ui test && node --test scripts/test/*.test.mjs",
     "mcp:serve": "node apps/server/dist/cli.js serve",
-    "mcp:package": "node scripts/package-mcp.mjs"
+    "mcp:package": "node scripts/package-mcp.mjs",
+    "mcp:installer:build": "node scripts/build-installer.mjs",
+    "mcp:installer:verify": "node scripts/verify-http-installer.mjs",
+    "mcp:installer:prepare": "node scripts/prepare-installer-release.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "esbuild": "0.25.12",
+    "toml-eslint-parser": "1.0.3",
     "typescript": "^5.7.3"
   },
   "keywords": [],

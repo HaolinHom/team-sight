@@ -40,6 +40,12 @@ Node 官方归档固定版本与 SHA-256，缓存位于 .local/node-runtime-cach
 
 0.3.2 → 0.3.3 沿用 DB v4、配置 v6，无需迁移。升级或切换两种包时先停止并确认旧实例退出，备份静止数据，再使用同一绝对 --data-dir 启动新包；不覆盖旧运行目录。MCP 资源更新为 settings-0.3.3.html 与 analysis-0.3.3.html，重新打开卡片。打包本身不更新本机服务、不上传发布，也不包含 TAPD 凭据或用户数据。
 
+## macOS 自动安装
+
+独立 HTTP 安装器与可复制给 Agent 的说明见[安装入口](../install/macos-agent-install.md)。使用固定提交和归档 SHA-256；仅支持 macOS arm64，默认 bundled，也支持 external。安装器配置用户级 LaunchAgent，并自动将本机 Bearer 写入仅当前用户可读的 Codex http_headers.Authorization，不依赖终端环境变量。服务验证与 Codex 宿主重连分别报告。
+
+维护者使用 pnpm mcp:installer:build、pnpm mcp:installer:verify、pnpm mcp:installer:prepare 构建、隔离验收及生成固定快照说明。隔离验证使用 --test-root（必须为 teamsight-installer-test- 前缀）、独立标签和配置；可选 --test-base-url 只允许 localhost/127.0.0.1 的 HTTPS，要求 --test-ca，不能用于绕过生产地址或固定哈希。仓库公开前只验证隔离下载源，公开匿名下载与接收端宿主仍需独立验收。
+
 ## Codex 接入
 
 通过宿主 MCP URL 配置入口连接 http://127.0.0.1:43127/mcp，访问令牌使用数据目录 access-token 对应的本机环境变量；不要将它或 TAPD 令牌贴入对话。不是将 ZIP 改名为 Bundle 安装。配置前保留宿主既有其他连接。
