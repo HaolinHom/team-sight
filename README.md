@@ -25,3 +25,15 @@ pnpm mcp:serve --data-dir .local/teamsight-mcp --port 43127
 ## 发行包
 
 执行 `pnpm mcp:package all` 同时生成 macOS arm64、Windows x64 的 bundled（推荐，自带 Node）与 external（精简）四份压缩包。下载后通过 `launch.sh`／`launch.ps1` 启动；验证及状态脚本通过 `run-node.sh`／`run-node.ps1` 执行，参见[平台说明](docs/validation/teamsight-mcp-platforms.md)。Node 不会安装到全局或修改系统 PATH。
+
+## Windows 本地安装
+
+源码开发可使用 nvm-windows 安装并切换 Node 22.23.4，再安装 pnpm 10.12.4。构建和测试完成后：
+
+```powershell
+pnpm mcp:package win32-x64
+pnpm mcp:installer:windows:build
+pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath "$PWD/artifacts/releases/0.3.3/teamsight-mcp-win32-x64-bundled"
+```
+
+安装到 `%LOCALAPPDATA%\TeamSight MCP`，使用当前用户的隐藏登录计划任务与包内 Node，关闭终端或切换 nvm 版本不影响后台服务；无需管理员权限。安装器备份并配置 Codex 连接，完成后重连宿主。管理命令为 `pwsh -NoProfile -File "$env:LOCALAPPDATA/TeamSight MCP/install-windows.ps1" -Action Status`，也支持 Start、Stop、Uninstall；卸载保留数据和凭据。沿用所用 PowerShell 的执行策略；Windows PowerShell 5.1 若禁止脚本，请使用已允许本地脚本的 PowerShell 7，不自动降低策略。详细验收命令见平台说明。

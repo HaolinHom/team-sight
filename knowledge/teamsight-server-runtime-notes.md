@@ -1,6 +1,6 @@
 # TeamSight Server / MCP Apps 运行知识
 
-> 适用版本：MCP 0.3.3。基础运行规则于 2026-11-06 按源码复核，2026-11-09 复核双版本发行、运行时选择与无迁移升级边界，2026-11-12 静态复核 macOS HTTP 安装器；本机服务实时状态需调用 teamsight_status，不以历史部署记录代替。
+> 适用版本：MCP 0.3.3。基础运行规则于 2026-11-06 按源码复核，2026-11-09 复核双版本发行、运行时选择与无迁移升级边界，2026-11-12 静态复核 macOS HTTP 安装器并完成 Windows 10 x64 构建、双包原生运行、用户级后台安装及 Codex 连接设置卡片验收；本机服务实时状态需调用 teamsight_status，不以历史部署记录代替。
 
 ## 工程与服务入口
 
@@ -58,13 +58,29 @@ Windows 可通过 `TEAMSIGHT_MCP_NATIVE_CACHE` 显式引用可信同目标包；
 
 KeepAlive LaunchAgent 升级先验证运行包、doctor 和隔离 MCP，检查无活动分析或待发送写入，再 bootout 并确认旧进程退出，备份静止数据与启动配置，更新脚本并 bootstrap。跨存储版本时还须隔离迁移与迁移核对；0.3.1／0.3.2 → 0.3.3 以及两种包切换均沿用 DB v4／配置 v6，不执行迁移。切换前停止旧实例，使用同一绝对 data-dir，不覆盖正在运行的包。保留旧包、源数据和旧钥匙串条目；失败时停止新版并恢复旧启动配置，不删除未知实例的锁。
 
-[0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)保存该版本的构建、回归、迁移、历史导出和 macOS 升级证据。测试数量、PID、revision、项目数及安装目录属于该次验收记录，不作为当前环境常量。Windows 实机、Linux、其他架构、原生 Apps 完整交互、真实 TAPD 写入及重启／休眠仍需对应验收；隔离浏览器和 app-only 可见性不代表原生宿主完整验收或凭据保密保证。
+[0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)保存该版本的构建、回归、迁移、历史导出和 macOS 升级证据。测试数量、PID、revision、项目数及安装目录属于该次验收记录，不作为当前环境常量。该轮未验收 Windows 实机；当前 Windows 0.3.3 验收见下节。Linux、其他架构、原生 Apps 完整交互、真实 TAPD 写入及重启／休眠仍需对应验收；隔离浏览器和 app-only 可见性不代表原生宿主完整验收或凭据保密保证。
 
 [0.3.2 展示精简与更新报告](../artifacts/report/20261107_甘特图展示精简与MCP032_测试报告.md)记录当次 macOS arm64 安装、状态及资源哈希核对、配置／凭据／历史文件保留验证。130 项回归及隔离浏览器通过，Windows 0.3.2 未构建，原生侧栏无可用 App tab，原生完整交互与视觉仍未验收。部署状态是当次证据，不替代实时 teamsight_status。
 
-[0.3.3 双版本发行报告](../artifacts/report/20261109_双版本发行_mcp033_测试报告.md)记录原有 130 项与新增 6 项测试、四份归档完整性／无符号链接／公共业务文件一致性，以及 macOS 两种包的 doctor、隔离 MCP、启动／状态／停止、SQLite、钥匙串、中文 PNG、运行时选择及数据兼容检查。精简版在 Node 22.14.0、22.23.4 下完成对应验收；Windows 仅通过归档、清单和 PE x64 检查，PowerShell、原生模块与实机启动仍待验收。
+[0.3.3 双版本发行报告](../artifacts/report/20261109_双版本发行_mcp033_测试报告.md)记录原有 130 项与新增 6 项测试、四份归档完整性／无符号链接／公共业务文件一致性，以及 macOS 两种包的 doctor、隔离 MCP、启动／状态／停止、SQLite、钥匙串、中文 PNG、运行时选择及数据兼容检查。精简版在 Node 22.14.0、22.23.4 下完成对应验收；该轮 Windows 仅通过归档、清单和 PE x64 检查，后续原生验收见下节。
 
 [0.3.3 精简版本机升级报告](../artifacts/report/20261109_精简版更新MCP033_测试报告.md)记录后续经授权的 LaunchAgent 升级、配置／凭据／历史数据保留及工具／资源哈希核对。安装目录、包大小、PID、revision 等均为点时证据，不作为长期常量；当前服务状态仍须实时查询。Codex 原生 Apps 完整交互、真实 TAPD 写入与系统重启未在该轮验收。
+
+## Windows 构建、用户级安装与验收
+
+Windows 10 x64 已使用 Node 22.23.4（Node-API 10）、pnpm 10.12.4 完成冻结锁文件安装、构建与测试。开发 Node 可由 nvm-windows 通过 `nvm install 22.23.4 64`、`nvm use 22.23.4` 管理；22.13.x 不符合最低要求。`better-sqlite3` 使用依赖包附带的 Windows x64 预编译模块；两种发行包已真实验证 SQLite、`@napi-rs/keyring` 凭据写入／读回／清理及 resvg PNG，不能以 PE 或打包成功替代这些检查。
+
+Windows 单平台双包验收入口为 `node scripts/verify-mcp-packages.mjs RELEASES EVIDENCE win32-x64`；`TEAMSIGHT_TEST_OLD_NODE` 指向已安装的不兼容 Node 目录，用于 external 版错误诊断。脚本优先使用 PowerShell 7，可通过 `TEAMSIGHT_POWERSHELL` 指定路径，未找到时回退 Windows PowerShell。两种 PowerShell 的执行策略可能不同，须沿用所选宿主现有策略，不自动降低或绕过。本机在 PowerShell 7 既有策略下通过，不代表其他电脑或 PowerShell 5.1 已验收。
+
+本地安装器要求 PowerShell 7，仅消费已解压的 win32-x64 bundled 包，不提供公网下载；external 可手动运行并参与发行验收。维护者先执行 `pnpm mcp:installer:windows:build`，再执行 `pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath /绝对路径/teamsight-mcp-win32-x64-bundled`；隔离安装验收为 `pnpm mcp:installer:windows:verify`。入口与实现见[安装管理](../scripts/install-windows.ps1)、[构建器](../scripts/build-windows-manager.mjs)、[发行验收](../scripts/verify-windows-packages.mjs)、[隔离安装验收](../scripts/verify-windows-installer.mjs)。
+
+默认安装根 `%LOCALAPPDATA%\TeamSight MCP`，程序位于 `versions/0.3.3-bundled`，数据 `data-mcp`、日志 `logs`、备份 `backups`，管理状态为 `installer-state.json`。后台使用当前用户 SID 的 Interactive／Limited／Hidden 登录计划任务，固定 PowerShell 和包内 Node 的绝对路径，关闭安装进程及后续切换 nvm 不影响运行。默认端口 43127；`-InstallRoot`、`-CodexHome`、`-Port` 可用于隔离验收。使用 `pwsh -NoProfile -File "$env:LOCALAPPDATA/TeamSight MCP/install-windows.ps1" -Action Status` 查询，同入口支持 Start、Stop、Uninstall；Stop 同时禁用登录任务，Start 重新启用。卸载移除匹配的 Codex 连接、任务和版本程序，保留数据、访问令牌、系统凭据、日志与备份。
+
+安装器复用 TOML 结构编辑设置静态 Authorization，保留其他连接及审批策略；含令牌的文件和备份以当前用户、SYSTEM、Administrators 的 ACL 保护，不输出令牌。任务计划程序可能将域账号显示为短用户名，身份应转换为 SID 比较。重复设置权限时应仅写入 DACL；本次 Set-Acl 路径出现普通用户缺少 SeSecurityPrivilege，使用 `.NET FileSystemAclExtensions.SetAccessControl` 写入 DACL 后通过重复安装验收。未知实例锁、端口占用不接管；配置失败的服务／任务／新程序回滚已通过隔离实测，不能扩展解释为所有故障路径均已覆盖。
+
+Windows 无开发者模式时可用目录 junction 验证链接拒绝；macOS LaunchAgent 专属测试明确跳过，不在 Windows 调用 `process.getuid`。Windows 包已验证中文／空格路径、参数及退出码、两包共享数据、bundled 不依赖外部 Node，以及运行时缺失／损坏／不兼容诊断。验收结果保存在独立 JSON，不回写封存归档。
+
+[2026-11-12 Windows 报告](../artifacts/report/20261112_1622_windows-mcp_测试报告.md)记录 148 项通过、2 项 macOS 专属测试跳过、双包原生运行和 6 组隔离安装管理场景，以及正式安装的 37 工具／2 资源与 Codex 宿主实例匹配。用户刷新连接后确认连接设置卡片正常显示。完整分析卡片交互、真实 TAPD 业务、重新登录、系统重启与休眠恢复仍未验收；任务定义和任务重启不能代替真实登录／重启结果，设置卡片不能代替完整 Apps 验收。本机代理端口、PID、任务名、配置修订及下载故障仅为当次环境事实，不作为通用配置。
 
 ## macOS HTTP Agent 安装与后台管理
 
@@ -90,4 +106,4 @@ KeepAlive LaunchAgent 升级先验证运行包、doctor 和隔离 MCP，检查�
 
 [2026-11-10 安装器报告](../artifacts/report/20261110_macos-http-agent-install_测试报告.md)记录 Node 22.23.4 下 148 项回归与 17 组真实 HTTPS／原生模块／隔离 LaunchAgent 场景通过，未切换生产 MCP、未改四份封存归档。当次脚本固定地址 GET 为 404、Release 连接超时，未完成公网与接收端 Codex 验收；这是当时证据，本次知识提升未重查线上状态。分发前须核对当前发布状态并完成匿名下载、接收端安装及宿主连接验收。LaunchAgent 重载不替代系统重启／重新登录验收，原生 Apps、实际 Gatekeeper 弹窗、首次钥匙串授权、签名公证及其他平台仍需对应验收。
 
-本次知识提升仅静态核对，未重新构建、部署或执行业务测试。迁移实现见[迁移模块](../apps/server/src/migration.ts)，服务注册见[server](../apps/server/src/server.ts)。
+本次知识提升静态核对源码、报告及已保存的 Windows 实测证据，未重新构建、部署或执行业务测试。迁移实现见[迁移模块](../apps/server/src/migration.ts)，服务注册见[server](../apps/server/src/server.ts)。

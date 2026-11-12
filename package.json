@@ -13,6 +13,9 @@
     "mcp:test": "pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test && pnpm --filter @teamsight/mcp-ui test && node --test scripts/test/*.test.mjs",
     "mcp:serve": "node apps/server/dist/cli.js serve",
     "mcp:package": "node scripts/package-mcp.mjs",
+    "mcp:package:verify": "node scripts/verify-mcp-packages.mjs",
+    "mcp:installer:windows:build": "node scripts/build-windows-manager.mjs",
+    "mcp:installer:windows:verify": "node scripts/verify-windows-installer.mjs",
     "mcp:installer:build": "node scripts/build-installer.mjs",
     "mcp:installer:verify": "node scripts/verify-http-installer.mjs",
     "mcp:installer:prepare": "node scripts/prepare-installer-release.mjs"

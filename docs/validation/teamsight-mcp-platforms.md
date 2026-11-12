@@ -2,6 +2,27 @@
 
 当前版本 0.3.3。目标为 macOS arm64、Windows x64；Windows 实机、其他平台和 Codex 原生 Apps 需对应环境单独验收。
 
+## Windows 实机验收与本地后台安装
+
+Windows 源码开发支持 nvm-windows：`nvm install 22.23.4 64`、`nvm use 22.23.4`，再安装 pnpm 10.12.4 并按锁文件安装。已有 22.13.x 不满足最低 22.14 要求。下载如需代理，使用本机有效代理；不关闭 TLS 校验，发行 Node 仍须匹配固定 SHA-256。
+
+仅构建 Windows 后运行：
+
+```powershell
+$env:TEAMSIGHT_TEST_OLD_NODE = "$env:NVM_HOME/v16.20.2" # 已安装的不兼容版本目录，用于错误诊断验证
+node scripts/verify-mcp-packages.mjs artifacts/releases/0.3.3 artifacts/validation/windows/packages win32-x64
+pnpm mcp:installer:windows:build
+pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath "$PWD/artifacts/releases/0.3.3/teamsight-mcp-win32-x64-bundled"
+```
+
+验收脚本优先使用已安装的 PowerShell 7，也可通过 `TEAMSIGHT_POWERSHELL` 指定绝对路径；未安装时使用 Windows PowerShell。沿用该宿主现有执行策略，禁止脚本时直接失败，不传 ExecutionPolicy 绕过。验收解压目录包含中文与空格，验证原生模块、MCP、双版本共享数据、参数和退出码，以及运行时缺失、损坏、不兼容诊断。`acceptance.json` 单独记录真实运行结果，不改封存包。
+
+Windows 本地安装器要求 PowerShell 7，消费已解压 bundled 包，不提供公网下载。默认根为 `%LOCALAPPDATA%\TeamSight MCP`，程序 `versions/0.3.3-bundled`，数据 `data-mcp`，日志 `logs`，备份 `backups`。用当前用户 SID 创建非管理员隐藏登录计划任务，固定安装时 PowerShell 绝对路径和包内 Node；不受 nvm 后续切换影响。默认端口 43127；可通过 `-InstallRoot`、`-CodexHome`、`-Port` 做隔离验收。
+
+安装后的 `install-windows.ps1 -Action Status|Start|Stop|Uninstall` 管理服务。Stop 同时禁用登录任务，Start 重新启用；重复 Install 校验既有安装并确保启动。安装器校验文件集合/哈希、任务身份、进程、实例身份；拒绝未知端口、锁及被改动的管理文件。Codex 配置使用静态 Authorization，复用 TOML 结构编辑，保留其他连接和审批策略；令牌、数据与配置备份以当前用户、SYSTEM、Administrators ACL 保护，不输出令牌。卸载移除匹配连接、任务及版本程序，保留数据、凭据、日志、备份及管理入口。
+
+真实登录/重启和 Codex 原生卡片须另行验收；后台任务重启与独立 MCP 客户端通过不等于宿主已经重连。
+
 ## 0.3.3 双版本发行
 
 默认推荐 bundled 自带运行时版，包含私有 Node 22.23.4；external 精简版要求外部 Node 22.14+（低于23）、Node-API 10+。两种包业务文件和生产依赖相同，均无需安装 pnpm；自带版不安装全局 Node，不修改 PATH 或 nvm，启动时清除子进程 NODE_OPTIONS/NODE_PATH，并校验私有可执行文件 SHA-256。运行时缺失或损坏直接失败，不回退系统 Node。
