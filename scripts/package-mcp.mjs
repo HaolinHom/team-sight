@@ -26,6 +26,7 @@ try {
 await withStaging(releases, async staging => {
   const sourceHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
   const sourceFiles = ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'README.md', 'scripts/package-mcp.mjs', 'scripts/package-mcp-lib.mjs', 'scripts/verify-mcp-packages.mjs', 'scripts/test/package-mcp.test.mjs', 'docs/validation/teamsight-mcp-platforms.md', 'docs/TeamSight-MCP-能力与使用说明.md']
+  sourceFiles.push('scripts/verify-windows-packages.mjs', 'scripts/build-windows-manager.mjs', 'scripts/install-windows.ps1', 'scripts/installer/windows-config.mjs', 'scripts/installer/config.mjs', 'scripts/verify-windows-installer.mjs', 'scripts/test/windows-config.test.mjs')
   async function listFiles(dir) {
     const items = []
     for (const ent of await readdir(dir, { withFileTypes: true })) {

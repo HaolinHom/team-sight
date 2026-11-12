@@ -37,7 +37,7 @@ test('malformed TOML never echoes config/credential text', () => {
   assert.throws(() => configureCodex('broken=["private-token"', url, token), /^Error: CODEX_CONFIG_INVALID$/)
   assert.throws(() => configureCodex('mcp_servers="private-token"', url, token), /^Error: CODEX_CONFIG_INVALID$/)
 })
-test('test service paths cannot collide with production label or Codex home', () => {
+test('test service paths cannot collide with production label or Codex home', { skip: process.platform !== 'darwin' }, () => {
   const p = paths('/tmp/teamsight-installer-test-sample', '/tmp/teamsight-installer-test-sample/codex', true, 44001)
   assert.match(p.label, /^cn\.teamsight\.mcp\.test\./)
   assert.ok(p.plist.startsWith('/tmp/teamsight-installer-test-sample/'))
@@ -51,7 +51,8 @@ test('payload verification normalizes doubled separators and rejects tampering/s
     assert.equal(verifyPayload(dir.replace('/teamsight-', '//teamsight-')).version, '0.3.3')
     fs.writeFileSync(join(dir, 'README.md'), 'changed')
     assert.throws(() => verifyPayload(dir), /PAYLOAD_HASH_MISMATCH/)
-    fs.writeFileSync(join(dir, 'README.md'), 'fixture'); fs.symlinkSync('README.md', join(dir, 'link'))
+    fs.writeFileSync(join(dir, 'README.md'), 'fixture')
+    fs.symlinkSync(process.platform === 'win32' ? dir : 'README.md', join(dir, 'link'), process.platform === 'win32' ? 'junction' : 'file')
     assert.throws(() => verifyPayload(dir), /PAYLOAD_SYMLINK_OR_SPECIAL_FILE/)
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })

@@ -52,7 +52,7 @@ test('file hashes reject symbolic links', async t => {
   const dir = await fixture(t)
   await writeFile(join(dir, 'file'), 'value')
   assert.equal((await fileHashes(dir)).file, sha256('value'))
-  await symlink(join(dir, 'file'), join(dir, 'link'))
+  await symlink(process.platform === 'win32' ? dir : join(dir, 'file'), join(dir, 'link'), process.platform === 'win32' ? 'junction' : 'file')
   await assert.rejects(fileHashes(dir), /UNEXPECTED_SYMLINK/)
 })
 test('POSIX launcher pins runtime, sanitizes options, forwards args and exit codes', { skip: process.platform !== 'darwin' }, async t => {
