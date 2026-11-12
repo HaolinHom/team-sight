@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-11-10T15:15:46.049Z",
+  "method": "GET",
+  "authentication": "none",
+  "checks": [
+    {
+      "url": "https://raw.githubusercontent.com/HaolinHom/team-sight/faded11e42d844aba0f150e4f6523a696f5196c7/scripts/install.sh",
+      "status": 404
+    },
+    {
+      "url": "https://github.com/HaolinHom/team-sight/releases/download/v0.3.3/teamsight-mcp-0.3.3-darwin-arm64-bundled.tar.gz",
+      "error": "TypeError"
+    },
+    {
+      "url": "https://github.com/HaolinHom/team-sight/releases/download/v0.3.3/teamsight-mcp-0.3.3-darwin-arm64-external.tar.gz",
+      "error": "TypeError"
+    }
+  ]
+}

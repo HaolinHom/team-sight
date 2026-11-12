@@ -1,0 +1,71 @@
+TAP version 13
+# Subtest: Codex TOML structure, comments and policies: 0
+ok 1 - Codex TOML structure, comments and policies: 0
+  ---
+  duration_ms: 3.683167
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 1
+ok 2 - Codex TOML structure, comments and policies: 1
+  ---
+  duration_ms: 2.433333
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 2
+ok 3 - Codex TOML structure, comments and policies: 2
+  ---
+  duration_ms: 1.211292
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 3
+ok 4 - Codex TOML structure, comments and policies: 3
+  ---
+  duration_ms: 1.889917
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 4
+ok 5 - Codex TOML structure, comments and policies: 4
+  ---
+  duration_ms: 1.688958
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 5
+ok 6 - Codex TOML structure, comments and policies: 5
+  ---
+  duration_ms: 1.628709
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 6
+ok 7 - Codex TOML structure, comments and policies: 6
+  ---
+  duration_ms: 0.513833
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 7
+ok 8 - Codex TOML structure, comments and policies: 7
+  ---
+  duration_ms: 0.622417
+  type: 'test'
+  ...
+# Subtest: malformed TOML never echoes config/credential text
+ok 9 - malformed TOML never echoes config/credential text
+  ---
+  duration_ms: 0.477708
+  type: 'test'
+  ...
+# Subtest: test service paths cannot collide with production label or Codex home
+ok 10 - test service paths cannot collide with production label or Codex home
+  ---
+  duration_ms: 0.492625
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 49.928459
+__EXIT=0

@@ -1,0 +1,646 @@
+
+> team-sight@0.3.3 test /Users/haolin/Projects/team-sight
+> pnpm mcp:test
+
+
+> team-sight@0.3.3 mcp:test /Users/haolin/Projects/team-sight
+> pnpm --filter @teamsight/core test && pnpm --filter @teamsight/tapd test && pnpm --filter @teamsight/server test && pnpm --filter @teamsight/mcp-ui test && node --test scripts/test/*.test.mjs
+
+
+> @teamsight/core@0.3.3 test /Users/haolin/Projects/team-sight/packages/core
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: business day is explicit across timezone boundaries and invalid ranges are rejected
+ok 1 - business day is explicit across timezone boundaries and invalid ranges are rejected
+  ---
+  duration_ms: 29.453625
+  type: 'test'
+  ...
+# Subtest: MCP hours/risk rules preserve calendar and member order and include the open day
+ok 2 - MCP hours/risk rules preserve calendar and member order and include the open day
+  ---
+  duration_ms: 1.831667
+  type: 'test'
+  ...
+# Subtest: unknown source gaps do not become zero-hours risk findings
+ok 3 - unknown source gaps do not become zero-hours risk findings
+  ---
+  duration_ms: 0.210125
+  type: 'test'
+  ...
+# Subtest: core keeps natural-date and timezone-independent semantics
+ok 4 - core keeps natural-date and timezone-independent semantics
+  ---
+  duration_ms: 2.376416
+  type: 'test'
+  ...
+# Subtest: schedule mapping matches the old TAPD field conventions
+ok 5 - schedule mapping matches the old TAPD field conventions
+  ---
+  duration_ms: 0.515208
+  type: 'test'
+  ...
+# Subtest: missing/partial/reversed dates span first to last actual day without changing sources
+ok 6 - missing/partial/reversed dates span first to last actual day without changing sources
+  ---
+  duration_ms: 4.560458
+  type: 'test'
+  ...
+# Subtest: unscheduled shared completed items appear only for members with positive finite actuals in the analysis period
+ok 7 - unscheduled shared completed items appear only for members with positive finite actuals in the analysis period
+  ---
+  duration_ms: 0.813125
+  type: 'test'
+  ...
+# Subtest: legacy unscheduled markers cannot create a row, including on tasks with another member span
+ok 8 - legacy unscheduled markers cannot create a row, including on tasks with another member span
+  ---
+  duration_ms: 0.181958
+  type: 'test'
+  ...
+# Subtest: valid scheduled items stay visible without actuals regardless of completion state
+ok 9 - valid scheduled items stay visible without actuals regardless of completion state
+  ---
+  duration_ms: 0.20625
+  type: 'test'
+  ...
+# Subtest: transferred ownership uses individual actual days; owner keeps real dates plus outside days
+ok 10 - transferred ownership uses individual actual days; owner keeps real dates plus outside days
+  ---
+  duration_ms: 0.445583
+  type: 'test'
+  ...
+# Subtest: distinct project/type IDs, missing metadata, nonpositive actuals and scope stay separate
+ok 11 - distinct project/type IDs, missing metadata, nonpositive actuals and scope stay separate
+  ---
+  duration_ms: 0.473667
+  type: 'test'
+  ...
+# Subtest: October regression actual totals remain 8.5, 8, 8, 4 and presentation never changes calculation inputs
+ok 12 - October regression actual totals remain 8.5, 8, 8, 4 and presentation never changes calculation inputs
+  ---
+  duration_ms: 1.956292
+  type: 'test'
+  ...
+# Subtest: current identities use explicit default group membership
+ok 13 - current identities use explicit default group membership
+  ---
+  duration_ms: 4.170041
+  type: 'test'
+  ...
+# Subtest: 4+4 and 2+6 can occupy Monday and Wednesday without imposing story adjacency
+ok 14 - 4+4 and 2+6 can occupy Monday and Wednesday without imposing story adjacency
+  ---
+  duration_ms: 2.615166
+  type: 'test'
+  ...
+# Subtest: continuity and earliest profiles expose the tradeoff, strict capacity never overflows
+ok 15 - continuity and earliest profiles expose the tradeoff, strict capacity never overflows
+  ---
+  duration_ms: 0.678458
+  type: 'test'
+  ...
+# Subtest: backward anchors, dependencies, explicit same-day and cycles are respected
+ok 16 - backward anchors, dependencies, explicit same-day and cycles are respected
+  ---
+  duration_ms: 3.229708
+  type: 'test'
+  ...
+# Subtest: incomplete data and bounded search never become false infeasibility
+ok 17 - incomplete data and bounded search never become false infeasibility
+  ---
+  duration_ms: 0.223709
+  type: 'test'
+  ...
+# Subtest: multi-person search assigns indivisible work units independently
+ok 18 - multi-person search assigns indivisible work units independently
+  ---
+  duration_ms: 0.180334
+  type: 'test'
+  ...
+# Subtest: MCP missing estimate uses zero, actuals survive missing dates and today gets shortage
+ok 19 - MCP missing estimate uses zero, actuals survive missing dates and today gets shortage
+  ---
+  duration_ms: 0.990708
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 124.031459
+
+> @teamsight/tapd@0.3.3 test /Users/haolin/Projects/team-sight/packages/tapd
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: pagination preserves all 201 records and detects repeated pages and malformed lists
+ok 1 - pagination preserves all 201 records and detects repeated pages and malformed lists
+  ---
+  duration_ms: 0.949625
+  type: 'test'
+  ...
+# Subtest: pagination budget is explicit after 50 full pages when count cannot prove convergence
+ok 2 - pagination budget is explicit after 50 full pages when count cannot prove convergence
+  ---
+  duration_ms: 2.504291
+  type: 'test'
+  ...
+# Subtest: a short page cannot claim completeness when the count still contains missing rows
+ok 3 - a short page cannot claim completeness when the count still contains missing rows
+  ---
+  duration_ms: 0.164291
+  type: 'test'
+  ...
+# Subtest: story search translates an offset consistently with task search
+ok 4 - story search translates an offset consistently with task search
+  ---
+  duration_ms: 0.104958
+  type: 'test'
+  ...
+# Subtest: one global queue bounds requests from multiple clients to three
+ok 5 - one global queue bounds requests from multiple clients to three
+  ---
+  duration_ms: 22.878458
+  type: 'test'
+  ...
+# Subtest: native HTTP transport uses Bearer plus POST form encoding and never retries a lost write
+ok 6 - native HTTP transport uses Bearer plus POST form encoding and never retries a lost write
+  ---
+  duration_ms: 13.519042
+  type: 'test'
+  ...
+# Subtest: operation directory records the documented POST update endpoints and schemas
+ok 7 - operation directory records the documented POST update endpoints and schemas
+  ---
+  duration_ms: 0.155208
+  type: 'test'
+  ...
+# Subtest: documented histories use WorkitemChange at 100 rows and attachments use 200 without unsupported count calls
+ok 8 - documented histories use WorkitemChange at 100 rows and attachments use 200 without unsupported count calls
+  ---
+  duration_ms: 0.240958
+  type: 'test'
+  ...
+# Subtest: TAPD adapter uses the existing task/bug field differences and maps rows
+ok 9 - TAPD adapter uses the existing task/bug field differences and maps rows
+  ---
+  duration_ms: 1.33275
+  type: 'test'
+  ...
+# Subtest: TAPD adapter retries transient errors but does not retry 403
+ok 10 - TAPD adapter retries transient errors but does not retry 403
+  ---
+  duration_ms: 454.345125
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 547.565583
+
+> @teamsight/server@0.3.3 test /Users/haolin/Projects/team-sight/apps/server
+> node --test test/*.test.mjs
+
+TAP version 13
+# Subtest: writes share an idempotency receipt across concurrent clients and verify by read-back
+ok 1 - writes share an idempotency receipt across concurrent clients and verify by read-back
+  ---
+  duration_ms: 11.214667
+  type: 'test'
+  ...
+# Subtest: write scopes, identity candidates and stale field digest prevent any emitted mutation
+ok 2 - write scopes, identity candidates and stale field digest prevent any emitted mutation
+  ---
+  duration_ms: 3.74525
+  type: 'test'
+  ...
+# Subtest: an emitted timeout is unknown, survives restart and is never automatically reissued
+ok 3 - an emitted timeout is unknown, survives restart and is never automatically reissued
+  ---
+  duration_ms: 5.18425
+  type: 'test'
+  ...
+# Subtest: successful POST followed by missing read-back stays unknown, while explicit rejection fails
+ok 4 - successful POST followed by missing read-back stays unknown, while explicit rejection fails
+  ---
+  duration_ms: 3.642875
+  type: 'test'
+  ...
+# Subtest: analysis separates actual/cumulative reads, preserves source time/order and reuses facts for rule changes
+ok 5 - analysis separates actual/cumulative reads, preserves source time/order and reuses facts for rule changes
+  ---
+  duration_ms: 7.775667
+  type: 'test'
+  ...
+# Subtest: partial actual data stays unknown, failed empty sources cannot claim a complete or safe team
+ok 6 - partial actual data stays unknown, failed empty sources cannot claim a complete or safe team
+  ---
+  duration_ms: 5.244541
+  type: 'test'
+  ...
+# Subtest: HTML/SVG escape external content, CSV prevents formulas and Chinese PNG is a real resource
+ok 7 - HTML/SVG escape external content, CSV prevents formulas and Chinese PNG is a real resource
+  ---
+  duration_ms: 3332.635041
+  type: 'test'
+  ...
+# Subtest: in-flight receipts and jobs recover as unknown/interrupted without deleting analysis records
+ok 8 - in-flight receipts and jobs recover as unknown/interrupted without deleting analysis records
+  ---
+  duration_ms: 5.372625
+  type: 'test'
+  ...
+# Subtest: gantt exports paginate by rendered member rows as well as date windows
+ok 9 - gantt exports paginate by rendered member rows as well as date windows
+  ---
+  duration_ms: 14.668875
+  type: 'test'
+  ...
+# Subtest: analysis jobs cancel reads and successful writes invalidate raw caches while old analyses remain immutable
+ok 10 - analysis jobs cancel reads and successful writes invalidate raw caches while old analyses remain immutable
+  ---
+  duration_ms: 6.037458
+  type: 'test'
+  ...
+# Subtest: MCP exposes catalog, analysis Apps, writes, artifacts and applies validation to generic calls
+ok 11 - MCP exposes catalog, analysis Apps, writes, artifacts and applies validation to generic calls
+  ---
+  duration_ms: 111.746167
+  type: 'test'
+  ...
+# Subtest: enabled projects override legacy lists while disabled projects remain readable and operations/fields stay enforced
+ok 12 - enabled projects override legacy lists while disabled projects remain readable and operations/fields stay enforced
+  ---
+  duration_ms: 6.291
+  type: 'test'
+  ...
+# Subtest: disabling a project during metadata loading prevents the pending POST
+ok 13 - disabling a project during metadata loading prevents the pending POST
+  ---
+  duration_ms: 2.571084
+  type: 'test'
+  ...
+# Subtest: analysis saves the calendar actually used, bounds overrides and keeps old snapshots immutable
+ok 14 - analysis saves the calendar actually used, bounds overrides and keeps old snapshots immutable
+  ---
+  duration_ms: 5.088042
+  type: 'test'
+  ...
+# Subtest: missing calendar sources retain existing partial-data warnings and ordinary-week fallback
+ok 15 - missing calendar sources retain existing partial-data warnings and ordinary-week fallback
+  ---
+  duration_ms: 3.696333
+  type: 'test'
+  ...
+# Subtest: all Gantt export pages shade holidays before grids/bars and preserve makeup workdays and historical notices
+ok 16 - all Gantt export pages shade holidays before grids/bars and preserve makeup workdays and historical notices
+  ---
+  duration_ms: 14572.147458
+  type: 'test'
+  ...
+# Subtest: offline migration preserves source, revision, receipts, exact files and secrets outside SQLite
+ok 17 - offline migration preserves source, revision, receipts, exact files and secrets outside SQLite
+  ---
+  duration_ms: 30.685833
+  type: 'test'
+  ...
+# Subtest: source instance lock and target conflicts never change source
+ok 18 - source instance lock and target conflicts never change source
+  ---
+  duration_ms: 5.927125
+  type: 'test'
+  ...
+# Subtest: keyring write, verification and database failures clean destination and retain source
+ok 19 - keyring write, verification and database failures clean destination and retain source
+  ---
+  duration_ms: 36.5655
+  type: 'test'
+  ...
+# Subtest: target stays locked while asynchronous database backup is pending
+ok 20 - target stays locked while asynchronous database backup is pending
+  ---
+  duration_ms: 8.751209
+  type: 'test'
+  ...
+# Subtest: unsupported source versions require manual handling without creating a destination
+ok 21 - unsupported source versions require manual handling without creating a destination
+  ---
+  duration_ms: 11.794833
+  type: 'test'
+  ...
+# Subtest: failed credential cleanup keeps target locked and returns a recoverable error
+ok 22 - failed credential cleanup keeps target locked and returns a recoverable error
+  ---
+  duration_ms: 9.666583
+  type: 'test'
+  ...
+# Subtest: link parsing preserves long IDs and rejects unrelated URLs
+ok 23 - link parsing preserves long IDs and rejects unrelated URLs
+  ---
+  duration_ms: 0.906125
+  type: 'test'
+  ...
+# Subtest: project synchronization retains preferences and legacy metadata; new enabled projects permit allowed writes
+ok 24 - project synchronization retains preferences and legacy metadata; new enabled projects permit allowed writes
+  ---
+  duration_ms: 14.86975
+  type: 'test'
+  ...
+# Subtest: requirement context detects both testing rules, chooses earliest complete testing, and separates available materials/history
+ok 25 - requirement context detects both testing rules, chooses earliest complete testing, and separates available materials/history
+  ---
+  duration_ms: 10.78025
+  type: 'test'
+  ...
+# Subtest: replanning releases forecast only, retains actuals and includes occupancy from other projects
+ok 26 - replanning releases forecast only, retains actuals and includes occupancy from other projects
+  ---
+  duration_ms: 5.93925
+  type: 'test'
+  ...
+# Subtest: urgent relocation can move old work beyond the urgent deadline but before earliest testing, all modes emit zero POST
+ok 27 - urgent relocation can move old work beyond the urgent deadline but before earliest testing, all modes emit zero POST
+  ---
+  duration_ms: 9.664042
+  type: 'test'
+  ...
+# Subtest: ordinary batches default to token owner, replay safely, reject intent changes, and survive restart
+ok 28 - ordinary batches default to token owner, replay safely, reject intent changes, and survive restart
+  ---
+  duration_ms: 7.933958
+  type: 'test'
+  ...
+# Subtest: partial success resumes definite failures; lost writes remain unknown until read-only verification
+ok 29 - partial success resumes definite failures; lost writes remain unknown until read-only verification
+  ---
+  duration_ms: 12.282792
+  type: 'test'
+  ...
+# Subtest: dated batch validates fresh capacity and refuses stale plans, calculations expire on restart
+ok 30 - dated batch validates fresh capacity and refuses stale plans, calculations expire on restart
+  ---
+  duration_ms: 13.133542
+  type: 'test'
+  ...
+# Subtest: source failures keep urgent conclusions unknown
+ok 31 - source failures keep urgent conclusions unknown
+  ---
+  duration_ms: 5.064958
+  type: 'test'
+  ...
+# Subtest: real MCP transport exposes new tools, enforces generic schemas, and filters all pages before slicing
+ok 32 - real MCP transport exposes new tools, enforces generic schemas, and filters all pages before slicing
+  ---
+  duration_ms: 121.629667
+  type: 'test'
+  ...
+# Subtest: rescheduling updates the existing task and durable batch metadata is present before POST
+ok 33 - rescheduling updates the existing task and durable batch metadata is present before POST
+  ---
+  duration_ms: 6.615708
+  type: 'test'
+  ...
+# Subtest: MCP uses current daily capacity for ordinary and urgent planning; retired leave settings are rejected
+ok 34 - MCP uses current daily capacity for ordinary and urgent planning; retired leave settings are rejected
+  ---
+  duration_ms: 3.952875
+  type: 'test'
+  ...
+# Subtest: non-current analysis rules cannot supply capacity, simulation or writes
+ok 35 - non-current analysis rules cannot supply capacity, simulation or writes
+  ---
+  duration_ms: 7.456209
+  type: 'test'
+  ...
+# Subtest: batches apply enabled project scope per item without the old write whitelist
+ok 36 - batches apply enabled project scope per item without the old write whitelist
+  ---
+  duration_ms: 3.362875
+  type: 'test'
+  ...
+# Subtest: simulation copies the saved calendar independently of current settings
+ok 37 - simulation copies the saved calendar independently of current settings
+  ---
+  duration_ms: 3.075125
+  type: 'test'
+  ...
+# Subtest: runtime rejects incompatible Node and Node-API
+ok 38 - runtime rejects incompatible Node and Node-API
+  ---
+  duration_ms: 0.3805
+  type: 'test'
+  ...
+# Subtest: formal settings CAS, write rollback, credential compensation and restart
+ok 39 - formal settings CAS, write rollback, credential compensation and restart
+  ---
+  duration_ms: 18.357166
+  type: 'test'
+  ...
+# Subtest: bounded database lock wait does not commit a failed write
+ok 40 - bounded database lock wait does not commit a failed write
+  ---
+  duration_ms: 1070.385625
+  type: 'test'
+  ...
+# Subtest: partial settings save preserves custom write fields and rejects retired config
+ok 41 - partial settings save preserves custom write fields and rejects retired config
+  ---
+  duration_ms: 2.811083
+  type: 'test'
+  ...
+# Subtest: old databases and in-progress migration never initialize a new store
+ok 42 - old databases and in-progress migration never initialize a new store
+  ---
+  duration_ms: 0.698208
+  type: 'test'
+  ...
+# Subtest: current HTTP clients share settings, enforce auth, expose only current resources and survive restart
+ok 43 - current HTTP clients share settings, enforce auth, expose only current resources and survive restart
+  ---
+  duration_ms: 118.529542
+  type: 'test'
+  ...
+# Subtest: worklog item hydration is deduplicated, read-only and excluded from computation; failed metadata keeps a separate row
+ok 44 - worklog item hydration is deduplicated, read-only and excluded from computation; failed metadata keeps a separate row
+  ---
+  duration_ms: 7395.2795
+  type: 'test'
+  ...
+# Subtest: display filtering occurs before pagination, retains transferred contributors and full-analysis virtual dates
+ok 45 - display filtering occurs before pagination, retains transferred contributors and full-analysis virtual dates
+  ---
+  duration_ms: 97.995458
+  type: 'test'
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18275.831
+
+> @teamsight/mcp-ui@0.3.3 test /Users/haolin/Projects/team-sight/apps/mcp-ui
+> vitest run --config vitest.config.ts
+
+
+ RUN  v3.2.7 /Users/haolin/Projects/team-sight/apps/mcp-ui
+
+ ✓ src/gantt-model.spec.ts (25 tests) 7ms
+ ✓ src/Analysis.spec.ts (8 tests) 67ms
+ ✓ src/FormalSettings.spec.ts (11 tests) 127ms
+ ✓ src/GanttLayers.spec.ts (12 tests) 233ms
+
+ Test Files  4 passed (4)
+      Tests  56 passed (56)
+   Start at  23:13:03
+   Duration  1.21s (transform 785ms, setup 0ms, collect 1.39s, tests 435ms, environment 1.77s, prepare 227ms)
+
+TAP version 13
+# Subtest: Codex TOML structure, comments and policies: 0
+ok 1 - Codex TOML structure, comments and policies: 0
+  ---
+  duration_ms: 4.161708
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 1
+ok 2 - Codex TOML structure, comments and policies: 1
+  ---
+  duration_ms: 2.868459
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 2
+ok 3 - Codex TOML structure, comments and policies: 2
+  ---
+  duration_ms: 1.311583
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 3
+ok 4 - Codex TOML structure, comments and policies: 3
+  ---
+  duration_ms: 1.921708
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 4
+ok 5 - Codex TOML structure, comments and policies: 4
+  ---
+  duration_ms: 1.34475
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 5
+ok 6 - Codex TOML structure, comments and policies: 5
+  ---
+  duration_ms: 1.555708
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 6
+ok 7 - Codex TOML structure, comments and policies: 6
+  ---
+  duration_ms: 0.598584
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 7
+ok 8 - Codex TOML structure, comments and policies: 7
+  ---
+  duration_ms: 0.541208
+  type: 'test'
+  ...
+# Subtest: Codex TOML structure, comments and policies: 8
+ok 9 - Codex TOML structure, comments and policies: 8
+  ---
+  duration_ms: 0.817083
+  type: 'test'
+  ...
+# Subtest: malformed TOML never echoes config/credential text
+ok 10 - malformed TOML never echoes config/credential text
+  ---
+  duration_ms: 0.48125
+  type: 'test'
+  ...
+# Subtest: test service paths cannot collide with production label or Codex home
+ok 11 - test service paths cannot collide with production label or Codex home
+  ---
+  duration_ms: 0.365125
+  type: 'test'
+  ...
+# Subtest: payload verification normalizes doubled separators and rejects tampering/symlinks
+ok 12 - payload verification normalizes doubled separators and rejects tampering/symlinks
+  ---
+  duration_ms: 1.989667
+  type: 'test'
+  ...
+# Subtest: targets accept defaults and all, reject unsupported or excess arguments
+ok 13 - targets accept defaults and all, reject unsupported or excess arguments
+  ---
+  duration_ms: 0.673416
+  type: 'test'
+  ...
+# Subtest: runtime cache verifies downloads and cached bytes; corruption never falls through
+ok 14 - runtime cache verifies downloads and cached bytes; corruption never falls through
+  ---
+  duration_ms: 3.592708
+  type: 'test'
+  ...
+# Subtest: staging cleans failed preparation without touching earlier releases
+ok 15 - staging cleans failed preparation without touching earlier releases
+  ---
+  duration_ms: 1.437375
+  type: 'test'
+  ...
+# Subtest: publication refuses existing files and rolls back only its own partial outputs
+ok 16 - publication refuses existing files and rolls back only its own partial outputs
+  ---
+  duration_ms: 1.454667
+  type: 'test'
+  ...
+# Subtest: file hashes reject symbolic links
+ok 17 - file hashes reject symbolic links
+  ---
+  duration_ms: 7.803833
+  type: 'test'
+  ...
+# Subtest: POSIX launcher pins runtime, sanitizes options, forwards args and exit codes
+ok 18 - POSIX launcher pins runtime, sanitizes options, forwards args and exit codes
+  ---
+  duration_ms: 1295.9315
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1346.866166
+PASS HTTPS 404 rejects without installation
+PASS HTTPS timeout rejects without installation
+PASS HTTPS corrupt rejects without installation
+PASS HTTPS interrupted rejects without installation
+PASS external missing and incompatible Node diagnosis
+PASS bundled install without system Node, diagnostics, permissions, isolated MCP, live 37 tools and detached launchd service
+PASS busy service refusal and idempotent reinstall preserve local token
+PASS failed edition switch rollback after-start
+PASS failed edition switch rollback after-config
+PASS external fixed absolute Node and shared data compatibility
+PASS LaunchAgent unload/reload uses persisted absolute paths
+PASS uninstall failure restores packages, config and running service
+PASS uninstall preserves database, token and other MCP settings
+PASS port conflict refuses and cleans this attempt
+PASS unknown instance lock preserved
+{"commit":"faded11e42d844aba0f150e4f6523a696f5196c7","tag":"macos-installer-706262df19ee","sha256":"706262df19ee7383c315b50b5ea99eb175a036ca462adb02644a1602073cdfcf","guide":"docs/install/macos-agent-install.md","published":false}
+__EXIT=0
