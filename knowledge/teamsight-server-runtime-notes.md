@@ -1,6 +1,6 @@
 # TeamSight Server / MCP Apps 运行知识
 
-> 适用版本：MCP 0.3.3。基础运行规则于 2026-11-06 按源码复核，2026-11-09 复核双版本发行、运行时选择与无迁移升级边界；本机服务实时状态需调用 teamsight_status，不以历史部署记录代替。
+> 适用版本：MCP 0.3.3。基础运行规则于 2026-11-06 按源码复核，2026-11-09 复核双版本发行、运行时选择与无迁移升级边界，2026-11-12 静态复核 macOS HTTP 安装器；本机服务实时状态需调用 teamsight_status，不以历史部署记录代替。
 
 ## 工程与服务入口
 
@@ -65,5 +65,29 @@ KeepAlive LaunchAgent 升级先验证运行包、doctor 和隔离 MCP，检查�
 [0.3.3 双版本发行报告](../artifacts/report/20261109_双版本发行_mcp033_测试报告.md)记录原有 130 项与新增 6 项测试、四份归档完整性／无符号链接／公共业务文件一致性，以及 macOS 两种包的 doctor、隔离 MCP、启动／状态／停止、SQLite、钥匙串、中文 PNG、运行时选择及数据兼容检查。精简版在 Node 22.14.0、22.23.4 下完成对应验收；Windows 仅通过归档、清单和 PE x64 检查，PowerShell、原生模块与实机启动仍待验收。
 
 [0.3.3 精简版本机升级报告](../artifacts/report/20261109_精简版更新MCP033_测试报告.md)记录后续经授权的 LaunchAgent 升级、配置／凭据／历史数据保留及工具／资源哈希核对。安装目录、包大小、PID、revision 等均为点时证据，不作为长期常量；当前服务状态仍须实时查询。Codex 原生 Apps 完整交互、真实 TAPD 写入与系统重启未在该轮验收。
+
+## macOS HTTP Agent 安装与后台管理
+
+独立 [install.sh](../scripts/install.sh) 当前支持 **0.3.3／macOS arm64**，bundled、external 两种包，默认 bundled。可复制给 Agent 的固定下载命令见[安装说明](../docs/install/macos-agent-install.md)。脚本不附入或改写已封存的运行包；消费端无需 GitHub CLI、GitHub Token、源码、Python、npm 或 pnpm，external 仍须提供兼容的 arm64 Node。
+
+安装说明先以 HTTPS GET 下载固定提交的脚本，校验 SHA-256 后执行，不用 curl 管道直接执行。脚本再通过固定 GitHub Release 地址下载对应归档，校验内置归档 SHA-256 后提取，并检查包内文件集合／哈希和符号链接。下载有连接及总超时，只允许 HTTPS 重定向；不跟随 latest，不在 HTTP 错误或哈希失败后更换来源。公开脚本快照、Release 资产及匿名下载可用是分发前置条件；生成固定地址不代表已推送或已上线。
+
+参数为 `--version 0.3.3`、`--variant bundled|external`、external 可选 `--node /绝对路径/node`，默认端口 43127。bundled 使用包内 Node；external 从显式路径或当前 PATH 选择 Node，校验版本／Node-API／arm64，并将其真实绝对路径固定于启动脚本，不安装系统 Node、不更改 nvm 或全局 PATH。安装器及后台子进程清除 NODE_OPTIONS／NODE_PATH。手工解压运行沿用上一节入口；安装器的 external 启动由已验证的绝对 Node 路径调用 CLI，不依赖登录 shell 载入 nvm。
+
+生产安装根目录为 `~/Library/Application Support/TeamSight MCP`：程序位于 `versions/0.3.3-<variant>`，数据为 `data-mcp`，日志为 `logs`，备份为 `backups`，管理状态为 `installer-state.json`。归档校验后仅解除本次提取目录的下载隔离标记，不关闭系统 Gatekeeper；解除隔离不等于 Apple 签名或公证。doctor 校验 SQLite、系统钥匙串、PNG，再执行隔离 MCP；通过后创建用户级 `cn.teamsight.mcp` LaunchAgent，立即及登录后启动，关闭安装终端后仍可用。桌面登录会话、钥匙串授权或系统权限提示可能需要用户本人处理。
+
+安装器尊重 CODEX_HOME，缺省使用 `~/.codex/config.toml`；备份后以 TOML 语法树更新 `mcp_servers.teamsight`，保留其他连接、注释及工具审批策略，并清理被替换连接的旧启动／认证字段。将本机 data-mcp/access-token 写入 `http_headers.Authorization`，配置及备份文件为 0600，目录按 0700 创建，不依赖 Codex 桌面进程继承终端环境变量。此本机访问令牌与 TAPD 凭据不同；TAPD 凭据仍在设置卡片填写。配置、备份和令牌不得贴到对话或公开日志。
+
+安装完成会真实连接 MCP，核对版本、37 个工具及 teamsight_status，再分别报告服务验证和 Codex 配置结果；`codexConnection: reconnect-required` 不表示当前宿主已重载。按提示重新连接或重启 Codex 后另行验证工具和原生 Apps，安装器不会主动中断当前会话。
+
+同版本重复安装及两种包切换会核对管理状态、文件哈希和实例身份，并检查 DB v4／配置 v6、running 作业及 pending／in_flight 写入。安全停止原管理服务后备份静止数据，再切换；未知实例、手工维护的旧启动项、端口冲突、不支持的数据格式或被修改的管理文件会拒绝操作，不结束未知进程、不删除实例锁。失败路径恢复本次修改的管理文件及原服务，Codex 若被并发修改则不覆盖；恢复失败返回 ROLLBACK_REQUIRED，保留备份供处理。INSTALLER_LOCKED 须先确认没有安装进程，不能盲目删锁。
+
+已校验的同一脚本可用 `--status` 查询、`--uninstall` 卸载；操作要求安装器管理状态及所选运行时可用。卸载删除管理服务、匹配的 TeamSight 连接和安装器创建的程序，保留数据、access-token、备份及系统钥匙串凭据；已被手工改变的连接或管理文件不会被强制接管。
+
+维护者使用 `pnpm mcp:installer:build` 从源码生成单文件（内嵌固定 TOML 解析依赖及许可证），`pnpm mcp:installer:verify` 做隔离验收，`pnpm mcp:installer:prepare` 生成固定脚本快照、SHA-256 和安装说明。prepare 只创建本地脚本 Git 快照及保护引用，不推送、不上传资产、不修改工作分支／暂存区或仓库可见性；修改源码后须重新生成并验证，不直接编辑生成脚本。实现见[安装入口源码](../scripts/installer/bootstrap.sh)、[安装与恢复](../scripts/installer/main.mjs)、[配置编辑](../scripts/installer/config.mjs)、[构建器](../scripts/build-installer.mjs)、[快照准备](../scripts/prepare-installer-release.mjs)。
+
+路径校验须先 resolve 归一化，再截取相对文件键；macOS TMPDIR 尾斜杠可能叠出双斜杠，直接按原字符串长度截取会误报文件哈希。对应回归见[安装器测试](../scripts/test/installer.test.mjs)。
+
+[2026-11-10 安装器报告](../artifacts/report/20261110_macos-http-agent-install_测试报告.md)记录 Node 22.23.4 下 148 项回归与 17 组真实 HTTPS／原生模块／隔离 LaunchAgent 场景通过，未切换生产 MCP、未改四份封存归档。当次脚本固定地址 GET 为 404、Release 连接超时，未完成公网与接收端 Codex 验收；这是当时证据，本次知识提升未重查线上状态。分发前须核对当前发布状态并完成匿名下载、接收端安装及宿主连接验收。LaunchAgent 重载不替代系统重启／重新登录验收，原生 Apps、实际 Gatekeeper 弹窗、首次钥匙串授权、签名公证及其他平台仍需对应验收。
 
 本次知识提升仅静态核对，未重新构建、部署或执行业务测试。迁移实现见[迁移模块](../apps/server/src/migration.ts)，服务注册见[server](../apps/server/src/server.ts)。
