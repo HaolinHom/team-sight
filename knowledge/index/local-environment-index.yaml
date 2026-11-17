@@ -1,19 +1,19 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "MCP 运行与配置"
-description: "TeamSight MCP 0.3.3 的工程、存储、迁移、排期恢复及配置规则；不收录退役 Rust/Tauri 工具链。"
+description: "TeamSight MCP 工程、存储、迁移、排期恢复及配置规则；评论在0.3.3快照引入，0.3.4默认配置及macOS双包/安装升级已验收，Windows历史验收单列；不收录退役 Rust/Tauri 工具链。"
 
 items:
   - id: teamsight-server-runtime-notes
     title: "TeamSight Server / MCP Apps 运行与验收边界"
     path: "knowledge/teamsight-server-runtime-notes.md"
-    summary: "MCP 0.3.3、37 工具/2 项资源；macOS arm64/Windows x64 各有 bundled/external，私有 Node 22.23.4、外部 Node 22.14+（<23、Node-API 10+），构建与验收元数据分离；DB v4/配置 v6/TeamSight.MCP 凭据库，升级/双包切换无迁移，旧库显式迁移及缓存/批次恢复边界；macOS 固定HTTP安装器、LaunchAgent、Codex静态Bearer，公网/接收端须独立验收；Windows 10 x64 双包原生/隔离MCP通过，nvm开发、PowerShell 7本地bundled安装、用户级隐藏登录任务、SID/DACL、卸载保留数据；Codex工具与连接设置卡片通过，完整分析卡片、真实TAPD及登录/系统重启仍未验收。"
-    tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "installer", "http", "codex-config", "launchagent", "windows", "powershell", "nvm", "scheduled-task", "acl", "validation", "planning", "simulation", "batch", "recovery", "cache"]
-    verifiedAt: "2026-11-12"
+    summary: "0.3.4为39工具/2资源，旧0.3.3归档37；macOS双包、20安装场景及本机更新通过，DBv4/配置v6保持；0.3.3受管升级及失败回退、手工服务沿用原启动方式；Node22.14+<23/API10+、包哈希与凭据保留；评论回执/幂等未知核实及连接指纹；local-only不创建Git快照，公开下载、完整Apps、重启与Windows0.3.4未验收。"
+    tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "installer", "http", "codex-config", "launchagent", "windows", "powershell", "nvm", "scheduled-task", "acl", "validation", "planning", "simulation", "batch", "recovery", "cache", "comments", "idempotency"]
+    verifiedAt: "2026-11-17"
 
   - id: teamsight-mcp-config-scope
     title: "TeamSight MCP 配置、项目范围与工时规则"
     path: "knowledge/teamsight-mcp-config-scope.md"
-    summary: "schema v6 七类设置与局部保存；完整账号身份，无工号用 user:账号，歧义返回候选；身份目录不等于默认组，范围按显式成员/分组/self/默认组解析并按 order 排序；启用且可访问项目统一默认查询与写入范围，仍限制操作及字段；工时仅 v3，无请假；历史只读导出，旧规则禁止新计算及写入。"
-    tags: ["teamsight", "mcp", "settings", "workspace", "permissions", "hours", "compatibility", "identity", "member-scope", "groups", "member-order"]
-    verifiedAt: "2026-11-06"
+    summary: "0.3.4首次持久配置默认任务/缺陷、create/update/comment、八标准字段及中国日历全选；已有空列表/缺失权限/关闭日历不回填，自定义字段保留，UI快照覆盖初始化；schema v6七类设置与局部保存，身份/显式分组及启用可访问项目范围；评论独立权限、唯一作者/回复归属/修订与连接指纹；工时v3及历史限制不变。"
+    tags: ["teamsight", "mcp", "settings", "workspace", "permissions", "hours", "compatibility", "identity", "member-scope", "groups", "member-order", "comments", "replies"]
+    verifiedAt: "2026-11-17"

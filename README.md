@@ -1,6 +1,6 @@
 # TeamSight MCP
 
-TeamSight 0.3.3 是 TAPD 本地 MCP 服务，提供团队排期、工时与风险分析、甘特图、报告导出和受控任务写入。默认发行包自带私有 Node 22.23.4，无需用户安装 Node；精简版需要外部 Node 22.14+（低于 23）。源码开发使用 Node 22.23.4 及 pnpm 10.12.4。
+TeamSight 0.3.4 是 TAPD 本地 MCP 服务，提供团队排期、工时与风险分析、甘特图、报告导出和受控任务写入。默认发行包自带私有 Node 22.23.4，无需用户安装 Node；精简版需要外部 Node 22.14+（低于 23）。源码开发使用 Node 22.23.4 及 pnpm 10.12.4。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -18,9 +18,11 @@ pnpm mcp:serve --data-dir .local/teamsight-mcp --port 43127
 
 独立 Tauri App 已退役。根 `build`、`test` 执行全部 MCP 构建和测试；不再提供桌面开发、打包或旧 MCP 命令。历史方案、报告和知识记录仅描述对应版本，不代表当前运行方式。
 
+0.3.4 新安装默认勾选任务／缺陷查询、创建／修改／评论操作、八项标准修改字段和中国节假日与调休；已有安装的选择保持原样。
+
 ## macOS Agent 自动安装
 
-[复制给 Agent 的安装说明](docs/install/macos-agent-install.md)通过固定提交的 HTTP GET 获取独立 install.sh，再自动下载并校验 0.3.3 的 bundled/external 包、配置登录后后台服务和 Codex 认证。默认 bundled，精简版复用已安装 Node。该入口须先发布脚本与 Release 资产并公开仓库，接收端验收边界见说明；不会修改封存的 0.3.3 包。
+[复制给 Agent 的安装说明](docs/install/macos-agent-install.md)通过固定提交的 HTTP GET 获取独立 install.sh，再自动下载并校验 0.3.4 的 bundled/external 包、配置登录后后台服务和 Codex 认证。默认 bundled，精简版复用已安装 Node。该入口须先发布脚本与 Release 资产并公开仓库，接收端验收边界见说明；不会修改封存的 0.3.3 包。
 
 ## 发行包
 
@@ -33,7 +35,7 @@ pnpm mcp:serve --data-dir .local/teamsight-mcp --port 43127
 ```powershell
 pnpm mcp:package win32-x64
 pnpm mcp:installer:windows:build
-pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath "$PWD/artifacts/releases/0.3.3/teamsight-mcp-win32-x64-bundled"
+pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath "$PWD/artifacts/releases/0.3.4/teamsight-mcp-win32-x64-bundled"
 ```
 
 安装到 `%LOCALAPPDATA%\TeamSight MCP`，使用当前用户的隐藏登录计划任务与包内 Node，关闭终端或切换 nvm 版本不影响后台服务；无需管理员权限。安装器备份并配置 Codex 连接，完成后重连宿主。管理命令为 `pwsh -NoProfile -File "$env:LOCALAPPDATA/TeamSight MCP/install-windows.ps1" -Action Status`，也支持 Start、Stop、Uninstall；卸载保留数据和凭据。沿用所用 PowerShell 的执行策略；Windows PowerShell 5.1 若禁止脚本，请使用已允许本地脚本的 PowerShell 7，不自动降低策略。详细验收命令见平台说明。

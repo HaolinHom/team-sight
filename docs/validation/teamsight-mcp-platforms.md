@@ -1,6 +1,6 @@
 # TeamSight MCP 平台与 Codex 验收
 
-当前版本 0.3.3。目标为 macOS arm64、Windows x64；Windows 实机、其他平台和 Codex 原生 Apps 需对应环境单独验收。
+当前版本 0.3.4。目标为 macOS arm64、Windows x64；Windows 实机、其他平台和 Codex 原生 Apps 需对应环境单独验收。
 
 ## Windows 实机验收与本地后台安装
 
@@ -10,24 +10,24 @@ Windows 源码开发支持 nvm-windows：`nvm install 22.23.4 64`、`nvm use 22.
 
 ```powershell
 $env:TEAMSIGHT_TEST_OLD_NODE = "$env:NVM_HOME/v16.20.2" # 已安装的不兼容版本目录，用于错误诊断验证
-node scripts/verify-mcp-packages.mjs artifacts/releases/0.3.3 artifacts/validation/windows/packages win32-x64
+node scripts/verify-mcp-packages.mjs artifacts/releases/0.3.4 artifacts/validation/windows/packages win32-x64
 pnpm mcp:installer:windows:build
-pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath "$PWD/artifacts/releases/0.3.3/teamsight-mcp-win32-x64-bundled"
+pwsh -NoProfile -File .local/windows-manager/install-windows.ps1 -Action Install -PackagePath "$PWD/artifacts/releases/0.3.4/teamsight-mcp-win32-x64-bundled"
 ```
 
 验收脚本优先使用已安装的 PowerShell 7，也可通过 `TEAMSIGHT_POWERSHELL` 指定绝对路径；未安装时使用 Windows PowerShell。沿用该宿主现有执行策略，禁止脚本时直接失败，不传 ExecutionPolicy 绕过。验收解压目录包含中文与空格，验证原生模块、MCP、双版本共享数据、参数和退出码，以及运行时缺失、损坏、不兼容诊断。`acceptance.json` 单独记录真实运行结果，不改封存包。
 
-Windows 本地安装器要求 PowerShell 7，消费已解压 bundled 包，不提供公网下载。默认根为 `%LOCALAPPDATA%\TeamSight MCP`，程序 `versions/0.3.3-bundled`，数据 `data-mcp`，日志 `logs`，备份 `backups`。用当前用户 SID 创建非管理员隐藏登录计划任务，固定安装时 PowerShell 绝对路径和包内 Node；不受 nvm 后续切换影响。默认端口 43127；可通过 `-InstallRoot`、`-CodexHome`、`-Port` 做隔离验收。
+Windows 本地安装器要求 PowerShell 7，消费已解压 bundled 包，不提供公网下载。默认根为 `%LOCALAPPDATA%\TeamSight MCP`，程序 `versions/0.3.4-bundled`，数据 `data-mcp`，日志 `logs`，备份 `backups`。用当前用户 SID 创建非管理员隐藏登录计划任务，固定安装时 PowerShell 绝对路径和包内 Node；不受 nvm 后续切换影响。默认端口 43127；可通过 `-InstallRoot`、`-CodexHome`、`-Port` 做隔离验收。
 
 安装后的 `install-windows.ps1 -Action Status|Start|Stop|Uninstall` 管理服务。Stop 同时禁用登录任务，Start 重新启用；重复 Install 校验既有安装并确保启动。安装器校验文件集合/哈希、任务身份、进程、实例身份；拒绝未知端口、锁及被改动的管理文件。Codex 配置使用静态 Authorization，复用 TOML 结构编辑，保留其他连接和审批策略；令牌、数据与配置备份以当前用户、SYSTEM、Administrators ACL 保护，不输出令牌。卸载移除匹配连接、任务及版本程序，保留数据、凭据、日志、备份及管理入口。
 
 真实登录/重启和 Codex 原生卡片须另行验收；后台任务重启与独立 MCP 客户端通过不等于宿主已经重连。
 
-## 0.3.3 双版本发行
+## 双版本发行
 
 默认推荐 bundled 自带运行时版，包含私有 Node 22.23.4；external 精简版要求外部 Node 22.14+（低于23）、Node-API 10+。两种包业务文件和生产依赖相同，均无需安装 pnpm；自带版不安装全局 Node，不修改 PATH 或 nvm，启动时清除子进程 NODE_OPTIONS/NODE_PATH，并校验私有可执行文件 SHA-256。运行时缺失或损坏直接失败，不回退系统 Node。
 
-源码开发使用 Node 22.23.4 / pnpm 10.12.4。先执行 pnpm build、pnpm test，再执行 pnpm mcp:package all；也可指定 darwin-arm64 或 win32-x64，每个目标均生成两种包。不传目标时选择本机平台。发行产物位于 artifacts/releases/0.3.3：macOS 为 tar.gz，Windows 为 zip，文件名包含版本、平台及 bundled/external；同目录保留解压目录与 SHA256SUMS.txt。单平台命令生成对应 SHA256SUMS-<target>.txt，既有产物拒绝覆盖。
+源码开发使用 Node 22.23.4 / pnpm 10.12.4。先执行 pnpm build、pnpm test，再执行 pnpm mcp:package all；也可指定 darwin-arm64 或 win32-x64，每个目标均生成两种包。不传目标时选择本机平台。发行产物位于 artifacts/releases/0.3.4：macOS 为 tar.gz，Windows 为 zip，文件名包含版本、平台及 bundled/external；同目录保留解压目录与 SHA256SUMS.txt。单平台命令生成对应 SHA256SUMS-<target>.txt，既有产物拒绝覆盖。
 
 Node 官方归档固定版本与 SHA-256，缓存位于 .local/node-runtime-cache；复用仍校验，缓存损坏须删除对应缓存后重试。Windows 原生依赖沿用 TEAMSIGHT_MCP_NATIVE_CACHE 的可信缓存校验。打包使用 bsdtar（macOS、Windows 自带 tar）处理 ZIP/tar.gz；只附带 Node 可执行文件及其 LICENSE，不附带 npm 或开发头文件。
 
@@ -59,7 +59,7 @@ Node 官方归档固定版本与 SHA-256，缓存位于 .local/node-runtime-cach
 
 每包 versions.json 区分 variant/runtimeBundled、buildNode 和 validatedNode；打包时 validatedNode 为 null，验收结果保存在独立证据中，不修改已封装的包。自带版记录 Node 来源、归档与可执行文件哈希；checksums.json 覆盖包内全部文件（不包括自身），归档另有 SHA-256 清单。Windows 结构/PE 校验不代表 Windows 实机或原生 Apps 验收通过。
 
-0.3.2 → 0.3.3 沿用 DB v4、配置 v6，无需迁移。升级或切换两种包时先停止并确认旧实例退出，备份静止数据，再使用同一绝对 --data-dir 启动新包；不覆盖旧运行目录。MCP 资源更新为 settings-0.3.3.html 与 analysis-0.3.3.html，重新打开卡片。打包本身不更新本机服务、不上传发布，也不包含 TAPD 凭据或用户数据。
+0.3.3 → 0.3.4 沿用 DB v4、配置 v6，无需迁移。升级或切换两种包时先停止并确认旧实例退出，备份静止数据，再使用同一绝对 --data-dir 启动新包；不覆盖旧运行目录。MCP 资源更新为 settings-0.3.4.html 与 analysis-0.3.4.html，重新打开卡片。打包本身不更新本机服务、不上传发布，也不包含 TAPD 凭据或用户数据。
 
 ## macOS 自动安装
 

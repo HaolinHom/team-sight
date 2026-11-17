@@ -1,7 +1,7 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "TAPD Open API"
-description: "历史真实接口样本与 MCP 0.3.0 源码契约；verifiedAt 为源码复核日期，接口观察时间及边界见正文，不表示重新在线实测。"
+description: "历史真实接口样本及当前源码契约，含评论 MCP；verifiedAt 为源码与证据复核日期，接口观察时间及边界见正文，不表示重新在线实测。"
 
 items:
   - id: tapd-api-auth-and-errors
@@ -12,11 +12,11 @@ items:
     verifiedAt: "2026-11-06"
 
   - id: tapd-api-workitem-queries
-    title: "TAPD 工作项查询、历史与附件接口"
+    title: "TAPD 工作项查询、评论、历史与附件接口"
     path: "knowledge/tapd-api-workitem-queries.md"
-    summary: "任务/缺陷标题与负责人字段不同，身份支持工号或完整账号；列表 200、历史 WorkitemChange/100、附件 Attachment/200；下载 300 秒仅为契约提示；时间仅闭区间，缺日期需 null；owner 不支持多值，当前工时按成员查而不加日期限制；完成状态含自定义配置，原始 effort 与计算缺省分开；生成 tapd_fe/detail，仍接受有效旧链接输入。"
-    tags: ["tapd", "api", "query", "pagination", "null-filter", "effort", "status", "history", "attachments", "identity"]
-    verifiedAt: "2026-11-06"
+    summary: "任务/缺陷字段差异、日期闭区间及 null 过滤、逐账号查询；评论支持 story/task/bug 读取新增回复，映射 stories/tasks/bug，缺陷含 bug_remark，分页 200/最多50页并标缺口；纯文本转义、完整令牌账号、根回复归属、持久幂等及未知先核实；图片/文件引用与附件只读，下载300秒仅契约提示；真实需求新增回复通过，真实任务/缺陷写入与非空附件下载未验收。"
+    tags: ["tapd", "api", "query", "pagination", "null-filter", "effort", "status", "history", "comments", "replies", "attachments", "identity", "idempotency"]
+    verifiedAt: "2026-11-17"
 
   - id: tapd-api-timesheets
     title: "TAPD 工时查询与每日统计"

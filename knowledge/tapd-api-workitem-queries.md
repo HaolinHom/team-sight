@@ -1,7 +1,8 @@
-# TAPD 工作项查询、历史与附件接口
+# TAPD 工作项查询、评论、历史与附件接口
 
 > 验证时间：2026-10-10｜验证方式：真实接口调用（只读）＋ 官方文档字段表
 > 2026-11-06 按 MCP 0.3.0 源码复核实现约定；下列接口数量、字段样例与 HTTP 观察保留原采样时间，本轮未再次请求 TAPD。
+> 2026-11-17 提升评论 MCP 候选：评论由本机 0.3.3 快照引入，按当前 0.3.4 源码及本次会话保存的真实需求验收证据复核。此次知识提升只做静态核对，未再次读写 TAPD；其他历史样本不变。
 
 ## 字段差异（易踩坑）
 
@@ -43,6 +44,28 @@
 - 2026-11-03 只读实测读到需求历史 4 条、任务历史 2 条；附件列表调用成功但样本为 0。真实附件下载及失效时间未验证，不能据空列表宣称下载链路通过。
 
 依据：[TAPD 客户端](../packages/tapd/src/client.ts)、[原接口测试报告](../artifacts/report/20261103_teamsight-mcp-capability-completion_测试报告.md)。本次只对照源码及已有证据，没有再次调用接口。
+
+## 评论读取、新增与回复
+
+仅提供对话 MCP 工具 `tapd_list_comments`、`tapd_add_comment`，通用操作目录为 `comments.list`、`comments.create`。没有评论表单、附件上传、评论编辑／删除或 @通知。
+
+| 项目 | 当前约定 |
+| --- | --- |
+| 公共参数 | `workspaceId`、`entityType:story/task/bug`、工作项 `id`，ID 保持字符串 |
+| 新增参数 | 纯文本 `content`（非空白，最多 12,000 字符）、`idempotencyKey`（8–160 字符），可选 `replyToId` |
+| TAPD 类型 | story → stories，task → tasks，bug → bug；缺陷读取使用 `bug\|bug_remark`，保留流转评论 |
+| 分页与完整性 | `GET /comments`，Comment 包装，每页 200，最多 50 页；分页失败、重复分页、预算耗尽或项目／工作项／类型关联异常标记 `complete:false` |
+| 返回内容 | 保留原评论 ID、author、created、description、root_id、reply_id 等字段，附加 `materials.inlineImages/references` |
+
+`content` 按纯文本转义 `& < > " '`，统一换行并写为 `<br />`，外包 `<p>`。已有 `description` HTML 保留用于读取，属于不可信内容；`materials` 只提取已有 img/src 和 a/href 引用，不代表已获取文件内容。临时链接不可保存成永久附件地址，调用方通过 `attachments.download_link` 按需获取并读取；权限失败或 `complete:false` 不可解释为没有附件。
+
+发表评论使用当前 Bearer 令牌身份。服务端实时读取 `/users/info` 及目标项目完整成员目录，仅在 nick/name 与唯一 `UserWorkspace.user` 完整账号精确匹配时发布，不接受调用方传入 author。项目及独立 comment 权限见[配置与权限](teamsight-mcp-config-scope.md)。
+
+回复前读取并核实目标评论属于同一项目、类型和工作项。服务端设置 `reply_id` 为目标评论 ID；根评论的 `root_id` 缺失或为 0 时以目标 ID 为根，回复已有回复时沿用其根 ID，并再次核实该根属于同一工作项且不是其他回复。调用方仅传 `replyToId`，不直接指定底层 root/reply 字段。
+
+评论复用持久化操作回执，`action:comment`、`targetId` 为工作项 ID、`remoteId` 为评论 ID，同时返回 `tapdUrl`。同幂等键同请求复用原回执，异请求拒绝；超时或重启后的未知结果先通过 `tapd_verify_operation` 只读核实，不自动重发。核实检查连接指纹、归属、作者、正文和回复字段；读回对 `<br />` 等空白写法及根评论缺失／0 回复 ID 做等价规范化。旧工作项创建／修改回执仍可读取，详见[回执与恢复](teamsight-server-runtime-notes.md)。
+
+2026-11-17 真实验收仅覆盖用户指定需求：新增评论和回复各 1 条，作者为令牌对应完整账号，中文、多行、转义、回复关系、读回与重复幂等调用通过，未增加重复评论。三类工作项及 bug_remark 由隔离测试覆盖；真实任务／缺陷写入、非空附件下载与失效时间未验收。依据：[评论实现报告](../artifacts/report/20261117_评论MCP支持_测试报告.md)、[本机更新报告](../artifacts/report/20261117_评论MCP本机服务更新_测试报告.md)、[客户端](../packages/tapd/src/client.ts)、[评论转换](../packages/tapd/src/comments.ts)、[参数契约](../packages/tapd/src/contracts.ts)。
 
 ## 时间查询（关键约束）
 

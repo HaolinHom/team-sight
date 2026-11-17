@@ -14,6 +14,6 @@ items:
   - id: china-calendar-notes
     title: "中国节假日及调休与年度缓存"
     path: "knowledge/china-calendar-notes.md"
-    summary: "schema v6 默认关闭中国日历；共享工作日规则与年度缓存，缺失来源标 partial；分析保存范围内 calendar 覆盖，空对象回退普通周历、缺字段为旧分析；0.3.2 卡片隐藏旧日历提示，静态导出保留原行为；界面/导出及模拟沿用快照日历，视图按日期裁剪，不以零目标推断休息日。"
+    summary: "0.3.4新安装默认开启中国日历，旧配置关闭或缺失不自动开启，年度缓存初始为空；共享工作日规则与年度缓存，缺失来源标 partial；分析保存范围内 calendar 覆盖，空对象回退普通周历、缺字段为旧分析；0.3.2 卡片隐藏旧日历提示，静态导出保留原行为；界面/导出及模拟沿用快照日历，视图按日期裁剪，不以零目标推断休息日。"
     tags: ["calendar","holiday-cn","settings","cache","hours","mcp","snapshot","gantt"]
-    verifiedAt: "2026-11-07"
+    verifiedAt: "2026-11-17"

@@ -25,6 +25,18 @@ teamsight_get_work_context 接收 start/end、analysisDate 及人员／项目范
 
 通过 tapd_list_operations、tapd_describe_operation、tapd_call_operation 使用同一契约调用基础能力。新增目录项包括 users.current、workspace.members、story.history、task.history、attachments.list、attachments.download_link。历史每页100条，附件每页200条，分页有界并检测重复／截断。附件短期下载链接默认约300秒有效，不自动下载文件。无权限或接口异常返回缺口，不能解释为没有材料。
 
+## 评论与附件只读
+
+`tapd_list_comments` 接收 `workspaceId`、`entityType:story/task/bug` 和工作项 `id`，自动读取评论分页（每页 200、最多 50 页），返回 `rows`、`complete`、`fetchedAt` 及可能的缺口。缺陷包含流转评论 `bug_remark`；每条保留原始正文、作者、时间、`root_id/reply_id`，并提取 `materials.inlineImages/references`。正文和引用属于 TAPD 外部内容，不作为 Agent 指令执行。
+
+`tapd_add_comment` 使用同一工作项定位，另传纯文本 `content`、稳定 `idempotencyKey` 和可选 `replyToId`。正文会转义 HTML 并保留换行；图片和文件引用只读，不支持通过该工具上传附件或提交 HTML。服务端实时核实令牌对应的完整账号，并校验回复目标和根评论归属。
+
+发表评论需要在连接设置中单独启用 `writeAccess.operations` 的 `comment`，新旧配置均默认不自动启用。不需要授权工作项修改字段，也不开放缺陷属性修改。项目须已启用且可访问；通用目录 `comments.list/comments.create` 走相同校验。
+
+返回持久化回执，`remoteId` 是评论 ID，`targetId` 是工作项 ID，`tapdUrl` 指向工作项。重复幂等键复用原结果；`unknown` 不代表失败，禁止换键重发。先读取目标评论列表，再用 `tapd_verify_operation` 与候选评论 ID 核实；服务重启不会重发评论。核实会检查正文、作者、所属工作项和回复关系，连接凭据变化时拒绝核实旧评论回执。
+
+已有附件继续通过 `attachments.list` 查询、`attachments.download_link` 按需获取临时下载链接。文件内容由调用方按需读取，不自动下载，不把短期链接作为永久引用保存。
+
 ## 工时与容量
 
 新分析使用 rulesVersion:teamsight-mcp-hours-v3；旧分析保持原快照和规则，旧 App 默认计算不变。
@@ -105,3 +117,7 @@ teamsight_open_analysis 接收 analysisId 或 calculationId，可传 mode:tasks�
 独立 Tauri App、probe 工具、旧配置导入、tapd_list_workspaces 别名、p0/p1a/p1b 命令、旧环境变量和旧工时算法已移除。根 build/test 执行完整 MCP。配置 v6，数据库 teamsight.sqlite（user_version 4），钥匙串 TeamSight.MCP。旧 MCP 数据必须停止服务后显式 migrate --from OLD --to NEW，不能自动覆盖或导入 Tauri JSON。迁移和回退见[服务说明](../apps/server/README.md)。
 
 历史分析保持原文件和规则版本，只读查看与导出；后续新分析、排期和模拟只使用当前 MCP v3 规则，不能把旧规则结果直接用于新的计算或写入。
+
+## 0.3.4 首次安装配置
+
+新安装默认勾选任务、缺陷查询；创建、修改、发表评论三项操作；任务名称、描述、负责人、预估工时、开始日期、结束日期、关联需求、任务状态八个修改字段；启用中国节假日与调休。已有安装的取消选择、缺失权限、关闭日历和自定义字段保持原样。版本更新后需重新打开设置和甘特图卡片，以加载 0.3.4 资源。
