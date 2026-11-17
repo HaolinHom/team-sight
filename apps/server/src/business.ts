@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { calculateHours, checkRisks, validateAnalysisInput, businessDate, mergeCalendar, parseHolidayYear, calendarYearsForRanges, calendarTaskRanges, MCP_RULES_VERSION, resolveMemberScope, parseHours, isHoursCompleted,
   mapScheduleRow, dedupeScheduleTasks, hoursTaskKey, isValidDateKey, type AnalysisContext, type TeamAnalysis, type TeamSightSettings, type WorkItemType, type RawRow } from '@teamsight/core'
-import { TapdClient, TapdError, RequestQueue, fetchHoursSnapshot, entityPath, entityKey, fieldsFor, writableFields, type EntityType, type TapdTransport } from '@teamsight/tapd'
+import { TapdClient, TapdError, RequestQueue, fetchHoursSnapshot, entityPath, entityKey, fieldsFor, writableFields, commentDescription, commentEntryType, commentFields, addCommentInput, type EntityType, type TapdTransport } from '@teamsight/tapd'
 import type { TeamSightStore, SettingsSnapshot } from './storage.js'
 import { businessStorage, digest, fieldHashes, type OperationReceipt, type JobRecord } from './business-storage.js'
 
@@ -19,6 +19,7 @@ export interface WriteInput {
   batch?: Pick<OperationReceipt, 'batchId' | 'itemKey' | 'attempt' | 'intentHash'>
 }
 export interface AnalysisInput { start: string; end: string; analysisDate?: string; projectIds?: string[]; memberIds?: string[]; groupIds?: string[]; scope?: 'self' | 'team'; refresh?: boolean }
+export interface CommentInput { workspaceId: string; entityType: EntityType; id: string; content: string; replyToId?: string; idempotencyKey: string }
 const rowDigest = (row: RawRow) => digest(Object.fromEntries(Object.keys(row).sort().map(key => [key, row[key]])))
 const knownCode = (error: unknown) => error instanceof BusinessError ? error.code : 'TAPD_REQUEST_FAILED'
 
@@ -82,8 +83,12 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     assertProject(store.readSettings().settings, receipt.workspaceId)
     if (receipt.status === 'succeeded' || receipt.status === 'failed' || receipt.status === 'pending' || receipt.status === 'in_flight') return receipt
     const id = receipt.remoteId ?? candidateId
-    if (!id) return { ...receipt, next: 'Search the marked remote item, then verify with its candidate ID. Do not resend the write.' }
-    const row = await client(store.readSettings()).getRawItem(receipt.workspaceId, receipt.entityType, id)
+    if (!id) return { ...receipt, next: receipt.action === 'comment' ? 'List comments on the target item and verify the candidate comment ID. Do not resend the comment.' : 'Search the marked remote item, then verify with its candidate ID. Do not resend the write.' }
+    const snapshot = store.readSettings()
+    if (receipt.action === 'comment' && receipt.connectionHash !== digest([snapshot.settings.tapd.baseUrl, store.getCredential()])) throw new BusinessError('CONNECTION_CHANGED')
+    const row = receipt.action === 'comment'
+      ? commentFields(await client(snapshot).getComment(receipt.workspaceId, receipt.entityType, receipt.targetId!, id))
+      : await client(snapshot).getRawItem(receipt.workspaceId, receipt.entityType, id)
     if (!matched(receipt, row)) return { ...receipt, code: 'REMOTE_VALUES_DO_NOT_MATCH', candidateId: id }
     invalidateCache()
     return files.updateOperation(operationId, { status: 'succeeded', remoteId: id, code: 'READ_BACK_VERIFIED' })
@@ -152,6 +157,68 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
   }
   function write(input: WriteInput, action: 'create' | 'update') {
     const promise = performWrite(input, action).catch(error => {
+      if (error instanceof Error && error.message === 'IDEMPOTENCY_KEY_CONFLICT') throw new BusinessError('IDEMPOTENCY_KEY_CONFLICT')
+      throw error
+    })
+    activeWrites.add(promise)
+    void promise.finally(() => activeWrites.delete(promise)).catch(() => {})
+    return promise
+  }
+  function commentAccess(snapshot: SettingsSnapshot, workspaceId: string) {
+    assertProject(snapshot.settings, workspaceId)
+    if (!snapshot.settings.projects.some(project => project.id === workspaceId && project.enabled && project.available !== false) || !snapshot.settings.tapd.writeAccess?.operations.includes('comment')) throw new BusinessError('WRITE_NOT_ALLOWED')
+  }
+  async function listComments(input: { workspaceId: string; entityType: EntityType; id: string }) {
+    const snapshot = store.readSettings()
+    assertProject(snapshot.settings, input.workspaceId)
+    return client(snapshot).comments(input.workspaceId, input.entityType, input.id)
+  }
+  async function performComment(raw: CommentInput) {
+    const input = addCommentInput.parse(raw), snapshot = store.readSettings()
+    commentAccess(snapshot, input.workspaceId)
+    const api = client(snapshot), connectionHash = digest([snapshot.settings.tapd.baseUrl, store.getCredential()])
+    const canonical = { ...input, content: digest(input.content), connectionHash }
+    const reserved = files.reserveOperation({ idempotencyKey: input.idempotencyKey, requestHash: digest(canonical), workspaceId: input.workspaceId, entityType: input.entityType,
+      action: 'comment', actor: 'tapd-current-user', expectedHashes: {}, targetId: input.id, connectionHash,
+      tapdUrl: `https://www.tapd.cn/tapd_fe/${input.workspaceId}/${input.entityType}/detail/${input.id}` })
+    if (!reserved.fresh) return { ...reserved.receipt, replayed: true }
+    const operationId = reserved.receipt.operationId
+    let sent = false, acknowledged = false
+    try {
+      await api.getRawItem(input.workspaceId, input.entityType, input.id)
+      const [user, directory] = await Promise.all([api.currentUser(), api.members(input.workspaceId)])
+      if (!directory.complete) throw new BusinessError('MEMBER_DIRECTORY_INCOMPLETE')
+      const candidates = [...new Set(directory.rows.map(row => String(row.user ?? '')).filter(account => account && [user.nick, user.name].some(value => value && String(value) === account)))]
+      if (candidates.length !== 1) throw new BusinessError('CURRENT_USER_UNRESOLVED')
+      const fields: Record<string, string> = { workspace_id: input.workspaceId, entry_id: input.id, entry_type: commentEntryType(input.entityType), description: commentDescription(input.content), author: candidates[0] }
+      if (input.replyToId) {
+        const parent = await api.getComment(input.workspaceId, input.entityType, input.id, input.replyToId)
+        const rootId = String(parent.root_id ?? '')
+        fields.root_id = rootId && rootId !== '0' ? rootId : String(parent.id)
+        fields.reply_id = String(parent.id)
+        if (fields.root_id !== fields.reply_id) {
+          const root = await api.getComment(input.workspaceId, input.entityType, input.id, fields.root_id)
+          if (root.root_id && String(root.root_id) !== '0') throw new BusinessError('INVALID_COMMENT_ROOT')
+        }
+      }
+      const current = store.readSettings()
+      if (current.revision !== snapshot.revision || digest([current.settings.tapd.baseUrl, store.getCredential()]) !== connectionHash) throw new BusinessError('CONFIG_CHANGED')
+      commentAccess(current, input.workspaceId)
+      files.updateOperation(operationId, { actor: fields.author, expectedHashes: fieldHashes(commentFields(fields)), status: 'in_flight' })
+      sent = true
+      const row = await api.addComment(fields)
+      acknowledged = true
+      files.updateOperation(operationId, { status: 'unknown', remoteId: String(row.id), code: 'READ_BACK_PENDING' })
+      return await verifyOperation(operationId)
+    } catch (error) {
+      const definiteFailure = !acknowledged && error instanceof TapdError && error.status < 500 && error.status !== 429
+      const status = sent && !definiteFailure ? 'unknown' : 'failed'
+      return files.updateOperation(operationId, { status, code: error instanceof BusinessError ? error.code : sent ? status === 'unknown' ? 'REMOTE_RESULT_UNKNOWN' : 'TAPD_WRITE_REJECTED' : error instanceof TapdError ? error.message : 'PREWRITE_VALIDATION_FAILED',
+        httpStatus: error instanceof TapdError ? error.httpStatus ?? error.status : undefined, businessStatus: error instanceof TapdError ? error.businessStatus : undefined })
+    }
+  }
+  function addComment(input: CommentInput) {
+    const promise = performComment(input).catch(error => {
       if (error instanceof Error && error.message === 'IDEMPOTENCY_KEY_CONFLICT') throw new BusinessError('IDEMPOTENCY_KEY_CONFLICT')
       throw error
     })
@@ -329,7 +396,7 @@ export function createBusiness(store: TeamSightStore, dataDir: string, transport
     for (const job of running.values()) job.controller.abort(new Error('SERVICE_STOPPING'))
     await Promise.allSettled([...running.values()].map(job => job.promise).concat([...activeWrites]))
   }
-  return { files, client, assertProject, readItem, write, verifyOperation, analyze, analyzeWithBudget, schedule, getAnalysis, startAnalysis, refreshCalendar,
+  return { files, client, assertProject, readItem, write, listComments, addComment, verifyOperation, analyze, analyzeWithBudget, schedule, getAnalysis, startAnalysis, refreshCalendar,
     cancelJob: (id: string) => { const job = files.getJob(id); if (!job) throw new BusinessError('JOB_NOT_FOUND'); running.get(id)?.controller.abort(new Error('CANCELLED')); return job }, close }
 }
 export type TeamSightBusiness = ReturnType<typeof createBusiness>

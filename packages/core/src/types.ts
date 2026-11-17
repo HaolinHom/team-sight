@@ -28,7 +28,7 @@ import type { ChinaCalendarSettings } from './calendar.js'
 export interface TapdSettings {
   baseUrl: string
   defaultTypes: WorkItemType[]
-  writeAccess?: { operations: Array<'create' | 'update'>; fields: string[] }
+  writeAccess?: { operations: Array<'create' | 'update' | 'comment'>; fields: string[] }
 }
 
 export interface TeamSightSettings {

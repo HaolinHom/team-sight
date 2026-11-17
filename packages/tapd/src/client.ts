@@ -2,6 +2,7 @@ import { TapdError, RequestQueue, type EntityType, type PageResult, type Project
 import { fieldsFor, mapRows, mapSingleRow, rowsOf } from './mapper.js'
 import { isValidDateKey, type RawRow } from '@teamsight/core'
 import { entityKey, entityPath, writableFields } from './operations.js'
+import { commentBelongsTo, commentEntryType, commentMaterials } from './comments.js'
 
 const delay = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
   if (signal?.aborted) { reject(signal.reason); return }
@@ -114,7 +115,7 @@ export class TapdClient {
     return envelope.data.map(item => (item as RawRow)?.[entityKey(type)]).filter((row): row is RawRow => !!row && typeof row === 'object')
   }
 
-  async pages(path: '/tasks' | '/bugs' | '/stories' | '/timesheets' | '/workspaces/users' | '/story_changes' | '/task_changes' | '/attachments', params: Record<string, string>, key: string, signal?: AbortSignal, pageSize = path.endsWith('_changes') ? 100 : 200): Promise<PageResult> {
+  async pages(path: '/tasks' | '/bugs' | '/stories' | '/timesheets' | '/workspaces/users' | '/story_changes' | '/task_changes' | '/attachments' | '/comments', params: Record<string, string>, key: string, signal?: AbortSignal, pageSize = path.endsWith('_changes') ? 100 : 200): Promise<PageResult> {
     const rows: RawRow[] = [], seen = new Set<string>()
     let expected = Infinity, fetchedAt = Infinity
     for (let page = 1; page <= 50; page++) {
@@ -129,7 +130,7 @@ export class TapdClient {
           if (!id || seen.has(id)) throw new Error('REPEATED_OR_MISSING_PAGE_ID')
           seen.add(id); rows.push(entry)
         }
-        if (page === 1 && entries.length === pageSize && !['/workspaces/users','/story_changes','/task_changes','/attachments'].includes(path)) {
+        if (page === 1 && entries.length === pageSize && !['/workspaces/users','/story_changes','/task_changes','/attachments','/comments'].includes(path)) {
           try {
             const count = await this.request(`${path}/count`, params, signal)
             const value = Number((count.data as RawRow)?.count)
@@ -151,6 +152,24 @@ export class TapdClient {
     const value = await this.request('/users/info', {})
     if (!value.data || typeof value.data !== 'object' || Array.isArray(value.data)) throw new TapdError('INVALID_USER_INFO', 0)
     return value.data as RawRow
+  }
+  async comments(workspaceId: string, type: EntityType, id: string) {
+    const result = await this.pages('/comments', { workspace_id: workspaceId, entry_id: id, entry_type: type === 'bug' ? 'bug|bug_remark' : commentEntryType(type) }, 'Comment')
+    const rows = result.rows.filter(row => commentBelongsTo(row, workspaceId, type, id))
+    return { ...result, ...(rows.length !== result.rows.length ? { complete: false, error: 'COMMENT_FILTER_MISMATCH' } : {}), rows: rows.map(row => ({ ...row, materials: commentMaterials(row) })) }
+  }
+  async getComment(workspaceId: string, type: EntityType, entryId: string, id: string): Promise<RawRow> {
+    const response = await this.request('/comments', { workspace_id: workspaceId, entry_id: entryId, id, limit: '2' })
+    if (!Array.isArray(response.data) || response.data.length !== 1) throw new TapdError('COMMENT_NOT_FOUND_OR_AMBIGUOUS', 404)
+    const row = (response.data[0] as RawRow)?.Comment as RawRow | undefined
+    if (!row || String(row.id) !== id || !commentBelongsTo(row, workspaceId, type, entryId)) throw new TapdError('COMMENT_TARGET_MISMATCH', 404)
+    return row
+  }
+  async addComment(fields: Record<string, string>): Promise<RawRow> {
+    const response = await this.request('/comments', fields, undefined, 'POST')
+    const row = (response.data as RawRow)?.Comment as RawRow | undefined
+    if (!row || typeof row !== 'object' || typeof row.id !== 'string' || !row.id) throw new Error('WRITE_RESPONSE_UNCONFIRMED')
+    return row
   }
   async members(workspaceId: string) { return this.pages('/workspaces/users', { workspace_id: workspaceId }, 'UserWorkspace') }
   async storyHistory(workspaceId: string, id: string) {

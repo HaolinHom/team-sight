@@ -2,7 +2,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server'
 import { registerAppTool, registerAppResource, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server'
 import { z } from 'zod'
 import { assertRange, businessDate, currentMonthRange, buildGanttDisplayTasks, filterGanttDisplayTasks, type TeamAnalysis } from '@teamsight/core'
-import { operations, describeOperation, TapdError, schemaInput, searchInput, getItemInput, createItemInput, updateItemInput, timesheetsInput, workspaceInput, operationInput } from '@teamsight/tapd'
+import { operations, describeOperation, TapdError, schemaInput, searchInput, getItemInput, createItemInput, updateItemInput, listCommentsInput, addCommentInput, timesheetsInput, workspaceInput, operationInput } from '@teamsight/tapd'
 import { BusinessError, type TeamSightBusiness } from './business.js'
 import type { TeamSightStore } from './storage.js'
 import { generateReport, renderGantt } from './outputs.js'
@@ -38,7 +38,7 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
   }
   function add<S extends z.ZodRawShape>(name: string, description: string, schema: z.ZodObject<S>, run: (args: z.infer<z.ZodObject<S>>) => unknown, readOnly = true, ui = false) {
     handlers.set(name, { schema, run: args => run(schema.parse(args)) })
-    const config = { description, inputSchema: schema, annotations: { readOnlyHint: readOnly, destructiveHint: name === 'tapd_update_item', idempotentHint: readOnly || name === 'tapd_create_item' || name === 'tapd_update_item', openWorldHint: name.startsWith('tapd_') } }
+    const config = { description, inputSchema: schema, annotations: { readOnlyHint: readOnly, destructiveHint: name === 'tapd_update_item', idempotentHint: readOnly || name === 'tapd_create_item' || name === 'tapd_update_item' || name === 'tapd_add_comment', openWorldHint: name.startsWith('tapd_') } }
     const callback = (args: unknown) => safe(() => run(schema.parse(args)))
     if (ui) registerAppTool(server, name, { ...config, _meta: { ui: { resourceUri: ANALYSIS_UI_URI } } }, callback)
     else server.registerTool(name, config, callback)
@@ -64,6 +64,8 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     return api.searchItems({ ...args, entityType: args.entityType }, project, Object.fromEntries(snapshot.settings.members.map(member => [member.staffId, member.name])))
   })
   add('tapd_get_item', 'Read one story/task/bug with a field digest. Use this digest as expectedDigest when updating; it reduces conflict risk without an atomic TAPD CAS guarantee.', getItemInput, args => business.readItem(args))
+  add('tapd_list_comments', 'Read story/task/bug comments including bug transition remarks, reply IDs and existing image/file references. Automatically paginates up to 50 pages; complete:false means a gap, not no comments. Attachment downloads remain on demand.', listCommentsInput, args => business.listComments(args))
+  add('tapd_add_comment', 'Add a plain-text comment or reply to a story/task/bug as the current token user. Requires the separate comment write permission. Reuse idempotencyKey; verify unknown outcomes with tapd_verify_operation instead of resending. No uploads or HTML input.', addCommentInput, args => business.addComment(args), false)
   add('tapd_create_item', 'Create one story or task using registered POST form fields and the configured write scope. Reuse the same idempotencyKey for retries. An unknown result must be verified before any further write.', createItemInput, args => business.write({ ...args, fields: args.fields as Record<string, string> }, 'create'), false)
   add('tapd_update_item', 'Update one story or task after reading its current digest. Uses POST, an explicit field allow-list, a durable idempotency receipt and read-back verification. Never auto-retries an emitted mutation.', updateItemInput, args => business.write({ ...args, fields: args.fields as Record<string, string> }, 'update'), false)
   add('tapd_get_operation', 'Read a persisted mutation receipt, including unknown outcomes.', z.object({ operationId: id }).strict(), args => {
@@ -91,6 +93,8 @@ export function registerBusinessTools(server: McpServer, business: TeamSightBusi
     let name: string
     let parameters = operationInput(args.operationId).parse(args.parameters) as Record<string, unknown>
     if (handlers.has(definition.id)) name = definition.id
+    else if (definition.id === 'comments.list') name = 'tapd_list_comments'
+    else if (definition.id === 'comments.create') name = 'tapd_add_comment'
     else if (definition.id === 'workspaces.list') name = 'tapd_list_projects'
     else if (definition.id === 'workspace.schema') name = 'tapd_get_workspace_schema'
     else {

@@ -87,7 +87,7 @@ try {
   assert.equal(fs.statSync(p.state).mode & 0o777, 0o600)
   assert.equal(spawnSync('/usr/bin/xattr', ['-r', join(dir, 'versions/0.3.3-bundled')], { encoding: 'utf8' }).stdout.includes('com.apple.quarantine'), false)
   await installer(dir, port, ['--status']) // installer process/terminal has already exited
-  record('bundled install without system Node, diagnostics, permissions, isolated MCP, live 37 tools and detached launchd service')
+  record('bundled install without system Node, diagnostics, permissions, isolated MCP, live tool catalog and detached launchd service')
   const token = fs.readFileSync(join(p.data, 'access-token')), db = join(p.data, 'teamsight.sqlite')
   const require = createRequire(join(state.packageDir, 'package.json')), Database = require('better-sqlite3')
   {

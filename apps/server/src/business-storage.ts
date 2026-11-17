@@ -22,8 +22,11 @@ export interface OperationReceipt {
   requestHash: string
   status: OperationStatus
   workspaceId: string
-  entityType: 'story' | 'task'
-  action: 'create' | 'update'
+  entityType: 'story' | 'task' | 'bug'
+  action: 'create' | 'update' | 'comment'
+  targetId?: string
+  tapdUrl?: string
+  connectionHash?: string
   actor: string
   expectedHashes: Record<string, string>
   remoteId?: string

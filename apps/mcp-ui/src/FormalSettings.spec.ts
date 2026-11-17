@@ -23,6 +23,14 @@ describe('directed settings',()=>{
 })
 
 describe('simplified connection settings',()=>{
+ it('saves the separate comment permission without enabling field edits',async()=>{
+  const view=await open('connection')
+  expect((view.get('input[value=comment]').element as HTMLInputElement).checked).toBe(false)
+  await view.get('input[value=comment]').setValue(true)
+  await view.get('.save-actions .primary').trigger('click');await flushPromises()
+  expect(state.call).toHaveBeenLastCalledWith({name:'teamsight_save_settings',arguments:{expectedRevision:4,patch:{tapd:{writeAccess:{operations:['comment']}}}}})
+  view.unmount()
+ })
  it('offers seven categories and rejects retired targets',async()=>{
   expect(categories.map(item=>item.id)).toEqual(['connection','projects','members','groups','hours','calendar','completed'])
   for(const old of ['write','general','leave','import'])expect(()=>settingsTarget(old)).toThrow('INVALID_SETTINGS_TARGET')

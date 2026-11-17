@@ -28,6 +28,11 @@ export const operations: OperationDefinition[] = [
   ]),
 ].map(entry => ({ ...entry, method: 'GET', kind: 'read', encoding: 'query', pagination: entry.id.endsWith('.search') ? 'page-200-max-50' : 'none', support: 'implemented' })) as OperationDefinition[]
 operations.push({ id: 'story.history', method: 'GET', path: '/story_changes', kind: 'read', encoding: 'query', pagination: 'page-100-max-50', responseKey: 'WorkitemChange', documentation: docs + 'story/get_story_changes.html', support: 'implemented', inputSchema: operationJsonSchema('story.history') })
+for (const action of ['list', 'create'] as const) operations.push({
+  id: `comments.${action}`, method: action === 'list' ? 'GET' : 'POST', path: '/comments', kind: action === 'list' ? 'read' : 'write', encoding: action === 'list' ? 'query' : 'form',
+  pagination: action === 'list' ? 'page-200-max-50' : 'none', responseKey: 'Comment', support: 'implemented',
+  documentation: docs + `comment/${action === 'list' ? 'get_comments' : 'add_comment'}.html`, inputSchema: operationJsonSchema(`comments.${action}`),
+})
 for (const [id,path,key,page,doc] of [
   ['task.history','/task_changes','WorkitemChange','page-100-max-50','task/get_task_changes.html'],
   ['attachments.list','/attachments','Attachment','page-200-max-50','attachment/get_attachments.html'],

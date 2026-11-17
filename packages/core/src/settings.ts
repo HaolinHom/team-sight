@@ -102,7 +102,7 @@ export function normalizeSettings(raw: unknown, now = new Date()): { settings: T
     : ['task', 'bug']
   const access = tapdRaw.writeAccess && typeof tapdRaw.writeAccess === 'object' ? tapdRaw.writeAccess as Record<string, unknown> : {}
   const writeAccess = {
-    operations: Array.isArray(access.operations) ? access.operations.filter((v): v is 'create' | 'update' => v === 'create' || v === 'update') : [],
+    operations: Array.isArray(access.operations) ? access.operations.filter((v): v is 'create' | 'update' | 'comment' => v === 'create' || v === 'update' || v === 'comment') : [],
     fields: Array.isArray(access.fields) ? access.fields.map(text).filter(Boolean) : [],
   }
   const version = Number(record.schemaVersion)

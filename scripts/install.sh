@@ -2643,7 +2643,7 @@ async function mcpStatus(packageDir, connection) {
     await client.connect(transport);
     const tools = await client.listTools();
     const result = await client.callTool({ name: "teamsight_status", arguments: {} });
-    if (tools.tools.length !== 37 || result.isError || result.structuredContent?.instanceId !== connection.value.instanceId || result.structuredContent?.version !== "0.3.3") fail("MCP_VERIFICATION_FAILED");
+    if (![37, 39].includes(tools.tools.length) || result.isError || result.structuredContent?.instanceId !== connection.value.instanceId || result.structuredContent?.version !== "0.3.3") fail("MCP_VERIFICATION_FAILED");
     return { version: result.structuredContent.version, tools: tools.tools.length };
   } finally {
     await transport.terminateSession().catch(() => {

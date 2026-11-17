@@ -11,7 +11,7 @@ export type Settings = {
   currentUser?: Member
   hours: { dailyRequiredHours: number; completedStates: Array<{ projectId: string; type: 'task' | 'bug'; values: string[] }> }
   chinaCalendar: { enabled: boolean; years: Record<string, unknown> }
-  tapd: { baseUrl: string; defaultTypes: Array<'task' | 'bug'>; writeAccess?: { operations: Array<'create' | 'update'>; fields: string[] } }
+  tapd: { baseUrl: string; defaultTypes: Array<'task' | 'bug'>; writeAccess?: { operations: Array<'create' | 'update' | 'comment'>; fields: string[] } }
   updatedAt: string
 }
 export type Snapshot = { revision: number; settings: Settings; credentialPresent: boolean; warning?: string }

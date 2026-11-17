@@ -38,7 +38,7 @@ export async function verifyWindowsPackages({ extracted, evidence, results }) {
     const doctor = JSON.parse(command(launch, ['doctor'], env))
     assert.equal(doctor.ok, true); assert.equal(doctor.keyringMatches, true); assert.ok(doctor.pngBytes > 0)
     const mcp = JSON.parse(command(runner, ['verify-mcp.mjs', '--evidence-dir', join(evidence, variant + '-mcp')], env))
-    assert.equal(mcp.tools, 37); assert.equal(mcp.remoteTapdPosts, 0)
+    assert.equal(mcp.tools, 39); assert.equal(mcp.remoteTapdPosts, 0)
     command(runner, [seed, directory, sharedData], env)
     const service = spawn(powershell, ['-NoProfile', '-NonInteractive', '-File', launch, 'serve', '--data-dir', sharedData, '--port', '0'], { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = '', errors = '', exited = false

@@ -7,6 +7,8 @@ export const workspaceInput = z.object({ workspaceId: tapdId }).strict()
 export const schemaInput = workspaceInput.extend({ entityType: z.enum(['story', 'task']), workitemTypeId: tapdId.optional() }).strict()
 export const searchInput = workspaceInput.extend({ entityType, keyword: z.string().max(500).optional(), status: tapdId.optional(), owner: tapdId.optional(), storyId: tapdId.optional(), range: z.object({ start: dateKey, end: dateKey }).strict().optional(), modified: z.object({ start: dateKey, end: dateKey }).strict().optional(), limit: z.number().int().min(1).max(200).optional(), page: z.number().int().min(1).optional(), offset: z.number().int().min(0).optional() }).strict()
 export const getItemInput = workspaceInput.extend({ entityType, id: tapdId }).strict()
+export const listCommentsInput = getItemInput
+export const addCommentInput = getItemInput.extend({ content: z.string().min(1).max(12_000).refine(value => Boolean(value.trim()), 'COMMENT_CONTENT_REQUIRED'), replyToId: tapdId.optional(), idempotencyKey: z.string().min(8).max(160) }).strict()
 export const writeFields = z.object({ name: z.string().max(500).optional(), description: z.string().max(24_000).optional(), owner: z.string().max(500).optional(), begin: z.string().optional(), due: z.string().optional(), effort: z.string().optional(), status: tapdId.optional(), story_id: tapdId.optional(), iteration_id: tapdId.optional(), workitem_type_id: tapdId.optional() }).strict()
 export const createItemInput = workspaceInput.extend({ entityType: z.enum(['story', 'task']), fields: writeFields, idempotencyKey: z.string().min(8).max(160), actor: z.string().min(1).max(100) }).strict()
 export const updateItemInput = createItemInput.extend({ id: tapdId, expectedDigest: z.string().length(64) }).strict()
@@ -18,6 +20,8 @@ export function operationInput(id: string) {
   if (id === 'workspace.members') return workspaceInput
   if (['story.history','task.history','attachments.download_link'].includes(id)) return workspaceInput.extend({ id: tapdId }).strict()
   if (id === 'attachments.list') return workspaceInput.extend({ entryId: tapdId }).strict()
+  if (id === 'comments.list') return listCommentsInput
+  if (id === 'comments.create') return addCommentInput
   if (id === 'workspaces.list') return z.object({}).strict()
   if (id === 'workspace.schema') return schemaInput
   if (id === 'timesheets.search') return timesheetsInput
