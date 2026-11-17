@@ -18,6 +18,31 @@ test('runtime rejects incompatible Node and Node-API',()=>{
  assert.equal(runtimeProblem('22.23.2','10'),null)
  for(const pair of [['20.19.0','9'],['22.13.0','10'],['24.0.0','10'],['22.23.4','9']])assert.match(runtimeProblem(...pair),/NODE_UNSUPPORTED/)
 })
+test('new persisted defaults survive credential setup, restart and deliberate opt-out',()=>{
+ const f=fixture();let store=openStore(f.dir,f.vault)
+ try {
+  const initial=store.readSettings()
+  assert.equal(initial.revision,0)
+  assert.equal(initial.settings.chinaCalendar.enabled,true)
+  assert.deepEqual(initial.settings.tapd.writeAccess.operations,['create','update','comment'])
+  assert.equal(initial.settings.tapd.writeAccess.fields.length,8)
+  const saved=store.saveSettings({expectedRevision:0,credential:'DEFAULTS_FIXTURE',patch:{}})
+  store.close();store=openStore(f.dir,f.vault)
+  assert.deepEqual(store.readSettings(),saved)
+  const disabled=store.saveSettings({expectedRevision:saved.revision,patch:{tapd:{defaultTypes:[],writeAccess:{operations:[],fields:[]}},chinaCalendar:{enabled:false}}})
+  store.close();store=openStore(f.dir,f.vault)
+  assert.deepEqual(store.readSettings(),disabled)
+  // Simulate an old v6 database which never stored writeAccess or calendar preferences.
+  const raw=JSON.parse(store.db.prepare('SELECT value FROM settings WHERE id=1').get().value)
+  delete raw.tapd.writeAccess;delete raw.chinaCalendar
+  store.db.prepare('UPDATE settings SET value=? WHERE id=1').run(JSON.stringify(raw))
+  store.close();store=openStore(f.dir,f.vault)
+  const old=store.readSettings()
+  assert.deepEqual(old.settings.tapd.writeAccess,{operations:[],fields:[]})
+  assert.equal(old.settings.chinaCalendar.enabled,false)
+  assert.equal(old.revision,disabled.revision)
+ }finally{store.clearCredential();store.close();f.cleanup()}
+})
 test('formal settings CAS, write rollback, credential compensation and restart',()=>{
  const f=fixture();let store=openStore(f.dir,f.vault)
  try {
@@ -88,7 +113,7 @@ test('current HTTP clients share settings, enforce auth, expose only current res
   assert.ok(!tools.some(t=>t.name.startsWith('teamsight_probe_')))
   assert.ok(tools.some(t=>t.name==='teamsight_open_settings'&&t._meta.ui.resourceUri===SETTINGS_UI_URI))
   const resources=(await a.listResources()).resources.map(r=>r.uri)
-  assert.deepEqual(resources.sort(),[SETTINGS_UI_URI,'ui://teamsight/analysis-0.3.3.html'].sort())
+  assert.deepEqual(resources.sort(),[SETTINGS_UI_URI,'ui://teamsight/analysis-0.3.4.html'].sort())
   const resource=await a.readResource({uri:SETTINGS_UI_URI});assert.equal(resource.contents[0].mimeType,'text/html;profile=mcp-app');assert.doesNotMatch(resource.contents[0].text,/<script[^>]*\bsrc=/)
   const saved=await call(a,'teamsight_save_settings',{expectedRevision:0,patch:{teamName:'并发会话'}})
   assert.equal(saved.structuredContent.revision,1)

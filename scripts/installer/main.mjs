@@ -78,10 +78,10 @@ function ownedState(p) {
   if (fs.statSync(p.state).uid !== process.getuid()) fail('INSTALLER_STATE_OWNER_MISMATCH')
   const state = json(p.state)
   if (state.schema !== 1 || state.base !== p.base || state.codexHome !== p.codexHome || state.label !== p.label || state.plist !== p.plist || state.data !== p.data || state.port !== p.port) fail('INSTALLER_STATE_MISMATCH')
-  if (!['bundled', 'external'].includes(state.variant) || state.version !== '0.3.3' || state.packageDir !== join(p.base, 'versions', state.version + '-' + state.variant)) fail('INSTALLER_STATE_MISMATCH')
+  if (!['bundled', 'external'].includes(state.variant) || !['0.3.3', '0.3.4'].includes(state.version) || state.packageDir !== join(p.base, 'versions', state.version + '-' + state.variant)) fail('INSTALLER_STATE_MISMATCH')
   safePath(state.packageDir)
   for (const [path, hash] of [[p.start, state.startHash], [p.plist, state.plistHash]]) if (!exists(path) || digest(fs.readFileSync(path)) !== hash) fail('MANAGED_SERVICE_CHANGED')
-  for (const name of state.ownedPackages) if (!/^0\.3\.3-(bundled|external)$/.test(name)) fail('INSTALLER_STATE_MISMATCH')
+  for (const name of state.ownedPackages) if (!/^0\.3\.(3|4)-(bundled|external)$/.test(name)) fail('INSTALLER_STATE_MISMATCH')
   return state
 }
 async function health(p, state) {
@@ -91,7 +91,7 @@ async function health(p, state) {
   const response = await fetch('http://127.0.0.1:' + p.port + '/health', { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(2000) })
   if (!response.ok) fail('SERVICE_HEALTH_FAILED')
   const value = await response.json()
-  if (value.instanceId !== info.instanceId || value.pid !== info.pid || value.version !== '0.3.3') fail('INSTANCE_IDENTITY_MISMATCH')
+  if (value.instanceId !== info.instanceId || value.pid !== info.pid || value.version !== state.version) fail('INSTANCE_IDENTITY_MISMATCH')
   const command = run('/bin/ps', ['-p', String(info.pid), '-o', 'command='], 'INSTANCE_PROCESS_MISSING')
   if (!command.includes(join(state.packageDir, 'dist/cli.js')) || !command.includes(p.data)) fail('INSTANCE_PROCESS_MISMATCH')
   return { value, token, url: expectedUrl }
@@ -105,8 +105,8 @@ async function mcpStatus(packageDir, connection) {
     await client.connect(transport)
     const tools = await client.listTools()
     const result = await client.callTool({ name: 'teamsight_status', arguments: {} })
-    // Existing 0.3.3 archives have 37 tools; builds with comment support have 39.
-    if (![37, 39].includes(tools.tools.length) || result.isError || result.structuredContent?.instanceId !== connection.value.instanceId || result.structuredContent?.version !== '0.3.3') fail('MCP_VERIFICATION_FAILED')
+    // Accept the legacy catalog during upgrade/rollback; current releases include comments.
+    if (!(connection.value.version === '0.3.3' ? [37, 39] : [39]).includes(tools.tools.length) || result.isError || result.structuredContent?.instanceId !== connection.value.instanceId || result.structuredContent?.version !== connection.value.version) fail('MCP_VERIFICATION_FAILED')
     return { version: result.structuredContent.version, tools: tools.tools.length }
   } finally { await transport.terminateSession().catch(() => {}); await client.close().catch(() => {}) }
 }
@@ -155,7 +155,7 @@ function backup(p, snapshots) {
 export async function perform(options) {
   const { mode, base, codexHome, testing, port, payload, node, version, variant } = options
   if (process.platform !== 'darwin' || process.arch !== 'arm64' || process.versions.node.split('.')[0] !== '22' || Number(process.versions.node.split('.')[1]) < 14 || Number(process.versions.napi) < 10) fail('NODE_OR_PLATFORM_UNSUPPORTED')
-  if (version !== '0.3.3' || !['bundled', 'external'].includes(variant)) fail('UNSUPPORTED_RELEASE')
+  if (version !== '0.3.4' || !['bundled', 'external'].includes(variant)) fail('UNSUPPORTED_RELEASE')
   const p = paths(base, codexHome, testing, port)
   if (testing && (!basename(p.base).startsWith('teamsight-installer-test-') || p.base === resolve(homedir()))) fail('INVALID_TEST_ROOT')
   safePath(p.base); safePath(p.config); safePath(p.plist); safePath(p.data)

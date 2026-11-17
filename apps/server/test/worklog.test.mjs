@@ -27,7 +27,7 @@ function fixture(){
   if(path==='/tasks'||path==='/bugs'){const key=path==='/tasks'?'Task':'Bug',rows=path==='/tasks'?tasks:bugs;return ok(rows.filter(r=>(!p.id||p.id===r.id)&&(!p.owner||p.owner===r.owner)&&(!p.current_owner||p.current_owner===r.current_owner)).map(row=>({[key]:row})))}
   throw new Error('Unexpected '+path)
  }
- const store=openStore(dir,vault);store.saveSettings({expectedRevision:0,credential:'FIXTURE_ONLY',patch:{projects:[project],members:[member],groups:[{id:'default',name:'团队',memberIds:[member.staffId]}],defaultGroupId:'default',tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task','bug']}}})
+ const store=openStore(dir,vault);store.saveSettings({expectedRevision:0,credential:'FIXTURE_ONLY',patch:{chinaCalendar:{enabled:false},projects:[project],members:[member],groups:[{id:'default',name:'团队',memberIds:[member.staffId]}],defaultGroupId:'default',tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task','bug']}}})
  const business=createBusiness(store,dir,transport)
  return {dir,vault,store,business,calls,transport,async close(){await business.close();store.close();rmSync(dir,{recursive:true,force:true})}}
 }

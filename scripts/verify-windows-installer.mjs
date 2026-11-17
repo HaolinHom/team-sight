@@ -14,7 +14,7 @@ const base = fs.mkdtempSync(join(root, '.local/teamsight-installer-test-中文 s
 const codex = join(base, 'codex'), config = join(codex, 'config.toml')
 const manager = join(root, '.local/windows-manager/install-windows.ps1')
 const shell = process.env.TEAMSIGHT_POWERSHELL || join(process.env.ProgramFiles, 'PowerShell/7/pwsh.exe')
-const payload = join(root, 'artifacts/releases/0.3.3/teamsight-mcp-win32-x64-bundled')
+const payload = join(root, 'artifacts/releases/0.3.4/teamsight-mcp-win32-x64-bundled')
 const records = []
 const portServer = createServer(); await new Promise(ok => portServer.listen(0, '127.0.0.1', ok))
 const port = portServer.address().port; await new Promise(ok => portServer.close(ok))
@@ -36,7 +36,7 @@ try {
   run('Install', false)
   assert.equal(fs.existsSync(join(base, 'installer-state.json')), false)
   assert.equal(fs.existsSync(join(base, 'data-mcp/instance.lock')), false)
-  assert.equal(fs.existsSync(join(base, 'versions/0.3.3-bundled')), false)
+  assert.equal(fs.existsSync(join(base, 'versions/0.3.4-bundled')), false)
   assert.equal(fs.readFileSync(config, 'utf8'), 'broken=["private-sentinel"')
   record('config failure rolls back the started service, task and new package')
   fs.writeFileSync(config, original)

@@ -82,7 +82,7 @@ function Stop-Managed {
 Assert-LocalPath $InstallRoot
 if (Test-Path -LiteralPath $statePath) {
   $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
-  if ($state.schema -ne 1 -or $state.sid -ne $sid -or $state.base -ne $InstallRoot -or $state.packageDir -ne (Join-Path $InstallRoot 'versions\0.3.3-bundled')) { throw 'INSTALLER_STATE_MISMATCH' }
+  if ($state.schema -ne 1 -or $state.sid -ne $sid -or $state.base -ne $InstallRoot -or $state.packageDir -ne (Join-Path $InstallRoot 'versions\0.3.4-bundled')) { throw 'INSTALLER_STATE_MISMATCH' }
   $CodexHome = $state.codexHome; $configPath = Join-Path $CodexHome 'config.toml'
   if ((Get-FileHash -LiteralPath $manager -Algorithm SHA256).Hash -ne $state.managerHash -or (Get-FileHash -LiteralPath $helper -Algorithm SHA256).Hash -ne $state.helperHash) { throw 'MANAGED_FILES_CHANGED' }
   Invoke-Helper @('verify',$state.packageDir) | Out-Null
@@ -141,7 +141,7 @@ New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null; Protect-Path 
 $lock = Join-Path $InstallRoot '.installer-lock'
 New-Item -ItemType Directory -Path $lock -ErrorAction Stop | Out-Null
 $created = $false; $registered = $false; $configWritten = $false; $originalConfig = $null
-$target = Join-Path $InstallRoot 'versions\0.3.3-bundled'
+$target = Join-Path $InstallRoot 'versions\0.3.4-bundled'
 try {
   if (Test-Path -LiteralPath $target) { throw 'INSTALL_TARGET_EXISTS' }
   foreach ($folder in @('versions','data-mcp','logs','backups')) { New-Item -ItemType Directory -Path (Join-Path $InstallRoot $folder) -Force | Out-Null }

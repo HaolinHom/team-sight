@@ -6,6 +6,12 @@ import assert from 'node:assert/strict'
 const args=process.argv.slice(2),evidence=resolve(args.includes('--evidence-dir')?args[args.indexOf('--evidence-dir')+1]:'./evidence')
 const dir=mkdtempSync(join(tmpdir(),'teamsight-mcp-verification-'))
 let service,client,transport,cleanup
+const originalFetch=globalThis.fetch
+globalThis.fetch=async(url,options)=>{
+ const match=String(url).match(/^https:\/\/(?:cdn\.jsdelivr\.net\/gh\/NateScarlet\/holiday-cn@master|raw\.githubusercontent\.com\/NateScarlet\/holiday-cn\/master)\/(\d{4})\.json$/)
+ if(match){const year=Number(match[1]);return new Response(JSON.stringify({year,papers:['https://example.test/offline-calendar'],days:[{date:year+'-01-01',name:'元旦',isOffDay:true}]}))}
+ return originalFetch(url,options)
+}
 try {
  const {runtimeProblem}=await import('./dist/runtime.js');if(runtimeProblem())throw new Error('NODE_UNSUPPORTED')
  const {startServer}=await import('./dist/server.js'),{openStore}=await import('./dist/storage.js'),{Client,StreamableHTTPClientTransport}=await import('@modelcontextprotocol/client')
@@ -30,8 +36,9 @@ try {
  const call=async(name,args={})=>{const result=await client.callTool({name,arguments:args});assert.equal(result.isError,undefined,JSON.stringify(result.structuredContent));return result.structuredContent}
  const missing=await client.callTool({name:'tapd_list_projects',arguments:{}});assert.equal(missing.structuredContent.code,'CONFIG_REQUIRED')
  const initial=await call('teamsight_get_config')
+ assert.deepEqual(initial.settings.tapd.defaultTypes,['task','bug']);assert.deepEqual(initial.settings.tapd.writeAccess.operations,['create','update','comment']);assert.equal(initial.settings.tapd.writeAccess.fields.length,8);assert.equal(initial.settings.chinaCalendar.enabled,true)
  const saved=await call('teamsight_save_settings',{expectedRevision:initial.revision,patch:{},tapdToken:'TEAMSIGHT_MCP_ISOLATED_SENTINEL'})
- assert.equal(saved.settings.schemaVersion,6);assert.equal(saved.settings.currentUser.staffId,'100');assert.equal(saved.settings.projects[0].enabled,true);assert.deepEqual(saved.settings.groups[0].memberIds,[])
+ assert.deepEqual(saved.settings.tapd,initial.settings.tapd);assert.equal(saved.settings.chinaCalendar.enabled,true);assert.equal(saved.settings.schemaVersion,6);assert.equal(saved.settings.currentUser.staffId,'100');assert.equal(saved.settings.projects[0].enabled,true);assert.deepEqual(saved.settings.groups[0].memberIds,[])
  await call('teamsight_update_config',{expectedRevision:saved.revision,patch:{groups:[{id:'default',name:'Offline team',memberIds:['100']}],defaultGroupId:'default'}})
  const planned=await call('teamsight_plan_schedule',{tasks:[{ref:'new',title:'Offline task',hours:4,projectId:'1',storyId:'101'}],start:'2026-11-02',end:'2026-11-06',analysisDate:'2026-11-02'})
  assert.equal(planned.status,'feasible')
@@ -40,8 +47,9 @@ try {
  const status=await call('teamsight_status'),config=await call('teamsight_get_config')
  assert.doesNotMatch(JSON.stringify(config),/TEAMSIGHT_MCP_ISOLATED_SENTINEL/)
  const tools=await client.listTools();for(const name of ['teamsight_get_requirement_context','teamsight_get_work_context','teamsight_write_tasks','teamsight_get_task_batch'])assert.ok(tools.tools.some(tool=>tool.name===name))
- const result={ok:true,phase:status.phase,version:status.version,platform:process.platform,arch:process.arch,node:process.versions.node,tools:tools.tools.length,configurationBootstrap:true,planning:true,urgentSimulation:true,remoteTapdPosts:0,codexNativeApps:'not-tested-by-this-script',windowsRuntime:process.platform==='win32'?'native-service-tested; Codex UI still requires manual acceptance':'not-tested'}
+ const result={ok:true,phase:status.phase,version:status.version,platform:process.platform,arch:process.arch,node:process.versions.node,tools:tools.tools.length,configurationBootstrap:true,freshDefaults:true,offlineCalendar:true,planning:true,urgentSimulation:true,remoteTapdPosts:0,codexNativeApps:'not-tested-by-this-script',windowsRuntime:process.platform==='win32'?'native-service-tested; Codex UI still requires manual acceptance':'not-tested'}
  mkdirSync(evidence,{recursive:true});writeFileSync(join(evidence,'mcp-acceptance.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result))
 } finally {
+ globalThis.fetch=originalFetch
  await transport?.terminateSession().catch(()=>{});await client?.close().catch(()=>{});await service?.close();try{cleanup?.()}finally{rmSync(dir,{recursive:true,force:true})}
 }

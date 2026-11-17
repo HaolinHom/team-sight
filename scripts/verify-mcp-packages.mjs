@@ -9,8 +9,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { verifyWindowsPackages } from './verify-windows-packages.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const releases = resolve(process.argv[2] ?? join(root, 'artifacts/releases/0.3.3'))
-const evidence = resolve(process.argv[3] ?? join(root, '.local/validation/mcp033/packages'))
+const releases = resolve(process.argv[2] ?? join(root, 'artifacts/releases/0.3.4'))
+const evidence = resolve(process.argv[3] ?? join(root, '.local/validation/mcp034/packages'))
 await mkdir(evidence, { recursive: true })
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')
 const results = [], extracted = new Map()
@@ -45,7 +45,7 @@ const sums = (await readFile(join(releases, selectedTarget ? `SHA256SUMS-${selec
 assert.equal(sums.length, selectedTarget ? 2 : 4)
 for (const line of sums) {
   const [expected, archiveName] = line.split('  ')
-  assert.match(archiveName, /^teamsight-mcp-0\.3\.3-(darwin-arm64|win32-x64)-(bundled|external)\.(zip|tar\.gz)$/)
+  assert.match(archiveName, /^teamsight-mcp-0\.3\.4-(darwin-arm64|win32-x64)-(bundled|external)\.(zip|tar\.gz)$/)
   const archive = join(releases, archiveName)
   assert.equal(sha(await readFile(archive)), expected)
   const target = archiveName.includes('darwin-arm64') ? 'darwin-arm64' : 'win32-x64'
@@ -56,7 +56,7 @@ for (const line of sums) {
   command('tar', ['-xf', archive, '-C', unpack])
   const directory = join(unpack, directoryName)
   const manifest = JSON.parse(await readFile(join(directory, 'versions.json'), 'utf8'))
-  assert.equal(manifest.version, '0.3.3'); assert.equal(manifest.target, target); assert.equal(manifest.variant, variant)
+  assert.equal(manifest.version, '0.3.4'); assert.equal(manifest.target, target); assert.equal(manifest.variant, variant)
   assert.equal(manifest.runtimeBundled, variant === 'bundled'); assert.equal(manifest.validatedNode, null)
   const expectedFiles = JSON.parse(await readFile(join(directory, 'checksums.json'), 'utf8'))
   const actualFiles = await hashes(directory)
@@ -99,7 +99,7 @@ if (process.platform === 'darwin' && process.arch === 'arm64' && extracted.has('
     const doctor = JSON.parse(command(launch, ['doctor'], { env }))
     assert.equal(doctor.ok, true); assert.equal(doctor.keyringMatches, true); assert.ok(doctor.pngBytes > 0)
     const acceptance = JSON.parse(command(runner, ['verify-mcp.mjs', '--evidence-dir', join(evidence, variant + '-mcp')], { env }))
-    assert.equal(acceptance.version, '0.3.3'); assert.equal(acceptance.remoteTapdPosts, 0)
+    assert.equal(acceptance.version, '0.3.4'); assert.equal(acceptance.remoteTapdPosts, 0)
     command(runner, [seed, directory, sharedData], { env })
     const service = spawn(launch, ['serve', '--data-dir', sharedData, '--port', '0'], { env, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = '', errorOutput = '', exited = false
@@ -108,7 +108,7 @@ if (process.platform === 'darwin' && process.arch === 'arm64' && extracted.has('
       for (let i = 0; i < 300 && !output.includes('"event":"ready"') && !exited; i++) await delay(100)
       assert.ok(output.includes('"event":"ready"'), errorOutput || output)
       const status = JSON.parse(command(launch, ['status', '--data-dir', sharedData], { env }))
-      assert.equal(status.version, '0.3.3'); assert.equal(status.revision, 1); assert.equal(status.node, '22.23.4')
+      assert.equal(status.version, '0.3.4'); assert.equal(status.revision, 1); assert.equal(status.node, '22.23.4')
       const scheduledStatus = JSON.parse(command(runner, ['status-mcp.mjs', sharedData], { env }))
       assert.equal(scheduledStatus.instanceId, status.instanceId)
       command(launch, ['stop', '--data-dir', sharedData], { env })
@@ -143,6 +143,6 @@ if (process.platform === 'darwin' && process.arch === 'arm64' && extracted.has('
 const windowsTested = process.platform === 'win32' && process.arch === 'x64' && extracted.has('win32-x64-bundled')
 if (windowsTested) await verifyWindowsPackages({ extracted, evidence, results })
 const nativeTested = windowsTested || process.platform === 'darwin' && process.arch === 'arm64' && extracted.has('darwin-arm64-bundled')
-const report = { ok: true, version: '0.3.3', packages: results, sharedPayloadsMatch: true, runtimeIsolationAndDiagnostics: nativeTested ? 'passed' : 'not tested', windowsNativeExecution: windowsTested ? 'passed' : 'not tested; requires Windows x64', codexNativeApps: 'not tested', remoteTapdWrites: 0 }
+const report = { ok: true, version: '0.3.4', packages: results, sharedPayloadsMatch: true, runtimeIsolationAndDiagnostics: nativeTested ? 'passed' : 'not tested', windowsNativeExecution: windowsTested ? 'passed' : 'not tested; requires Windows x64', codexNativeApps: 'not tested', remoteTapdWrites: 0 }
 await writeFile(join(evidence, 'acceptance.json'), JSON.stringify(report, null, 2) + '\n')
 console.log(JSON.stringify(report, null, 2))

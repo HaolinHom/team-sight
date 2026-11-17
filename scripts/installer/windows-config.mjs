@@ -25,7 +25,7 @@ try {
     walk(path)
     if (seen.size !== Object.keys(expected).length) throw Error('PAYLOAD_FILE_SET_MISMATCH')
     const manifest = JSON.parse(fs.readFileSync(join(path, 'versions.json')))
-    if (manifest.target !== 'win32-x64' || manifest.variant !== 'bundled' || manifest.version !== '0.3.3') throw Error('PAYLOAD_UNSUPPORTED')
+    if (manifest.target !== 'win32-x64' || manifest.variant !== 'bundled' || manifest.version !== '0.3.4') throw Error('PAYLOAD_UNSUPPORTED')
     console.log(JSON.stringify({ version: manifest.version, manifestSha256: digest(fs.readFileSync(join(path, 'checksums.json'))) }))
   } else {
     const original = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : ''

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { App } from '@modelcontextprotocol/ext-apps'
+import { createDefaultSettings } from '@teamsight/core'
 import { followHostTheme } from './host-theme'
 import { categories, settingsTarget, settingsPatch, type SettingsTarget, type Settings, type Snapshot, type Member } from './settings-model'
 import SettingIcon from './SettingIcon.vue'
@@ -8,8 +9,9 @@ import RemoveSetting from './RemoveSetting.vue'
 import './theme.css'
 import './settings-theme.css'
 
-const app = new App({ name: 'TeamSight settings', version: '0.3.2' }, {}, { autoResize: true })
-const settings = reactive<Settings>({ schemaVersion: 6, teamName: '', timeZone: 'Asia/Shanghai', projects: [], members: [], groups: [{ id:'default', name:'默认分组', memberIds:[] }], defaultGroupId:'default', hours:{dailyRequiredHours:8,completedStates:[]}, chinaCalendar:{enabled:false,years:{}},tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task','bug'],writeAccess:{operations:[],fields:[]}},updatedAt:'' })
+const app = new App({ name: 'TeamSight settings', version: '0.3.4' }, {}, { autoResize: true })
+const defaults = createDefaultSettings()
+const settings = reactive<Settings>({ ...defaults, groups: defaults.groups ?? [], defaultGroupId: defaults.defaultGroupId ?? 'default' })
 const formEl=ref<HTMLFormElement>()
 const baseline = ref<Settings>(), revision = ref(0), credentialPresent = ref(false), tapdToken = ref('')
 const target = ref<SettingsTarget | null>(null), fromOverview = ref(false), connected = ref(false), busy = ref(false), failed = ref(false), conflict = ref(false), message = ref('正在连接…')

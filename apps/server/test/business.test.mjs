@@ -14,7 +14,7 @@ import { ANALYSIS_UI_URI } from '../dist/business-tools.js'
 
 const project = { id: '62119705', name: '测试项目', enabled: true, color: '#167d7f' }
 const fields = ['name', 'description', 'owner', 'begin', 'due', 'effort', 'status', 'story_id']
-function fixture() {
+function fixture(useFreshCalendar = false) {
   const dir = mkdtempSync(join(tmpdir(), 'teamsight-p1b-')), secrets = new Map(), rows = new Map(), calls = []
   const vault = { put: (id, value) => secrets.set(id, value), get: id => secrets.get(id) ?? null, remove: id => secrets.delete(id) }
   let mode = 'ok', writeCount = 0
@@ -60,7 +60,7 @@ function fixture() {
     throw new Error('unexpected endpoint ' + path)
   }
   let store = openStore(dir, vault)
-  store.saveSettings({ expectedRevision: 0, credential: 'ISOLATED_TEST_CREDENTIAL', patch: { projects: [project], groups: [{id:'default',name:'团队',memberIds:['200','100']}],defaultGroupId:'default', members: [{ staffId: '200', name: '李四' }, { staffId: '100', name: '张三' }],
+  store.saveSettings({ expectedRevision: 0, credential: 'ISOLATED_TEST_CREDENTIAL', patch: { ...(useFreshCalendar ? {} : { chinaCalendar: { enabled: false } }), projects: [project], groups: [{id:'default',name:'团队',memberIds:['200','100']}],defaultGroupId:'default', members: [{ staffId: '200', name: '李四' }, { staffId: '100', name: '张三' }],
     tapd: { baseUrl: 'https://api.tapd.cn', defaultTypes: ['task', 'bug'], writeAccess: { operations: ['create', 'update'], fields } } } })
   let business = createBusiness(store, dir, transport)
   return { dir, vault, calls, rows, task, transport, get store() { return store }, get business() { return business }, setMode(value) { mode = value }, writes: () => writeCount,
@@ -268,7 +268,7 @@ test('MCP exposes catalog, analysis Apps, writes, artifacts and applies validati
     assert.equal(opened.structuredContent.mode,'hours')
     assert.deepEqual(opened.structuredContent.viewFilters.memberIds,['100'])
     assert.equal((await call('teamsight_open_analysis',{analysisId:analyzed.analysisId,start:'2026-10-01'})).structuredContent.code,'VIEW_OUTSIDE_ANALYSIS')
-    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.3.html'})).contents[0].text,/排期与工时/)
+    assert.match((await client.readResource({uri:'ui://teamsight/analysis-0.3.4.html'})).contents[0].text,/排期与工时/)
     const directed=await call('teamsight_open_settings',{target:'projects'})
     assert.equal(directed.structuredContent.target,'projects')
     const automatic=await call('teamsight_open_analysis')
@@ -338,10 +338,27 @@ test('analysis saves the calendar actually used, bounds overrides and keeps old 
  }finally{await f.close()}
 })
 
+test('fresh enabled calendar automatically fetches and persists fixed annual data only once',async t=>{
+ const f=fixture(true),urls=[]
+ t.mock.method(globalThis,'fetch',async url=>{
+  urls.push(String(url))
+  return new Response(JSON.stringify({year:2026,papers:['https://example.test/calendar'],days:[{date:'2026-10-28',name:'假日',isOffDay:true},{date:'2026-10-31',name:'调休',isOffDay:false}]}))
+ })
+ try {
+  assert.equal(f.store.readSettings().settings.chinaCalendar.enabled,true)
+  const analysis=await f.business.analyze(query)
+  assert.equal(analysis.calendar['2026-10-28'].working,false)
+  assert.equal(analysis.calendar['2026-10-31'].working,true)
+  assert.equal(analysis.members[0].days.find(day=>day.date==='2026-10-28').target,0)
+  assert.ok(f.store.readSettings().settings.chinaCalendar.years['2026'])
+  f.restart();await f.business.analyze(query)
+  assert.equal(urls.length,1);assert.equal(urls[0],'https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/2026.json')
+ }finally{await f.close()}
+})
+
 test('missing calendar sources retain existing partial-data warnings and ordinary-week fallback',async t=>{
- const f=fixture();t.mock.method(globalThis,'fetch',async()=>{throw new Error('fixture offline')})
+ const f=fixture(true);t.mock.method(globalThis,'fetch',async()=>{throw new Error('fixture offline')})
  try{
-  f.store.saveSettings({expectedRevision:f.store.readSettings().revision,patch:{chinaCalendar:{enabled:true}}})
   const analysis=await f.business.analyze(query)
   assert.equal(analysis.status,'partial');assert.deepEqual(analysis.calendar,{})
   assert.ok(analysis.members[0].days.some(day=>day.reasons.some(reason=>reason.message.includes('中国日历来源不完整'))))

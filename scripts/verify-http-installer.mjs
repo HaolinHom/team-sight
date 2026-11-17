@@ -25,8 +25,8 @@ const fixture = createServer({ key: fs.readFileSync(key), cert: fs.readFileSync(
   if (responseMode === 'timeout') return
   if (responseMode === 'corrupt') { res.end('corrupt'); return }
   const name = req.url.slice(1)
-  if (!/^teamsight-mcp-0\.3\.3-darwin-arm64-(bundled|external)\.tar\.gz$/.test(name)) { res.writeHead(404); res.end(); return }
-  const path = join(root, 'artifacts/releases/0.3.3', name)
+  if (!/^teamsight-mcp-0\.3\.(3|4)-darwin-arm64-(bundled|external)\.tar\.gz$/.test(name)) { res.writeHead(404); res.end(); return }
+  const path = join(root, 'artifacts/releases', name.includes('-0.3.3-') ? '0.3.3' : '0.3.4', name)
   res.writeHead(200, { 'content-length': fs.statSync(path).size })
   if (responseMode === 'interrupted') { res.write('partial'); res.destroy(); return }
   fs.createReadStream(path).pipe(res)
@@ -34,7 +34,7 @@ const fixture = createServer({ key: fs.readFileSync(key), cert: fs.readFileSync(
 fixture.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)) })
 await new Promise(ok => fixture.listen(0, '127.0.0.1', ok))
 const baseUrl = 'https://127.0.0.1:' + fixture.address().port
-const externalNode = join(root, 'artifacts/releases/0.3.3/teamsight-mcp-darwin-arm64-bundled/runtime/node')
+const externalNode = join(root, 'artifacts/releases/0.3.4/teamsight-mcp-darwin-arm64-bundled/runtime/node')
 function newRoot() {
   const original = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'teamsight-installer-test-'))), path = original + ' with spaces'
   fs.renameSync(original, path); roots.add(path); return path
@@ -43,9 +43,9 @@ async function freePort() {
   const server = tcpServer(); await new Promise(ok => server.listen(0, '127.0.0.1', ok))
   const port = server.address().port; await new Promise(ok => server.close(ok)); return port
 }
-async function installer(testRoot, port, args = [], extraEnv = {}, success = true) {
+async function installer(testRoot, port, args = [], extraEnv = {}, success = true, script = join(root, 'scripts/install.sh')) {
   const output = await new Promise(ok => {
-    const child = spawn('/bin/bash', [join(root, 'scripts/install.sh'), '--test-root', testRoot, '--test-base-url', baseUrl, '--test-ca', ca, '--test-port', String(port), ...args],
+    const child = spawn('/bin/bash', [script, '--test-root', testRoot, '--test-base-url', baseUrl, '--test-ca', ca, '--test-port', String(port), ...args],
       { env: { ...process.env, PATH: '/usr/bin:/bin:/usr/sbin:/sbin', ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] })
     let text = ''; child.stdout.on('data', bytes => { text += bytes }); child.stderr.on('data', bytes => { text += bytes })
     child.on('close', code => ok({ code, text }))
@@ -85,7 +85,7 @@ try {
   assert.equal(connection.mcp_servers.teamsight.tools.write.approval_mode, 'prompt')
   assert.equal(fs.statSync(p.config).mode & 0o777, 0o600)
   assert.equal(fs.statSync(p.state).mode & 0o777, 0o600)
-  assert.equal(spawnSync('/usr/bin/xattr', ['-r', join(dir, 'versions/0.3.3-bundled')], { encoding: 'utf8' }).stdout.includes('com.apple.quarantine'), false)
+  assert.equal(spawnSync('/usr/bin/xattr', ['-r', join(dir, 'versions/0.3.4-bundled')], { encoding: 'utf8' }).stdout.includes('com.apple.quarantine'), false)
   await installer(dir, port, ['--status']) // installer process/terminal has already exited
   record('bundled install without system Node, diagnostics, permissions, isolated MCP, live tool catalog and detached launchd service')
   const token = fs.readFileSync(join(p.data, 'access-token')), db = join(p.data, 'teamsight.sqlite')
@@ -112,7 +112,7 @@ try {
     assert.equal(digest(fs.readFileSync(p.config)), configHash)
     assert.equal(digest(fs.readFileSync(p.start)), startHash)
     assert.equal(JSON.parse(fs.readFileSync(p.state)).variant, 'bundled')
-    assert.ok(!fs.existsSync(join(dir, 'versions/0.3.3-external')))
+    assert.ok(!fs.existsSync(join(dir, 'versions/0.3.4-external')))
     await installer(dir, port, ['--status'])
     record('failed edition switch rollback ' + stage)
   }
@@ -145,7 +145,7 @@ try {
     assert.match((await installer(fresh, otherPort, ['--variant', 'external', '--node', externalNode], { TEAMSIGHT_INSTALL_TEST_FAIL: 'after-config' }, false)).text, /TEST_CONFIG_FAILURE/)
     assert.ok(!fs.existsSync(fp.state)); assert.ok(!fs.existsSync(fp.config)); assert.ok(!fs.existsSync(fp.plist)); assert.ok(!fs.existsSync(fp.start))
     assert.ok(!fs.existsSync(join(fp.data, 'instance.lock')))
-    assert.ok(!fs.existsSync(join(fresh, 'versions/0.3.3-external')))
+    assert.ok(!fs.existsSync(join(fresh, 'versions/0.3.4-external')))
     record('fresh installation failure restores absent config and cleans managed files')
   }
   {
@@ -153,7 +153,7 @@ try {
     await new Promise(ok => server.listen(conflictPort, '127.0.0.1', ok))
     try { assert.match((await installer(conflictRoot, conflictPort, ['--variant', 'external', '--node', externalNode], {}, false)).text, /PORT_IN_USE/) }
     finally { await new Promise(ok => server.close(ok)) }
-    assert.ok(!fs.existsSync(join(conflictRoot, 'versions/0.3.3-external')))
+    assert.ok(!fs.existsSync(join(conflictRoot, 'versions/0.3.4-external')))
     record('port conflict refuses and cleans this attempt')
   }
   {
@@ -162,6 +162,39 @@ try {
     assert.match((await installer(locked, lp.port, ['--variant', 'external', '--node', externalNode], {}, false)).text, /UNMANAGED_SERVICE/)
     assert.equal(fs.readFileSync(join(lp.data, 'instance.lock'), 'utf8'), 'unknown')
     record('unknown instance lock preserved')
+  }
+  if (process.env.TEAMSIGHT_TEST_LEGACY_INSTALLER) {
+    const legacy = resolve(process.env.TEAMSIGHT_TEST_LEGACY_INSTALLER)
+    const upgradeRoot = newRoot(), upgradePort = await freePort(), up = paths(upgradeRoot, join(upgradeRoot, 'codex'), true, upgradePort)
+    await installer(upgradeRoot, upgradePort, [], {}, true, legacy)
+    assert.equal(JSON.parse(fs.readFileSync(up.state)).version, '0.3.3')
+    // The new manager must understand old state/health before starting an upgrade.
+    await installer(upgradeRoot, upgradePort, ['--status'])
+    const oldState = JSON.parse(fs.readFileSync(up.state))
+    const legacyRequire = createRequire(join(oldState.packageDir, 'package.json')), LegacyDB = legacyRequire('better-sqlite3')
+    const legacyDB = new LegacyDB(join(up.data, 'teamsight.sqlite'))
+    const oldRow = legacyDB.prepare('SELECT revision,value FROM settings WHERE id=1').get(), preferences = JSON.parse(oldRow.value)
+    preferences.tapd.defaultTypes = ['task'];preferences.tapd.writeAccess = { operations: [], fields: ['name', 'custom_field'] };preferences.chinaCalendar.enabled = false
+    legacyDB.prepare('UPDATE settings SET value=? WHERE id=1').run(JSON.stringify(preferences));legacyDB.close()
+    const savedState = fs.readFileSync(up.state), savedStart = fs.readFileSync(up.start), savedConfig = fs.readFileSync(up.config), savedToken = fs.readFileSync(join(up.data, 'access-token'))
+    for (const stage of ['after-start', 'after-config']) {
+      assert.match((await installer(upgradeRoot, upgradePort, [], { TEAMSIGHT_INSTALL_TEST_FAIL: stage }, false)).text, /TEST_(START|CONFIG)_FAILURE/)
+      assert.deepEqual(fs.readFileSync(up.state), savedState);assert.deepEqual(fs.readFileSync(up.start), savedStart);assert.deepEqual(fs.readFileSync(up.config), savedConfig)
+      assert.ok(!fs.existsSync(join(upgradeRoot, 'versions/0.3.4-bundled')))
+      await installer(upgradeRoot, upgradePort, ['--status'])
+      record('0.3.3 upgrade rollback restores legacy instance ' + stage)
+    }
+    await installer(upgradeRoot, upgradePort)
+    const upgraded = JSON.parse(fs.readFileSync(up.state))
+    assert.equal(upgraded.version, '0.3.4');assert.deepEqual(upgraded.ownedPackages.sort(), ['0.3.3-bundled', '0.3.4-bundled'])
+    const reopened = new LegacyDB(join(up.data, 'teamsight.sqlite'), { readonly: true })
+    const currentRow = reopened.prepare('SELECT revision,value FROM settings WHERE id=1').get();reopened.close()
+    assert.equal(currentRow.revision, oldRow.revision);assert.deepEqual(JSON.parse(currentRow.value), preferences)
+    assert.deepEqual(fs.readFileSync(join(up.data, 'access-token')), savedToken)
+    await installer(upgradeRoot, upgradePort, ['--status'])
+    await installer(upgradeRoot, upgradePort, ['--uninstall'])
+    assert.ok(!fs.existsSync(join(upgradeRoot, 'versions/0.3.3-bundled')));assert.ok(!fs.existsSync(join(upgradeRoot, 'versions/0.3.4-bundled')))
+    record('0.3.3 to 0.3.4 upgrade preserves opt-outs/custom fields/revision/token and supports uninstall')
   }
   fs.writeFileSync(join(evidence, 'acceptance.json'), JSON.stringify({ ok: true, node: process.versions.node, records, publicDownload: 'pending-repository-publication', receivingCodex: 'pending-separate-machine-validation' }, null, 2))
 } finally {

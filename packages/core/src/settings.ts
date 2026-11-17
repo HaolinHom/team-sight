@@ -15,8 +15,15 @@ export function createDefaultSettings(now = new Date()): TeamSightSettings {
     groups: [{ id: 'default', name: '默认分组', memberIds: [] }],
     defaultGroupId: 'default',
     hours: { dailyRequiredHours: 8, completedStates: [] },
-    chinaCalendar: { enabled: false, years: {} },
-    tapd: { baseUrl: DEFAULT_TAPD_BASE_URL, defaultTypes: ['task', 'bug'] },
+    chinaCalendar: { enabled: true, years: {} },
+    tapd: {
+      baseUrl: DEFAULT_TAPD_BASE_URL,
+      defaultTypes: ['task', 'bug'],
+      writeAccess: {
+        operations: ['create', 'update', 'comment'],
+        fields: ['name', 'description', 'owner', 'effort', 'begin', 'due', 'story_id', 'status'],
+      },
+    },
     updatedAt: now.toISOString(),
   }
 }

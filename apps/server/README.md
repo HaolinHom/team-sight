@@ -1,10 +1,10 @@
-# TeamSight MCP 本地服务 0.3.3
+# TeamSight MCP 本地服务 0.3.4
 
 提供配置、身份与团队分组、TAPD 查询与受控写入、工时与风险、普通排期、紧急模拟、批量回执恢复、甘特图和报告。完整接口说明见[能力与使用说明](../../docs/TeamSight-MCP-能力与使用说明.md)。
 
 ## 运行与打包
 
-使用 Node.js 22.14+ 且低于 23、Node-API 10，pnpm 10.12.4。0.3.3 构建与自带运行时固定版本为 22.23.4。
+使用 Node.js 22.14+ 且低于 23、Node-API 10，pnpm 10.12.4。0.3.4 构建与自带运行时固定版本为 22.23.4。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -54,7 +54,7 @@ node dist/cli.js serve --data-dir /absolute/new-data --port 43127
 
 失败不会切换服务。通常目标和新凭据被清理；若返回 MIGRATION_CREDENTIAL_CLEANUP_REQUIRED，保留锁定目标以供处理，不启动它。回退时停止新版，恢复旧启动脚本并使用原数据目录；不要直接覆盖新版数据。
 
-0.3.0 移除 Tauri、probe 工具、旧配置导入、tapd_list_workspaces 别名、p0/p1a/p1b 命令、旧环境变量及旧设置目标。当前 0.3.3 资源仅为 settings-0.3.3.html 与 analysis-0.3.3.html；旧卡片需要重新打开。历史版本知识、手册和报告不再作为当前操作指南。
+0.3.0 移除 Tauri、probe 工具、旧配置导入、tapd_list_workspaces 别名、p0/p1a/p1b 命令、旧环境变量及旧设置目标。当前 0.3.4 资源仅为 settings-0.3.4.html 与 analysis-0.3.4.html；旧卡片需要重新打开。历史版本知识、手册和报告不再作为当前操作指南。
 
 ## 0.3.1 甘特图修复
 
@@ -64,11 +64,11 @@ node dist/cli.js serve --data-dir /absolute/new-data --port 43127
 
 顶部仅保留标题、日期范围和任务／工时优先按钮；底部仅保留完整性、来源时间及时区。图例、范围说明、日历及模拟提示不再展示，加载和错误反馈保留；详细依据仍通过对话查询。计算、详情与静态导出不变。沿用数据库 v4 和配置 v6，从 0.3.1 升级无需迁移；重新打开卡片加载新资源。
 
-## 0.3.3 双版本发行
+## 双版本发行
 
 默认推荐 bundled 自带运行时版，包含私有 Node 22.23.4；external 精简版要求外部 Node 22.14+（低于23）、Node-API 10+。两种包业务文件和生产依赖相同，均无需安装 pnpm；自带版不安装全局 Node，不修改 PATH 或 nvm，启动时清除子进程 NODE_OPTIONS/NODE_PATH，并校验私有可执行文件 SHA-256。运行时缺失或损坏直接失败，不回退系统 Node。
 
-源码开发使用 Node 22.23.4 / pnpm 10.12.4。先执行 pnpm build、pnpm test，再执行 pnpm mcp:package all；也可指定 darwin-arm64 或 win32-x64，每个目标均生成两种包。不传目标时选择本机平台。发行产物位于 artifacts/releases/0.3.3：macOS 为 tar.gz，Windows 为 zip，文件名包含版本、平台及 bundled/external；同目录保留解压目录与 SHA256SUMS.txt。单平台命令生成对应 SHA256SUMS-<target>.txt，既有产物拒绝覆盖。
+源码开发使用 Node 22.23.4 / pnpm 10.12.4。先执行 pnpm build、pnpm test，再执行 pnpm mcp:package all；也可指定 darwin-arm64 或 win32-x64，每个目标均生成两种包。不传目标时选择本机平台。发行产物位于 artifacts/releases/0.3.4：macOS 为 tar.gz，Windows 为 zip，文件名包含版本、平台及 bundled/external；同目录保留解压目录与 SHA256SUMS.txt。单平台命令生成对应 SHA256SUMS-<target>.txt，既有产物拒绝覆盖。
 
 Node 官方归档固定版本与 SHA-256，缓存位于 .local/node-runtime-cache；复用仍校验，缓存损坏须删除对应缓存后重试。Windows 原生依赖沿用 TEAMSIGHT_MCP_NATIVE_CACHE 的可信缓存校验。打包使用 bsdtar（macOS、Windows 自带 tar）处理 ZIP/tar.gz；只附带 Node 可执行文件及其 LICENSE，不附带 npm 或开发头文件。
 
@@ -100,4 +100,8 @@ Node 官方归档固定版本与 SHA-256，缓存位于 .local/node-runtime-cach
 
 每包 versions.json 区分 variant/runtimeBundled、buildNode 和 validatedNode；打包时 validatedNode 为 null，验收结果保存在独立证据中，不修改已封装的包。自带版记录 Node 来源、归档与可执行文件哈希；checksums.json 覆盖包内全部文件（不包括自身），归档另有 SHA-256 清单。Windows 结构/PE 校验不代表 Windows 实机或原生 Apps 验收通过。
 
-0.3.2 → 0.3.3 沿用 DB v4、配置 v6，无需迁移。升级或切换两种包时先停止并确认旧实例退出，备份静止数据，再使用同一绝对 --data-dir 启动新包；不覆盖旧运行目录。MCP 资源更新为 settings-0.3.3.html 与 analysis-0.3.3.html，重新打开卡片。打包本身不更新本机服务、不上传发布，也不包含 TAPD 凭据或用户数据。
+0.3.3 → 0.3.4 沿用 DB v4、配置 v6，无需迁移。升级或切换两种包时先停止并确认旧实例退出，备份静止数据，再使用同一绝对 --data-dir 启动新包；不覆盖旧运行目录。MCP 资源更新为 settings-0.3.4.html 与 analysis-0.3.4.html，重新打开卡片。打包本身不更新本机服务、不上传发布，也不包含 TAPD 凭据或用户数据。
+
+## 0.3.4 首次配置默认值
+
+仅新建数据库默认查询任务和缺陷，允许创建、修改、发表评论及八项界面标准字段，启用中国节假日与调休。旧 v6 配置的空权限、缺失权限、关闭日历及自定义字段原样保留；不提升 schema 或迁移数据。macOS 安装器兼容 0.3.3 受管安装的检查、升级与失败回退。

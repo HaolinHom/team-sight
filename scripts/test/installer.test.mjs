@@ -45,10 +45,10 @@ test('test service paths cannot collide with production label or Codex home', { 
 test('payload verification normalizes doubled separators and rejects tampering/symlinks', () => {
   const dir = fs.mkdtempSync(join(tmpdir(), 'teamsight-payload-test-'))
   try {
-    const files = { 'README.md': 'fixture', 'versions.json': '{"version":"0.3.3"}' }
+    const files = { 'README.md': 'fixture', 'versions.json': '{"version":"0.3.4"}' }
     for (const [name, bytes] of Object.entries(files)) fs.writeFileSync(join(dir, name), bytes)
     fs.writeFileSync(join(dir, 'checksums.json'), JSON.stringify(Object.fromEntries(Object.entries(files).map(([key, bytes]) => [key, digest(bytes)]))))
-    assert.equal(verifyPayload(dir.replace('/teamsight-', '//teamsight-')).version, '0.3.3')
+    assert.equal(verifyPayload(dir.replace('/teamsight-', '//teamsight-')).version, '0.3.4')
     fs.writeFileSync(join(dir, 'README.md'), 'changed')
     assert.throws(() => verifyPayload(dir), /PAYLOAD_HASH_MISMATCH/)
     fs.writeFileSync(join(dir, 'README.md'), 'fixture')

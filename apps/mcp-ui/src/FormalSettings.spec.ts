@@ -4,6 +4,7 @@ const state=vi.hoisted(()=>({instance:null as any,call:vi.fn(),context:vi.fn(),s
 vi.mock('@modelcontextprotocol/ext-apps',()=>({applyDocumentTheme:vi.fn(),applyHostStyleVariables:vi.fn(),App:class {ontoolresult:any;ontoolinput:any;constructor(){state.instance=this}async connect(){}getHostContext(){return {theme:'light'}}callServerTool=state.call;updateModelContext=state.context;sendMessage=state.send}}))
 import FormalSettings from './FormalSettings.vue'
 import {categories,settingsTarget} from './settings-model'
+import {createDefaultSettings} from '@teamsight/core'
 const settings={schemaVersion:6,teamName:'Team',timeZone:'Asia/Shanghai',projects:[{id:'1',name:'One',enabled:true,color:'#EB732D',alias:'Alias'}],members:[],groups:[{id:'default',name:'默认组',memberIds:[]}],defaultGroupId:'default',currentUser:{staffId:'100',name:'Me'},hours:{dailyRequiredHours:8,completedStates:[]},chinaCalendar:{enabled:true,years:{}},tapd:{baseUrl:'https://api.tapd.cn',defaultTypes:['task'],writeAccess:{operations:[],fields:[]}},updatedAt:''}
 const snapshot={settings,revision:4,credentialPresent:true}
 const response=(value:unknown)=>({structuredContent:JSON.parse(JSON.stringify(value)),content:[]})
@@ -23,6 +24,40 @@ describe('directed settings',()=>{
 })
 
 describe('simplified connection settings',()=>{
+ it('shows fresh defaults checked and persists an opt-out without reselecting on reopen',async()=>{
+  const saved={settings:createDefaultSettings(),revision:0,credentialPresent:false}
+  state.call.mockResolvedValue(response(saved))
+  let view=await open('connection')
+  const checkboxes=view.findAll('input[type=checkbox]')
+  expect(checkboxes).toHaveLength(13)
+  expect(checkboxes.every(input=>(input.element as HTMLInputElement).checked)).toBe(true)
+  await view.get('input[type=password]').setValue('DEFAULTS_FIXTURE')
+  await view.get('input[value=comment]').setValue(false)
+  saved.settings.tapd.writeAccess!.operations=['create','update'];saved.revision=1;saved.credentialPresent=true
+  state.call.mockResolvedValue(response(saved))
+  await view.get('.save-actions .primary').trigger('click');await flushPromises()
+  expect(state.call).toHaveBeenLastCalledWith({name:'teamsight_save_settings',arguments:{expectedRevision:0,patch:{tapd:{writeAccess:{operations:['create','update']}}},tapdToken:'DEFAULTS_FIXTURE'}})
+  view.unmount();view=await open('connection')
+  expect((view.get('input[value=comment]').element as HTMLInputElement).checked).toBe(false)
+  view.unmount();view=await open('calendar')
+  expect((view.get('input[type=checkbox]').element as HTMLInputElement).checked).toBe(true)
+  await view.get('input[type=checkbox]').setValue(false)
+  saved.settings.chinaCalendar.enabled=false;saved.revision=2
+  state.call.mockResolvedValue(response(saved))
+  await view.get('.save-actions .primary').trigger('click');await flushPromises()
+  expect(state.call).toHaveBeenLastCalledWith({name:'teamsight_save_settings',arguments:{expectedRevision:1,patch:{chinaCalendar:{enabled:false}}}})
+  view.unmount();view=await open('calendar')
+  expect((view.get('input[type=checkbox]').element as HTMLInputElement).checked).toBe(false)
+  view.unmount()
+ })
+ it('keeps legacy missing permissions unselected',async()=>{
+  const legacy=JSON.parse(JSON.stringify(snapshot));delete legacy.settings.tapd.writeAccess
+  state.call.mockResolvedValue(response(legacy))
+  const view=await open('connection')
+  expect((view.get('input[value=create]').element as HTMLInputElement).checked).toBe(false)
+  expect((view.get('input[value=comment]').element as HTMLInputElement).checked).toBe(false)
+  view.unmount()
+ })
  it('saves the separate comment permission without enabling field edits',async()=>{
   const view=await open('connection')
   expect((view.get('input[value=comment]').element as HTMLInputElement).checked).toBe(false)

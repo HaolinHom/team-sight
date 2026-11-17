@@ -33,7 +33,7 @@ test('Windows payload helper normalizes nested keys, rejects extra files and dir
   const dir = mkdtempSync(join(tmpdir(), 'teamsight windows payload '))
   try {
     mkdirSync(join(dir, 'nested'))
-    const files = { 'versions.json': JSON.stringify({ version: '0.3.3', target: 'win32-x64', variant: 'bundled' }), 'nested/file': 'fixture' }
+    const files = { 'versions.json': JSON.stringify({ version: '0.3.4', target: 'win32-x64', variant: 'bundled' }), 'nested/file': 'fixture' }
     for (const [name, value] of Object.entries(files)) writeFileSync(join(dir, name), value)
     writeFileSync(join(dir, 'checksums.json'), JSON.stringify(Object.fromEntries(Object.entries(files).map(([key, value]) => [key, digest(value)]))))
     assert.equal(run('verify', dir).status, 0)
