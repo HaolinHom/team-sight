@@ -1,6 +1,6 @@
 # TeamSight MCP 服务管理
 
-适用版本：**0.3.4**。本文面向需要手动接入、管理本地服务或进行源码开发的用户。产品介绍与首次使用见[项目 README](../../README.md)，业务工具契约见[能力与使用说明](../../docs/TeamSight-MCP-能力与使用说明.md)。
+适用版本：**0.3.5**（Windows 后台安装示例仍适用于 **0.3.4**）。本文面向需要手动接入、管理本地服务或进行源码开发的用户。产品介绍与首次使用见[项目 README](../../README.md)，业务工具契约见[能力与使用说明](../../docs/TeamSight-MCP-能力与使用说明.md)。
 
 ## 运行环境与目录
 
@@ -112,13 +112,13 @@ pwsh -NoProfile -File "$env:LOCALAPPDATA\TeamSight MCP\install-windows.ps1" -Act
 
 ## 升级与备份
 
-从 0.3.3 升级到 0.3.4 沿用数据库 v4 和配置 v6，无需数据迁移。已有权限、日历选择、自定义字段和历史分析保留。
+从 0.3.3 或 0.3.4 升级到 0.3.5 沿用数据库 v4 和配置 v6，无需数据迁移。已有权限、日历选择、自定义字段和历史分析保留。
 
 - **手动管理**：等待活动分析和待发送写入结束，安全停止旧实例并确认退出，备份静止数据目录与启动配置，再从新解压目录使用同一绝对 `--data-dir` 启动。保留旧包，不覆盖正在运行的目录。
 - **macOS 安装器管理**：安装器支持从受管 0.3.3 升级及同版本包类型切换，进行校验、静止数据备份和失败恢复。按安装说明执行；遇到未知实例或手工改动的管理文件时停止处理。
 - **Windows 安装器管理**：同版本重复安装使用管理状态核对；跨版本变更应先核对对应版本安装器能力，不能套用 macOS 自动升级流程。
 
-升级后重新连接 MCP，并重新打开设置与分析卡片，加载 `ui://teamsight/settings-0.3.4.html` 和 `ui://teamsight/analysis-0.3.4.html`。历史卡片不会自动更新。
+升级后重新连接 MCP，并重新打开设置与分析卡片，加载当前版本的 `ui://teamsight/settings-0.3.5.html` 和 `ui://teamsight/analysis-0.3.5.html`。历史卡片不会自动更新。
 
 恢复旧版本时先停止新版，恢复旧启动配置及其匹配的数据备份。数据目录备份不包含系统凭据库中的令牌；不要在升级时清除原凭据。
 
@@ -177,7 +177,7 @@ pnpm mcp:package darwin-arm64
 # 或 pnpm mcp:package all
 ~~~
 
-每个平台生成 bundled／external 两种包，位于 `artifacts/releases/0.3.4`。压缩包名含版本、平台与包类型，解压目录名不含版本。单平台附 `SHA256SUMS-<target>.txt`，all 附 `SHA256SUMS.txt`。已有目标拒绝覆盖；打包不更新本机服务、不上传发行资产，也不包含用户数据或 TAPD 凭据。
+每个平台生成 bundled／external 两种包，位于 `artifacts/releases/<版本>`。压缩包名含版本、平台与包类型，解压目录名不含版本。单平台附 `SHA256SUMS-<target>.txt`，all 附 `SHA256SUMS.txt`。已有目标拒绝覆盖；本地打包不更新本机服务、不上传发行资产，也不包含用户数据或 TAPD 凭据。macOS 正式发布流程见[首发手册](../../docs/install/github-macos-release.md)。
 
 bundled 固定下载官方 Node 及校验哈希，缓存位于 `.local/node-runtime-cache`；只包含可执行文件和许可证，不含 npm。两种包都包含 `versions.json` 与 `checksums.json`。构建记录不代表目标平台已完成运行验收；Windows 原生依赖、可信缓存与验收命令见[平台说明](../../docs/validation/teamsight-mcp-platforms.md)。
 

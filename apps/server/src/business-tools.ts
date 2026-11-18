@@ -8,8 +8,9 @@ import type { TeamSightStore } from './storage.js'
 import { generateReport, renderGantt } from './outputs.js'
 import type { TeamSightScenarios } from './scenarios.js'
 import type { FileRecord } from './business-storage.js'
+import { VERSION } from './release.js'
 
-export const ANALYSIS_UI_URI = 'ui://teamsight/analysis-0.3.4.html'
+export const ANALYSIS_UI_URI = `ui://teamsight/analysis-${VERSION}.html`
 const id = z.string().min(1).max(100)
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const analysisInput = z.object({ start: date, end: date, analysisDate: date.optional(), projectIds: z.array(id).min(1).max(100).optional(), memberIds: z.array(id).min(1).max(100).optional(), groupIds: z.array(id).min(1).optional(), scope: z.enum(['self','team']).optional(), refresh: z.boolean().optional() }).strict()

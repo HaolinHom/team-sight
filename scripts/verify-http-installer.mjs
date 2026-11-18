@@ -7,26 +7,37 @@ import { createServer } from 'node:https'
 import { createServer as tcpServer } from 'node:net'
 import { spawn, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
+import { createInterface } from 'node:readline'
 import assert from 'node:assert/strict'
 import { digest, paths } from './installer/main.mjs'
 import { parseConfig } from './installer/config.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const evidence = resolve(process.argv[2] ?? '.local/validation/http-installer/acceptance')
+const agentSite = process.argv[3] && resolve(process.argv[3])
 fs.mkdirSync(evidence, { recursive: true })
 const testBase = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'teamsight-installer-test-')))
 const ca = join(testBase, 'ca.pem'), key = join(testBase, 'key.pem'), config = join(testBase, 'openssl.cnf')
 fs.writeFileSync(config, '[req]\ndistinguished_name=dn\nx509_extensions=ext\nprompt=no\n[dn]\nCN=localhost\n[ext]\nsubjectAltName=DNS:localhost,IP:127.0.0.1\nbasicConstraints=critical,CA:TRUE\nkeyUsage=digitalSignature,keyEncipherment,keyCertSign\n')
 assert.equal(spawnSync('/usr/bin/openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', ca, '-days', '1', '-config', config], { stdio: 'ignore' }).status, 0)
-let responseMode = 'normal'
+let responseMode = 'normal', packageRequests = 0
+const previousSite = join(testBase, 'previous-site')
 const sockets = new Set(), records = [], roots = new Set()
 const fixture = createServer({ key: fs.readFileSync(key), cert: fs.readFileSync(ca) }, (req, res) => {
+  if (agentSite && /^\/(?:previous\/)?install-mcp(?:-external)?$/.test(req.url)) {
+    const script = fs.readFileSync(join(req.url.startsWith('/previous/') ? previousSite : agentSite, req.url.split('/').pop()))
+    const body = responseMode === 'script-truncated' ? script.subarray(0, script.length - 4) : script
+    res.writeHead(200, { 'content-length': body.length }); res.end(body); return
+  }
+  packageRequests += 1
   if (responseMode === '404') { res.writeHead(404); res.end(); return }
   if (responseMode === 'timeout') return
   if (responseMode === 'corrupt') { res.end('corrupt'); return }
   const name = req.url.slice(1)
-  if (!/^teamsight-mcp-0\.3\.(3|4)-darwin-arm64-(bundled|external)\.tar\.gz$/.test(name)) { res.writeHead(404); res.end(); return }
-  const path = join(root, 'artifacts/releases', name.includes('-0.3.3-') ? '0.3.3' : '0.3.4', name)
+  const version = /^teamsight-mcp-(0\.3\.[345])-darwin-arm64-(bundled|external)\.tar\.gz$/.exec(name)?.[1]
+  if (!version) { res.writeHead(404); res.end(); return }
+  const path = join(root, 'artifacts/releases', version, name)
+  if (!fs.existsSync(path)) { res.writeHead(404); res.end(); return }
   res.writeHead(200, { 'content-length': fs.statSync(path).size })
   if (responseMode === 'interrupted') { res.write('partial'); res.destroy(); return }
   fs.createReadStream(path).pipe(res)
@@ -56,7 +67,68 @@ async function installer(testRoot, port, args = [], extraEnv = {}, success = tru
   else assert.notEqual(output.code, 0, 'expected failure')
   return output
 }
+async function agentInstall(testRoot, port, { variant = 'bundled', older = false, extraEnv = {}, error } = {}) {
+  const endpoint = baseUrl + (older ? '/previous' : '') + '/install-mcp' + (variant === 'external' ? '-external' : '')
+  const command = '/usr/bin/curl --disable -fsS --cacert "$1" "$2" | /bin/sh -s -- --test "$3" "$4" "$1" "$5"'
+  const result = await new Promise(ok => {
+    const child = spawn('/bin/bash', ['-o', 'pipefail', '-c', command, 'fixture', ca, endpoint, testRoot, baseUrl, String(port)],
+      { env: { ...process.env, PATH: '/usr/bin:/bin', ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = '', stderr = ''
+    child.stdout.on('data', bytes => { stdout += bytes }); child.stderr.on('data', bytes => { stderr += bytes })
+    child.on('close', code => ok({ code, stdout, stderr }))
+  })
+  const tokenPath = join(testRoot, 'data-mcp/access-token')
+  if (fs.existsSync(tokenPath)) assert.ok(!(result.stdout + result.stderr).includes(fs.readFileSync(tokenPath, 'utf8').trim()), 'secret must not appear in output')
+  if (error) {
+    assert.notEqual(result.code, 0); assert.equal(result.stdout, ''); assert.match(result.stderr, error)
+    return
+  }
+  assert.equal(result.code, 0, result.stderr)
+  const value = JSON.parse(result.stdout)
+  assert.equal(value.ok, true); assert.equal(value.schema, 1); assert.equal(value.service, 'verified')
+  assert.equal(value.url, `http://127.0.0.1:${port}/mcp`); assert.equal(value.credentialFile, tokenPath)
+  assert.equal(value.codexHelper, join(testRoot, 'configure-codex'))
+  assert.match(value.next, /teamsight_status/)
+  return value
+}
 function record(name, result = 'passed') { records.push({ name, result }); console.log('PASS ' + name) }
+async function verifyCodexConnection(executable, install, testRoot) {
+  const cwd = join(testRoot, 'host-fixture'), configHome = join(cwd, 'config')
+  fs.mkdirSync(configHome, { recursive: true })
+  const env = { ...process.env, CODEX_HOME: configHome }
+  assert.equal(spawnSync(install.codexHelper, [], { env, encoding: 'utf8' }).status, 0, 'could not configure isolated Codex host')
+  const codex = spawn(executable, ['app-server', '--listen', 'stdio://'], { cwd, env, stdio: ['pipe', 'pipe', 'ignore'] })
+  const responses = createInterface({ input: codex.stdout }), requests = new Map()
+  let id = 0
+  responses.on('line', line => {
+    let message
+    try { message = JSON.parse(line) } catch { return }
+    requests.get(message.id)?.(message)
+  })
+  codex.stdin.on('error', () => {})
+  codex.on('error', () => {})
+  function request(method, params) {
+    const requestId = ++id
+    return new Promise((resolveResponse, reject) => {
+      const timeout = setTimeout(() => { requests.delete(requestId); reject(new Error('Codex RPC timeout: ' + method)) }, 45_000)
+      requests.set(requestId, message => {
+        clearTimeout(timeout); requests.delete(requestId)
+        if (message.error) reject(new Error(`Codex RPC failed: ${method} (${message.error.code})`))
+        else resolveResponse(message.result)
+      })
+      codex.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: requestId, method, params }) + '\n')
+    })
+  }
+  try {
+    await request('initialize', { clientInfo: { name: 'teamsight_installer_test', version: '1.0.0' }, capabilities: { experimentalApi: true } })
+    codex.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'initialized' }) + '\n')
+    const thread = (await request('thread/start', { cwd, ephemeral: true })).thread
+    const status = await request('mcpServer/tool/call', { threadId: thread.id, server: 'teamsight', tool: 'teamsight_status', arguments: {} })
+    assert.ok(!status.isError); assert.equal(status.structuredContent?.instanceId, install.instanceId); assert.equal(status.structuredContent?.version, install.version)
+  } finally {
+    responses.close(); codex.stdin.end(); codex.kill()
+  }
+}
 try {
   for (const mode of ['404', 'timeout', 'corrupt', 'interrupted']) {
     responseMode = mode; const dir = newRoot(), port = await freePort()
@@ -195,6 +267,91 @@ try {
     await installer(upgradeRoot, upgradePort, ['--uninstall'])
     assert.ok(!fs.existsSync(join(upgradeRoot, 'versions/0.3.3-bundled')));assert.ok(!fs.existsSync(join(upgradeRoot, 'versions/0.3.4-bundled')))
     record('0.3.3 to 0.3.4 upgrade preserves opt-outs/custom fields/revision/token and supports uninstall')
+  }
+  if (agentSite) {
+    const oldBuild = spawnSync(process.execPath, [join(root, 'scripts/build-installer.mjs'), '--pages', join(root, 'artifacts/releases/0.3.4'), previousSite, '0.3.4'], { encoding: 'utf8' })
+    assert.equal(oldBuild.status, 0, oldBuild.stderr)
+    const externalEnv = { PATH: dirname(externalNode) + ':/usr/bin:/bin' }
+    for (const [mode, error] of [['script-truncated', /end of file|here-document/], ['corrupt', /ARCHIVE_HASH_MISMATCH/], ['interrupted', /DOWNLOAD_FAILED/]]) {
+      const faulty = newRoot(), faultyPort = await freePort(), before = packageRequests
+      responseMode = mode
+      await agentInstall(faulty, faultyPort, { error })
+      assert.ok(!fs.existsSync(join(faulty, 'installer-state.json')))
+      if (mode === 'script-truncated') assert.equal(packageRequests, before)
+      record('Pages pipe rejects ' + mode + ' without a success result')
+    }
+    responseMode = 'normal'
+    const agentRoot = newRoot(), agentPort = await freePort(), customHome = join(agentRoot, 'codex custom')
+    const agentPaths = paths(agentRoot, customHome, true, agentPort)
+    fs.mkdirSync(customHome)
+    const untouched = '# untouched\n[mcp_servers.other]\nurl="https://example.test"\n'
+    fs.writeFileSync(agentPaths.config, untouched)
+    const installed = await agentInstall(agentRoot, agentPort, { extraEnv: { CODEX_HOME: customHome } })
+    assert.equal(installed.action, 'installed'); assert.equal(installed.version, '0.3.5'); assert.equal(installed.variant, 'bundled')
+    assert.equal(fs.readFileSync(agentPaths.config, 'utf8'), untouched)
+    assert.ok(!fs.existsSync(join(agentRoot, 'codex')))
+    const token = fs.readFileSync(installed.credentialFile, 'utf8')
+    const foreign = untouched + '[mcp_servers.teamsight]\nurl="https://unrelated.example"\n'
+    fs.writeFileSync(agentPaths.config, foreign)
+    const helperEnv = { ...process.env, CODEX_HOME: customHome }
+    const conflict = spawnSync(installed.codexHelper, [], { env: helperEnv, encoding: 'utf8' })
+    assert.notEqual(conflict.status, 0); assert.match(conflict.stderr, /CODEX_CONNECTION_CONFLICT/)
+    assert.equal(fs.readFileSync(agentPaths.config, 'utf8'), foreign)
+    fs.writeFileSync(agentPaths.config, untouched)
+    const configured = spawnSync(installed.codexHelper, [], { env: helperEnv, encoding: 'utf8' })
+    assert.equal(configured.status, 0, configured.stderr); assert.ok(!(configured.stdout + configured.stderr).includes(token))
+    assert.equal(JSON.parse(configured.stdout).instanceId, installed.instanceId)
+    const configuredBytes = fs.readFileSync(agentPaths.config, 'utf8'), entries = parseConfig(configuredBytes).mcp_servers
+    assert.equal(entries.teamsight.http_headers.Authorization, 'Bearer ' + token)
+    assert.equal(entries.other.url, 'https://example.test'); assert.equal(fs.statSync(agentPaths.config).mode & 0o777, 0o600)
+    const noChange = spawnSync(installed.codexHelper, [], { env: helperEnv, encoding: 'utf8' })
+    assert.equal(noChange.status, 0, noChange.stderr); assert.equal(JSON.parse(noChange.stdout).codex, 'unchanged')
+    if (process.env.TEAMSIGHT_TEST_CODEX) {
+      await verifyCodexConnection(process.env.TEAMSIGHT_TEST_CODEX, installed, agentRoot)
+      record('Isolated Codex app-server invokes teamsight_status and matches the installed instance')
+    }
+    const requestsAfterInstall = packageRequests
+    assert.equal((await agentInstall(agentRoot, agentPort)).action, 'already-current')
+    assert.equal((await agentInstall(agentRoot, agentPort, { older: true })).action, 'newer-local')
+    assert.equal(packageRequests, requestsAfterInstall)
+    record('Pages bundled: no Node in PATH; separate Codex helper safely aborts conflict and is idempotent; skip repeats and downgrades without downloads')
+    const freshExternal = newRoot(), externalPort = await freePort()
+    await agentInstall(freshExternal, externalPort, { variant: 'external', error: /NODE_MISSING/ })
+    const incompatible = join(freshExternal, 'node'); fs.writeFileSync(incompatible, '#!/bin/sh\nexit 1\n', { mode: 0o700 })
+    await agentInstall(freshExternal, externalPort, { variant: 'external', extraEnv: { PATH: freshExternal + ':/usr/bin:/bin' }, error: /NODE_UNSUPPORTED/ })
+    const external = await agentInstall(freshExternal, externalPort, { variant: 'external', extraEnv: externalEnv })
+    assert.equal(external.action, 'installed')
+    if (process.env.TEAMSIGHT_TEST_CODEX) {
+      await verifyCodexConnection(process.env.TEAMSIGHT_TEST_CODEX, external, freshExternal)
+      record('Isolated Codex app-server also invokes teamsight_status on the external install')
+    }
+    assert.equal((await agentInstall(agentRoot, agentPort, { variant: 'external', extraEnv: externalEnv })).action, 'variant-switched')
+    assert.equal(fs.readFileSync(agentPaths.config, 'utf8'), configuredBytes)
+    assert.equal(fs.readFileSync(installed.credentialFile, 'utf8'), token)
+    record('Pages external: diagnoses incompatible Node, fresh install and same-version switch preserve the managed connection')
+    const occupied = tcpServer(), conflictRoot = newRoot()
+    await new Promise(ok => occupied.listen(0, '127.0.0.1', ok))
+    try { await agentInstall(conflictRoot, occupied.address().port, { error: /PORT_IN_USE/ }) }
+    finally { await new Promise(ok => occupied.close(ok)) }
+    record('Pages does not take over an occupied local port')
+    const upgradeRoot = newRoot(), upgradePort = await freePort(), upgrade = paths(upgradeRoot, join(upgradeRoot, 'codex'), true, upgradePort)
+    await installer(upgradeRoot, upgradePort)
+    const originalState = fs.readFileSync(upgrade.state), originalConfig = fs.readFileSync(upgrade.config), originalToken = fs.readFileSync(join(upgrade.data, 'access-token'))
+    const oldPackage = JSON.parse(originalState).packageDir
+    const UpgradeDB = createRequire(join(oldPackage, 'package.json'))('better-sqlite3')
+    const upgradeDbPath = join(upgrade.data, 'teamsight.sqlite'), upgradeDb = new UpgradeDB(upgradeDbPath)
+    const settings = JSON.parse(upgradeDb.prepare('SELECT value FROM settings WHERE id=1').get().value)
+    settings.teamName = '保留的受管设置'; settings.chinaCalendar.enabled = false
+    upgradeDb.prepare('UPDATE settings SET value=?, revision=? WHERE id=1').run(JSON.stringify(settings), 4); upgradeDb.close()
+    await agentInstall(upgradeRoot, upgradePort, { extraEnv: { TEAMSIGHT_INSTALL_TEST_FAIL: 'after-start' }, error: /TEST_START_FAILURE/ })
+    assert.deepEqual(fs.readFileSync(upgrade.state), originalState); assert.deepEqual(fs.readFileSync(upgrade.config), originalConfig)
+    assert.ok(!fs.existsSync(upgrade.helper)); await installer(upgradeRoot, upgradePort, ['--status'])
+    assert.equal((await agentInstall(upgradeRoot, upgradePort)).action, 'upgraded')
+    assert.deepEqual(fs.readFileSync(upgrade.config), originalConfig); assert.deepEqual(fs.readFileSync(join(upgrade.data, 'access-token')), originalToken)
+    const upgradedDb = new UpgradeDB(upgradeDbPath, { readonly: true })
+    const row = upgradedDb.prepare('SELECT revision,value FROM settings WHERE id=1').get(); upgradedDb.close()
+    assert.equal(row.revision, 4); assert.deepEqual(JSON.parse(row.value), settings)
+    record('Pages 0.3.4 legacy upgrade rolls back after start, and then preserves the original Codex config and connection key')
   }
   fs.writeFileSync(join(evidence, 'acceptance.json'), JSON.stringify({ ok: true, node: process.versions.node, records, publicDownload: 'pending-repository-publication', receivingCodex: 'pending-separate-machine-validation' }, null, 2))
 } finally {

@@ -1,12 +1,18 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { configureCodex, deleteConfigPath, parseConfig } from '../installer/config.mjs'
-import { paths, verifyPayload, digest } from '../installer/main.mjs'
+import { paths, verifyPayload, digest, compareReleases } from '../installer/main.mjs'
 import * as fs from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const token = 'a'.repeat(64), url = 'http://127.0.0.1:43127/mcp'
+test('installer compares release components numerically and rejects untrusted versions', () => {
+  assert.ok(compareReleases('0.3.10', '0.3.5') > 0)
+  assert.ok(compareReleases('0.3.5', '0.4.0') < 0)
+  assert.equal(compareReleases('0.3.5', '0.3.5'), 0)
+  for (const invalid of ['0.3.05', '0.3.5-next', '../0.3.5', '1000000000.0.0']) assert.throws(() => compareReleases(invalid, '0.3.5'), /INVALID_RELEASE_VERSION/)
+})
 const cases = [
   '',
   '# keep this\nmodel = "sample"\nnumber = 9007199254740993\n[mcp_servers.other]\nurl="https://example.test"\n',
