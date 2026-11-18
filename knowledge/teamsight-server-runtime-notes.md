@@ -74,7 +74,7 @@ KeepAlive LaunchAgent 升级先验证运行包、doctor 和隔离 MCP，检查�
 
 [2026-11-17 评论本机更新报告](../artifacts/report/20261117_评论MCP本机服务更新_测试报告.md)记录 0.3.3 精简版本地快照切换：39 工具／2 资源，原生检查、隔离 MCP、授权需求评论及附件列表读取通过，配置／凭据／回执／作业／缓存／历史文件及 Codex 配置摘要保持一致。更新没有自动开启 comment，也没有发送业务写入；非空附件下载、系统重启及其他平台未验收。宿主 status 和通用 comments.list 已命中新实例，但当时独立评论工具发现尚未刷新；服务端注册成功不等于宿主列表已刷新。工具发现和 Apps 可见交互应分别验收，当前状态仍需实时核对。
 
-[0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)保存该版本的构建、回归、迁移、历史导出和 macOS 升级证据。测试数量、PID、revision、项目数及安装目录属于该次验收记录，不作为当前环境常量。该轮未验收 Windows 实机；当前 Windows 0.3.3 验收见下节。Linux、其他架构、原生 Apps 完整交互、真实 TAPD 写入及重启／休眠仍需对应验收；隔离浏览器和 app-only 可见性不代表原生宿主完整验收或凭据保密保证。
+[0.3.0 实施报告](../artifacts/report/20261106_退役Tauri与旧兼容_mcp030_测试报告.md)保存该版本的构建、回归、迁移、历史导出和 macOS 升级证据。测试数量、PID、revision、项目数及安装目录属于该次验收记录，不作为当前环境常量。该轮未验收 Windows 实机；0.3.3 的历史 Windows 验收见下节。Linux、其他架构、原生 Apps 完整交互、真实 TAPD 写入及重启／休眠仍需对应验收；隔离浏览器和 app-only 可见性不代表原生宿主完整验收或凭据保密保证。
 
 [0.3.2 展示精简与更新报告](../artifacts/report/20261107_甘特图展示精简与MCP032_测试报告.md)记录当次 macOS arm64 安装、状态及资源哈希核对、配置／凭据／历史文件保留验证。130 项回归及隔离浏览器通过，Windows 0.3.2 未构建，原生侧栏无可用 App tab，原生完整交互与视觉仍未验收。部署状态是当次证据，不替代实时 teamsight_status。
 
@@ -132,4 +132,12 @@ Windows 无开发者模式时可用目录 junction 验证链接拒绝；macOS La
 
 安装回执 `schema: 1` 给出 `action`、`instanceId`、MCP URL、连接钥匙文件及 `codexHelper`，不含钥匙值。安装阶段不读写 Codex 配置；配置助手另行验证本机服务身份、尊重 `CODEX_HOME`、拒绝覆盖非受管同名连接，并在变更前备份已有配置。0.3.4 固定安装器仍按原契约自动配置宿主，不能用于管理新入口写入的 schema 2 状态；升级会保留钥匙和原 Codex 文件。
 
-本地通过 macOS 双包原生验证、隔离 HTTPS/LaunchAgent 安装及隔离 Codex app-server `teamsight_status` 调用。GitHub 工作流、发布顺序和恢复见[首发手册](../docs/install/github-macos-release.md)；本地通过不代表 Release、Pages 或接收端已验收。Windows 一键入口另见[交接指引](../docs/install/windows-agent-handoff.md)。
+本地通过 macOS 双包原生验证、隔离 HTTPS/LaunchAgent 安装及隔离 Codex app-server `teamsight_status` 调用。GitHub 工作流、发布顺序和恢复见[首发手册](../docs/install/github-macos-release.md)；本地通过不代表 Release、Pages 或接收端已验收。
+
+## 0.3.5 Windows 一键安装
+
+`scripts/build-windows-pages.mjs RELEASES SITE VERSION` 从 Windows x64 bundled／external 生成 `install-mcp.ps1`／`install-mcp-external.ps1`，固定 ZIP、清单与私有 Node 哈希。Windows PowerShell 5.1 的 `irm | iex` 在本机原 `Restricted` 策略和非管理员身份下通过，不依赖 PowerShell 7。ZIP 校验后在受控根下解压；较长路径使用 Windows 本地扩展路径，且在启动包内 Node 前核验文件清单。精简版固定实际 Node 路径，不更改 PATH 或 nvm。
+
+受管根为 `%LOCALAPPDATA%\TeamSight MCP`。schema 2 状态绑定当前 SID、用户登录任务、版本、包型及程序完整性。已核验的旧 schema 1 受管安装（0.3.3／0.3.4）可安全升级；旧管理器不能管理新状态。更换版本或包型须验证任务、进程及实例身份，拒绝未知服务、忙状态和不兼容数据，停止后备份；故障时恢复原任务和状态，不删除未知实例锁。数据、访问钥匙及 Credential Manager 凭据不随包型切换而替换。
+
+回执沿用跨平台 `schema: 1`，不含钥匙。安装不访问 Codex 配置；返回的 `.cmd` 助手独立按 `CODEX_HOME` 验证和配置，只修改 TeamSight 项，不覆盖非受管同名连接。钥匙、配置与备份在实测中仅授予当前用户、SYSTEM 及本机管理员。详见 [Windows 安装说明](../docs/install/windows-agent-handoff.md)和[本机报告](../artifacts/report/20261118_1606_windows-one-click_测试报告.md)。两包原生验收、隔离 HTTPS／计划任务及隔离 Codex `teamsight_status` 已通过；真实重新登录、在线工作流、正式 Release／Pages 与接收端仍待验收。同一工作流汇集两平台资产并部署或恢复整站。

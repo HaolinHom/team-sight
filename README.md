@@ -10,23 +10,35 @@ TeamSight 从 TAPD 获取工作事实，提供计算、图表与文件；AI 助�
 
 ### 方式一：让 Agent 自动安装（推荐）
 
-适用于 **macOS Apple Silicon（arm64）**，安装时需要访问 GitHub。Windows 请使用下方的备选方式。
+适用于 **macOS Apple Silicon（arm64）** 和 **Windows x64**，安装时需要访问 GitHub。
 
 > **一键入口尚未公开上线，下方指令暂勿执行。** 待 [GitHub Releases](https://github.com/HaolinHom/team-sight/releases) 确认安装入口已通过验收后，任选一条完整指令发给 Agent，而不是把整句粘贴到终端。
 
-**自带运行时（推荐）**：不需要提前安装 Node.js。
+**macOS 自带运行时（推荐）**：不需要提前安装 Node.js。
 
 ~~~text
 安装 Team-Sight MCP: curl -fsSL https://haolinhom.github.io/team-sight/install-mcp | sh
 ~~~
 
-**精简版**：仅在本机已安装兼容的 arm64 Node.js（`>=22.14.0` 且 `<23`，Node-API `>=10`）时选择。
+**macOS 精简版**：仅在本机已安装兼容的 arm64 Node.js（`>=22.14.0` 且 `<23`，Node-API `>=10`）时选择。
 
 ~~~text
 安装 Team-Sight MCP: curl -fsSL https://haolinhom.github.io/team-sight/install-mcp-external | sh
 ~~~
 
-安装器负责校验安装包并启动后台服务，不会修改 Codex 配置。请让 Agent 只在安装器返回 `ok: true` 和 `service: verified` 后，运行回执中的 `codexHelper` 配置 Codex。按提示重新连接后，让 Agent 调用 `teamsight_status` 确认连接，再进入[首次配置](#首次配置)。无需把本机连接钥匙发给 Agent。
+**Windows 自带运行时（推荐）**：使用普通用户的 Windows PowerShell 5.1，不需要提前安装 Node.js。
+
+~~~text
+安装 Team-Sight MCP: irm https://haolinhom.github.io/team-sight/install-mcp.ps1 | iex
+~~~
+
+**Windows 精简版**：仅在本机已安装兼容的 x64 Node.js（`>=22.14.0` 且 `<23`，Node-API `>=10`）时选择。
+
+~~~text
+安装 Team-Sight MCP: irm https://haolinhom.github.io/team-sight/install-mcp-external.ps1 | iex
+~~~
+
+安装器负责校验安装包并启动后台服务，不会修改 Codex 配置。请让 Agent 只在安装器返回 `ok: true`、`schema: 1` 和 `service: verified` 后，将回执中的 `codexHelper` 当作本机路径调用（Windows 使用 PowerShell 的 `&` 调用该路径）。按提示重新连接后，让 Agent 调用 `teamsight_status` 确认连接，再进入[首次配置](#首次配置)。无需把本机连接钥匙发给 Agent。只运行信任的官方 HTTPS 入口；若企业策略阻止运行，不要修改策略绕过。
 
 ### 方式二：使用发行包（备选）
 

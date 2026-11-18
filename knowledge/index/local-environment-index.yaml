@@ -1,13 +1,13 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "MCP 运行与配置"
-description: "TeamSight MCP 工程、存储、迁移、排期恢复及配置规则；评论在0.3.3快照引入，0.3.4默认配置及macOS双包/安装升级已验收，Windows历史验收单列；不收录退役 Rust/Tauri 工具链。"
+description: "TeamSight MCP 工程、存储、迁移、排期恢复及配置规则；macOS arm64 与 Windows x64 的双包及一键安装分开记录验收；不收录退役 Rust/Tauri 工具链。"
 
 items:
   - id: teamsight-server-runtime-notes
     title: "TeamSight Server / MCP Apps 运行与验收边界"
     path: "knowledge/teamsight-server-runtime-notes.md"
-    summary: "0.3.5增加macOS双包Pages一键入口及单独Codex配置助手，隔离HTTPS、LaunchAgent和Codex状态调用通过，正式Release/Pages与接收端待验收；兼容旧受管安装，DBv4/配置v6保留；0.3.4为39工具/2资源，旧0.3.3归档37；Node22.14+<23/API10+、双包哈希与凭据保留；评论回执、未知核实及连接指纹；Windows一键安装后续实机实施。"
+    summary: "0.3.5在macOS arm64、Windows x64提供双包Pages入口和独立Codex助手；macOS LaunchAgent／Windows 5.1非管理员登录任务、隔离HTTPS与Codex状态调用通过；Windows 0.3.3和0.3.4受管升级回滚通过，DBv4/配置v6及凭据保留，实际重登和正式Release/Pages接收端待验收；Node22.14+<23/API10+、双包哈希；评论回执、未知核实及连接指纹。"
     tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "installer", "http", "codex-config", "launchagent", "windows", "powershell", "nvm", "scheduled-task", "acl", "validation", "planning", "simulation", "batch", "recovery", "cache", "comments", "idempotency"]
     verifiedAt: "2026-11-18"
 
