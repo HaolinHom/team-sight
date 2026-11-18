@@ -125,3 +125,11 @@ Windows 无开发者模式时可用目录 junction 验证链接拒绝；macOS La
 [2026-11-10 安装器报告](../artifacts/report/20261110_macos-http-agent-install_测试报告.md)记录 Node 22.23.4 下 148 项回归与 17 组真实 HTTPS／原生模块／隔离 LaunchAgent 场景通过，未切换生产 MCP、未改四份封存归档。当次脚本固定地址 GET 为 404、Release 连接超时，未完成公网与接收端 Codex 验收；这是当时证据，本次知识提升未重查线上状态。分发前须核对当前发布状态并完成匿名下载、接收端安装及宿主连接验收。LaunchAgent 重载不替代系统重启／重新登录验收，原生 Apps、实际 Gatekeeper 弹窗、首次钥匙串授权、签名公证及其他平台仍需对应验收。
 
 2026-11-12 知识提升静态核对源码、报告及已保存的 Windows 实测证据；2026-11-17 追加评论、0.3.4 默认配置、双包、安装器及本机更新知识，均未在提升阶段重新构建、部署或执行业务测试。迁移实现见[迁移模块](../apps/server/src/migration.ts)，服务注册见[server](../apps/server/src/server.ts)。
+
+## 0.3.5 macOS 一键安装
+
+`scripts/build-installer.mjs --pages <release-dir> <site-dir> <version>` 从已验证的 macOS 双包生成 `install-mcp` 与 `install-mcp-external`。固定版本与哈希，不查 GitHub latest；HTTPS 入口脚本截断、归档截断或哈希不符不会发成功回执。受管版本按数字比较，同版本同包型和本机更新时不下载归档，较旧受管版可升级，同版本可切换包型；未知服务和端口冲突不接管。
+
+安装回执 `schema: 1` 给出 `action`、`instanceId`、MCP URL、连接钥匙文件及 `codexHelper`，不含钥匙值。安装阶段不读写 Codex 配置；配置助手另行验证本机服务身份、尊重 `CODEX_HOME`、拒绝覆盖非受管同名连接，并在变更前备份已有配置。0.3.4 固定安装器仍按原契约自动配置宿主，不能用于管理新入口写入的 schema 2 状态；升级会保留钥匙和原 Codex 文件。
+
+本地通过 macOS 双包原生验证、隔离 HTTPS/LaunchAgent 安装及隔离 Codex app-server `teamsight_status` 调用。GitHub 工作流、发布顺序和恢复见[首发手册](../docs/install/github-macos-release.md)；本地通过不代表 Release、Pages 或接收端已验收。Windows 一键入口另见[交接指引](../docs/install/windows-agent-handoff.md)。

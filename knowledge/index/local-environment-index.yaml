@@ -7,9 +7,9 @@ items:
   - id: teamsight-server-runtime-notes
     title: "TeamSight Server / MCP Apps 运行与验收边界"
     path: "knowledge/teamsight-server-runtime-notes.md"
-    summary: "0.3.4为39工具/2资源，旧0.3.3归档37；macOS双包、20安装场景及本机更新通过，DBv4/配置v6保持；0.3.3受管升级及失败回退、手工服务沿用原启动方式；Node22.14+<23/API10+、包哈希与凭据保留；评论回执/幂等未知核实及连接指纹；local-only不创建Git快照，公开下载、完整Apps、重启与Windows0.3.4未验收。"
+    summary: "0.3.5增加macOS双包Pages一键入口及单独Codex配置助手，隔离HTTPS、LaunchAgent和Codex状态调用通过，正式Release/Pages与接收端待验收；兼容旧受管安装，DBv4/配置v6保留；0.3.4为39工具/2资源，旧0.3.3归档37；Node22.14+<23/API10+、双包哈希与凭据保留；评论回执、未知核实及连接指纹；Windows一键安装后续实机实施。"
     tags: ["teamsight", "server", "mcp", "mcp-apps", "sqlite", "keyring", "packaging", "installer", "http", "codex-config", "launchagent", "windows", "powershell", "nvm", "scheduled-task", "acl", "validation", "planning", "simulation", "batch", "recovery", "cache", "comments", "idempotency"]
-    verifiedAt: "2026-11-17"
+    verifiedAt: "2026-11-18"
 
   - id: teamsight-mcp-config-scope
     title: "TeamSight MCP 配置、项目范围与工时规则"

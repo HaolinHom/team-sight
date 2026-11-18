@@ -28,7 +28,7 @@
     --proto '=https' --proto-redir '=https' --connect-timeout 10 --max-time 60 \
     "https://raw.githubusercontent.com/HaolinHom/team-sight/PUBLISH_COMMIT_BEFORE_USE/scripts/install.sh" \
     --output "$install_work/install.sh"
-  printf '%s  %s\n' "344ebbd5cb474482f48c50a67b597f1ee90b5e89104b23d6169fce1fa894f86b" "$install_work/install.sh" | /usr/bin/shasum -a 256 -c -
+  printf '%s  %s\n' "3f0f37c7f63d018bec8629bf6d9fb17ec04952707638a4b9fbedc7fb439e447b" "$install_work/install.sh" | /usr/bin/shasum -a 256 -c -
   /bin/bash "$install_work/install.sh" --version 0.3.4 --variant bundled
 )
 ~~~
@@ -88,4 +88,4 @@ node scripts/prepare-installer-release.mjs --local-only
 
 发布后以未登录、无 GitHub 凭据的 HTTP GET 核对脚本与两份归档哈希，并在接收端 macOS 验证安装、Codex 连接与卡片。核验完成后再分发安装指令。
 
-脚本 SHA-256：`344ebbd5cb474482f48c50a67b597f1ee90b5e89104b23d6169fce1fa894f86b`。
+脚本 SHA-256：`3f0f37c7f63d018bec8629bf6d9fb17ec04952707638a4b9fbedc7fb439e447b`。
