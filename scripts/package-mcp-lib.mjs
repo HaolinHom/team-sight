@@ -2,6 +2,9 @@ import { access, chmod, cp, mkdir, mkdtemp, readFile, readdir, rename, rm, write
 import { join, relative, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
+import { createWriteStream } from 'node:fs'
+import { pipeline } from 'node:stream/promises'
+import yazl from 'yazl'
 
 export const NODE_VERSION = '22.23.4'
 export const NODE_ARCHIVES = {
@@ -26,11 +29,17 @@ export function archiveTool() {
   return process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : 'tar'
 }
 
-export function createPackageArchive(staging, directoryName, archiveName) {
+export async function createPackageArchive(staging, directoryName, archiveName, files) {
+  const archive = join(staging, archiveName)
   if (archiveName.endsWith('.zip')) {
-    run(archiveTool(), ['--format=zip', '-cf', archiveName, directoryName], { cwd: staging })
+    const zip = new yazl.ZipFile()
+    zip.on('error', error => zip.outputStream.destroy(error))
+    for (const file of files) zip.addFile(join(staging, directoryName, file), `${directoryName}/${file}`)
+    const written = pipeline(zip.outputStream, createWriteStream(archive, { flags: 'wx' }))
+    zip.end()
+    await written
   } else {
-    run(archiveTool(), ['-a', '-cf', join(staging, archiveName), '-C', staging, directoryName])
+    run(archiveTool(), ['-a', '-cf', archive, '-C', staging, directoryName])
   }
 }
 
