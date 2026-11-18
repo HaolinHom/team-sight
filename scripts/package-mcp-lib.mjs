@@ -18,7 +18,20 @@ export function packageTargets(args, host = `${process.platform}-${process.arch}
 
 export function run(command, args, options = {}) {
   const result = spawnSync(command, args, { stdio: 'inherit', ...options })
-  if (result.error || result.status !== 0) throw new Error(`PACKAGE_COMMAND_FAILED: ${command}`)
+  if (result.error) throw new Error(`PACKAGE_COMMAND_FAILED: ${command}: ${result.error.message}`, { cause: result.error })
+  if (result.status !== 0) throw new Error(`PACKAGE_COMMAND_FAILED: ${command}: ${result.signal ?? `exit ${result.status}`}`)
+}
+
+export function archiveTool() {
+  return process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : 'tar'
+}
+
+export function createPackageArchive(staging, directoryName, archiveName) {
+  if (archiveName.endsWith('.zip')) {
+    run(archiveTool(), ['--format=zip', '-cf', archiveName, directoryName], { cwd: staging })
+  } else {
+    run(archiveTool(), ['-a', '-cf', join(staging, archiveName), '-C', staging, directoryName])
+  }
 }
 
 export async function requireAbsent(paths) {
@@ -52,7 +65,7 @@ export async function prepareRuntime(root, target, staging) {
   await cachedDownload(archive, url, spec.sha256)
   const extracted = await mkdtemp(join(staging, 'node-'))
   // Official, hash-pinned archives only; bsdtar supports both ZIP and tar.gz.
-  run('tar', ['-xf', archive, '-C', extracted])
+  run(archiveTool(), ['-xf', archive, '-C', extracted])
   const source = join(extracted, spec.name.replace(/\.(tar\.gz|zip)$/, ''))
   const runtime = join(staging, `runtime-${target}`)
   await mkdir(runtime)
