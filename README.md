@@ -18,7 +18,7 @@ TeamSight 从 TAPD 获取工作事实，提供计算、图表与文件；AI 助�
 
 ## 环境要求
 
-当前版本为 **0.3.4**，发行目标为 **macOS Apple Silicon（arm64）** 和 **Windows x64**。
+当前源码版本为 **0.3.5**。首发目标为 **macOS Apple Silicon（arm64）**；Windows x64 仍可按平台文档手工构建和验证，暂不提供 0.3.5 一键入口。
 
 - **AI 工具**：支持 Streamable HTTP MCP；设置与交互式甘特图还需要 MCP Apps 支持。以下以 Codex 为接入示例，其他宿主需自行确认兼容性。
 - **TAPD 账号**：具有所需项目访问权限的个人访问令牌。
@@ -41,7 +41,7 @@ bundled 不安装全局 Node，也不修改系统 PATH 或 nvm。其他系统、
 
 | 平台 | 推荐压缩包 |
 | --- | --- |
-| macOS Apple Silicon | `teamsight-mcp-0.3.4-darwin-arm64-bundled.tar.gz` |
+| macOS Apple Silicon | `teamsight-mcp-0.3.5-darwin-arm64-bundled.tar.gz` |
 | Windows x64 | `teamsight-mcp-0.3.4-win32-x64-bundled.zip` |
 
 精简版使用同名 `external` 包。先核对压缩包的 SHA-256 与发行清单一致，再完整解压到可写目录。以下命令以 bundled 为例，在压缩包所在目录执行。
@@ -49,9 +49,9 @@ bundled 不安装全局 Node，也不修改系统 PATH 或 nvm。其他系统、
 **macOS**
 
 ~~~sh
-shasum -a 256 teamsight-mcp-0.3.4-darwin-arm64-bundled.tar.gz
+shasum -a 256 teamsight-mcp-0.3.5-darwin-arm64-bundled.tar.gz
 # 与随发行包提供的 SHA256SUMS 清单中对应项逐字比较，一致后继续
-tar -xzf teamsight-mcp-0.3.4-darwin-arm64-bundled.tar.gz
+tar -xzf teamsight-mcp-0.3.5-darwin-arm64-bundled.tar.gz
 cd teamsight-mcp-darwin-arm64-bundled
 ./launch.sh doctor
 ./launch.sh serve --data-dir "$HOME/Library/Application Support/TeamSight MCP/manual-data" --port 43127
@@ -80,9 +80,9 @@ Set-Location .\TeamSight\teamsight-mcp-win32-x64-bundled
 
 ### 方式二：让 Agent 自动安装
 
-macOS Apple Silicon 用户可以使用 [Agent 自动安装说明](docs/install/macos-agent-install.md)。安装器下载并校验发行包，配置登录后后台运行的服务和 Codex 连接，关闭安装终端后服务仍可使用。默认推荐 bundled，也可选择 external。
+**macOS 一键入口待正式 Release、Pages 和接收端 Codex 验收，不要把待验收命令当作可用入口。** 发布状态以 [GitHub Releases](https://github.com/HaolinHom/team-sight/releases) 中的验收说明为准；维护者请按[首发手册](docs/install/github-macos-release.md)操作。
 
-**当前自动下载说明含待发布地址占位，尚不能直接用于安装。** 维护者发布固定脚本地址与对应 Release 资产，并确认匿名下载可用后，才能复制其中的指令交给 Agent。安装完成后按输出重新连接 Codex，并检查服务状态。
+一键安装只下载、校验并部署用户级后台服务。Agent 拿到 `ok: true` 和 `service: verified` 后，再调用输出里的 `codexHelper` 配置 Codex，必要时重新连接并调用 `teamsight_status`。不需要把本机钥匙粘贴到对话。固定版本 0.3.4 的旧方式仍见[历史 Agent 安装说明](docs/install/macos-agent-install.md)。
 
 Windows 当前提供发行包运行和本地后台安装器，没有同等的 HTTP 自动下载安装入口。
 
@@ -96,7 +96,7 @@ Windows 当前提供发行包运行和本地后台安装器，没有同等的 HT
 2. **检查项目**：打开项目设置，保留需要纳入分析的项目。同步新增项目默认启用，后续同步保留已有启停、别名、颜色和排序。
 3. **配置团队**：个人查询可直接使用当前账号；团队查询前需添加成员、建立分组并设置默认分组。新安装的默认分组为空，发现成员不会自动加入团队。
 4. **核对计算规则**：检查每日规定工时、完成状态以及节假日与调休设置。新安装默认每日 8 小时，启用中国节假日与调休；完成状态需按项目实际状态配置。
-5. **检查写入权限**：连接设置中可调整允许的操作及修改字段。0.3.4 新安装默认允许创建、修改、发表评论，以及名称、描述、负责人、预估工时、开始日期、结束日期、关联需求、任务状态八个标准字段。仅需查询时，可关闭写入操作。
+5. **检查写入权限**：连接设置中可调整允许的操作及修改字段。自 0.3.4 起，新安装默认允许创建、修改、发表评论，以及名称、描述、负责人、预估工时、开始日期、结束日期、关联需求、任务状态八个标准字段。仅需查询时，可关闭写入操作。
 
 已有安装保留原有选择，升级不会自动补开已关闭或缺失的写入权限、日历设置。实际写入始终受启用项目范围、允许操作、字段规则和 TAPD 账号权限约束。
 
@@ -141,7 +141,7 @@ node apps/server/dist/cli.js doctor
 pnpm mcp:serve --data-dir .local/teamsight-mcp --port 43127
 ~~~
 
-构建发行包使用 `pnpm mcp:package darwin-arm64`、`pnpm mcp:package win32-x64` 或 `pnpm mcp:package all`，产物位于 `artifacts/releases/0.3.4`。开发环境、平台依赖、迁移和发布准备见[服务文档](apps/server/README.md)。
+构建发行包使用 `pnpm mcp:package darwin-arm64`、`pnpm mcp:package win32-x64` 或 `pnpm mcp:package all`，产物位于 `artifacts/releases/<版本>`。开发环境、平台依赖、迁移和发布准备见[服务文档](apps/server/README.md)。
 
 ## 文档
 

@@ -1,6 +1,6 @@
 {
   "name": "team-sight",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "TeamSight MCP：TAPD 排期、工时与团队分析",
   "type": "module",
   "private": true,
