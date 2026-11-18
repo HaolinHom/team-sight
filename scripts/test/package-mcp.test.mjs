@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { archiveTool, createPackageArchive, packageTargets, cachedDownload, sha256, withStaging, publishFiles, fileHashes } from '../package-mcp-lib.mjs'
+import { archiveTool, createPackageArchive, extractZipArchive, packageTargets, cachedDownload, sha256, withStaging, publishFiles, fileHashes } from '../package-mcp-lib.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 async function fixture(t) {
@@ -29,12 +29,29 @@ test('release archives preserve the package root and contents in a staging path 
     assert.equal((await readFile(join(dir, archive))).toString('hex', 0, signature.length / 2), signature)
     const extracted = join(dir, `unpacked-${extension}`)
     await mkdir(extracted)
-    const result = spawnSync(archiveTool(), ['-xf', join(dir, archive), '-C', extracted], { encoding: 'utf8' })
-    assert.equal(result.status, 0, result.error?.message || result.stderr)
+    if (extension === 'zip') await extractZipArchive(join(dir, archive), extracted, name)
+    else {
+      const result = spawnSync(archiveTool(), ['-xf', join(dir, archive), '-C', extracted], { encoding: 'utf8' })
+      assert.equal(result.status, 0, result.error?.message || result.stderr)
+    }
     assert.deepEqual(await readdir(extracted), [name])
     assert.equal(await readFile(join(extracted, name, 'checksums.json'), 'utf8'), '{}')
     assert.equal(await readFile(join(extracted, name, 'nested', 'checksums.json'), 'utf8'), 'fixture')
   }
+})
+test('ZIP verification preserves Unicode paths and rejects a wrong package root', async t => {
+  const dir = await fixture(t), name = 'teamsight-mcp-fixture'
+  const staging = join(dir, '中文 打包'), extracted = join(dir, '中文 验包')
+  const file = '文档/使用说明.md'
+  await mkdir(join(staging, name, '文档'), { recursive: true })
+  await mkdir(extracted)
+  await writeFile(join(staging, name, file), 'fixture')
+  await createPackageArchive(staging, name, '发行包.zip', [file])
+  const archive = join(staging, '发行包.zip')
+  await assert.rejects(extractZipArchive(archive, extracted, 'other-root'), /UNSAFE_ZIP_ENTRY/)
+  assert.deepEqual(await readdir(extracted), [])
+  await extractZipArchive(archive, extracted, name)
+  assert.equal(await readFile(join(extracted, name, file), 'utf8'), 'fixture')
 })
 test('ZIP creation rejects a file missing from the staged package', async t => {
   const dir = await fixture(t)

@@ -1,9 +1,10 @@
 import { access, chmod, cp, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
-import { join, relative, sep } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
 import { pipeline } from 'node:stream/promises'
+import yauzl from 'yauzl'
 import yazl from 'yazl'
 
 export const NODE_VERSION = '22.23.4'
@@ -43,6 +44,31 @@ export async function createPackageArchive(staging, directoryName, archiveName, 
   }
 }
 
+export async function extractZipArchive(archive, destination, expectedRoot) {
+  const zip = await yauzl.openPromise(archive, { strictFileNames: true, autoClose: false })
+  const paths = new Set()
+  try {
+    for await (const entry of zip.eachEntry()) {
+      const directory = entry.fileName.endsWith('/')
+      const name = directory ? entry.fileName.slice(0, -1) : entry.fileName
+      const parts = name.split('/')
+      const type = (entry.externalFileAttributes >>> 16) & 0xf000
+      const key = name.toLowerCase()
+      if (parts[0] !== expectedRoot || (!directory && parts.length < 2) ||
+          parts.some(part => !part || /[\x00-\x1f<>:"|?*]|[. ]$|^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(part)) ||
+          paths.has(key) || (type !== 0 && type !== (directory ? 0x4000 : 0x8000)) ||
+          (entry.externalFileAttributes & 0x400)) throw new Error(`UNSAFE_ZIP_ENTRY: ${entry.fileName}`)
+      paths.add(key)
+      const path = join(destination, ...parts)
+      if (directory) await mkdir(path, { recursive: true })
+      else {
+        await mkdir(dirname(path), { recursive: true })
+        await pipeline(await zip.openReadStreamPromise(entry), createWriteStream(path, { flags: 'wx' }))
+      }
+    }
+  } finally { zip.close() }
+}
+
 export async function requireAbsent(paths) {
   for (const path of paths) {
     try { await access(path) } catch (error) { if (error.code === 'ENOENT') continue; throw error }
@@ -73,9 +99,10 @@ export async function prepareRuntime(root, target, staging) {
   const archive = join(cache, spec.name)
   await cachedDownload(archive, url, spec.sha256)
   const extracted = await mkdtemp(join(staging, 'node-'))
-  // Official, hash-pinned archives only; bsdtar supports both ZIP and tar.gz.
-  run(archiveTool(), ['-xf', archive, '-C', extracted])
-  const source = join(extracted, spec.name.replace(/\.(tar\.gz|zip)$/, ''))
+  const directoryName = spec.name.replace(/\.(tar\.gz|zip)$/, '')
+  if (target === 'win32-x64') await extractZipArchive(archive, extracted, directoryName)
+  else run(archiveTool(), ['-xf', archive, '-C', extracted])
+  const source = join(extracted, directoryName)
   const runtime = join(staging, `runtime-${target}`)
   await mkdir(runtime)
   const executable = target === 'win32-x64' ? 'node.exe' : 'node'
