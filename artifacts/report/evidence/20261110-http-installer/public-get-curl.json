@@ -1,0 +1,24 @@
+{
+  "method": "GET",
+  "authentication": "none",
+  "checks": [
+    {
+      "url": "https://raw.githubusercontent.com/HaolinHom/team-sight/faded11e42d844aba0f150e4f6523a696f5196c7/scripts/install.sh",
+      "httpStatus": "404",
+      "exit": 56,
+      "error": "curl: (56) The requested URL returned error: 404"
+    },
+    {
+      "url": "https://github.com/HaolinHom/team-sight/releases/download/v0.3.3/teamsight-mcp-0.3.3-darwin-arm64-bundled.tar.gz",
+      "httpStatus": "000",
+      "exit": 28,
+      "error": "curl: (28) Failed to connect to github.com port 443 after 5011 ms: Timeout was reached"
+    },
+    {
+      "url": "https://github.com/HaolinHom/team-sight/releases/download/v0.3.3/teamsight-mcp-0.3.3-darwin-arm64-external.tar.gz",
+      "httpStatus": "000",
+      "exit": 28,
+      "error": "curl: (28) Failed to connect to github.com port 443 after 5002 ms: Timeout was reached"
+    }
+  ]
+}

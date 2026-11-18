@@ -1,0 +1,76 @@
+{
+  "ok": true,
+  "node": "22.23.4",
+  "records": [
+    {
+      "name": "HTTPS 404 rejects without installation",
+      "result": "passed"
+    },
+    {
+      "name": "HTTPS timeout rejects without installation",
+      "result": "passed"
+    },
+    {
+      "name": "HTTPS corrupt rejects without installation",
+      "result": "passed"
+    },
+    {
+      "name": "HTTPS interrupted rejects without installation",
+      "result": "passed"
+    },
+    {
+      "name": "external missing and incompatible Node diagnosis",
+      "result": "passed"
+    },
+    {
+      "name": "bundled install without system Node, diagnostics, permissions, isolated MCP, live 37 tools and detached launchd service",
+      "result": "passed"
+    },
+    {
+      "name": "unsupported SQLite version rejected before service or config changes",
+      "result": "passed"
+    },
+    {
+      "name": "busy service refusal and idempotent reinstall preserve local token",
+      "result": "passed"
+    },
+    {
+      "name": "failed edition switch rollback after-start",
+      "result": "passed"
+    },
+    {
+      "name": "failed edition switch rollback after-config",
+      "result": "passed"
+    },
+    {
+      "name": "external fixed absolute Node and shared data compatibility",
+      "result": "passed"
+    },
+    {
+      "name": "LaunchAgent unload/reload uses persisted absolute paths",
+      "result": "passed"
+    },
+    {
+      "name": "uninstall failure restores packages, config and running service",
+      "result": "passed"
+    },
+    {
+      "name": "uninstall preserves database, token and other MCP settings",
+      "result": "passed"
+    },
+    {
+      "name": "fresh installation failure restores absent config and cleans managed files",
+      "result": "passed"
+    },
+    {
+      "name": "port conflict refuses and cleans this attempt",
+      "result": "passed"
+    },
+    {
+      "name": "unknown instance lock preserved",
+      "result": "passed"
+    }
+  ],
+  "publicDownload": "pending-repository-publication",
+  "receivingCodex": "pending-separate-machine-validation"
+}

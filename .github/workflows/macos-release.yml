@@ -1,0 +1,340 @@
+name: Publish TeamSight MCP for macOS and Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [publish, restore, withdraw]
+        default: publish
+        required: true
+      rollback_run_id:
+        type: string
+        description: Run ID of the previously verified publish (required on upgrades and restore)
+      windows_acceptance:
+        type: boolean
+        default: false
+        description: Windows 5.1 standard-user, Codex and real logon acceptance passed for this release candidate
+
+concurrency:
+  group: teamsight-macos-publication
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  PAGES_URL: https://haolinhom.github.io/team-sight
+  GH_REPO: HaolinHom/team-sight
+
+jobs:
+  build_macos:
+    if: github.repository == 'HaolinHom/team-sight' && github.ref == 'refs/heads/main' && inputs.operation == 'publish' && inputs.windows_acceptance
+    runs-on: macos-15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.candidate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.5'
+      - run: echo "TEAMSIGHT_UNSUPPORTED_NODE_DIR=$(dirname "$(command -v node)")" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: pnpm/action-setup@v4
+      - name: Build and validate both variants
+        run: |
+          test "$(uname -m)" = arm64
+          test -z "$(git status --porcelain)"
+          pnpm install --frozen-lockfile
+          pnpm mcp:build
+          pnpm mcp:test
+          pnpm mcp:package darwin-arm64
+          version=$(node -p 'require("./apps/server/package.json").version')
+          pnpm mcp:package:verify "artifacts/releases/$version" "$RUNNER_TEMP/package-evidence" darwin-arm64 "$version"
+      - name: Prepare release assets and Pages files
+        id: candidate
+        run: |
+          version=$(node -p 'require("./apps/server/package.json").version')
+          test "$version" = "$(node -p 'require("./package.json").version')"
+          releases="artifacts/releases/$version"
+          for payload in bundled external; do
+            jq -e --arg sha "$GITHUB_SHA" '.sourceHead == $sha' "$releases/teamsight-mcp-darwin-arm64-$payload/versions.json" >/dev/null
+          done
+          mkdir -p "$RUNNER_TEMP/candidate/assets"
+          cp "$releases/teamsight-mcp-$version-darwin-arm64-"{bundled,external}.tar.gz "$releases/SHA256SUMS-darwin-arm64.txt" "$RUNNER_TEMP/candidate/assets/"
+          node scripts/build-installer.mjs --pages "$releases" "$RUNNER_TEMP/candidate/site" "$version"
+          for entry in install-mcp install-mcp-external; do
+            /bin/sh -n "$RUNNER_TEMP/candidate/site/$entry"
+          done
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+          retention-days: 14
+
+  build_windows:
+    if: github.repository == 'HaolinHom/team-sight' && github.ref == 'refs/heads/main' && inputs.operation == 'publish' && inputs.windows_acceptance
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.candidate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.5'
+      - run: "'TEAMSIGHT_TEST_OLD_NODE=' + (Split-Path (Get-Command node.exe).Source) >> $env:GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: pnpm/action-setup@v4
+      - name: Build and verify Windows archives and entries
+        id: candidate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((node -p 'process.arch') -ne 'x64' -or (git status --porcelain)) { throw 'Unexpected build environment' }
+          $version = node -p "require('./apps/server/package.json').version"
+          if ($version -ne (node -p "require('./package.json').version")) { throw 'Version mismatch' }
+          $releases = "artifacts/releases/$version"
+          pnpm.cmd install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm.cmd mcp:build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm.cmd mcp:package win32-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm.cmd mcp:package:verify $releases "$env:RUNNER_TEMP/package-evidence" win32-x64 $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/candidate/assets" -Force | Out-Null
+          foreach ($variant in 'bundled','external') {
+            $manifest = Get-Content -Raw "$releases/teamsight-mcp-win32-x64-$variant/versions.json" | ConvertFrom-Json
+            if ($manifest.sourceHead -ne $env:GITHUB_SHA) { throw 'Source commit mismatch' }
+            Copy-Item "$releases/teamsight-mcp-$version-win32-x64-$variant.zip" "$env:RUNNER_TEMP/candidate/assets"
+          }
+          Copy-Item "$releases/SHA256SUMS-win32-x64.txt" "$env:RUNNER_TEMP/candidate/assets"
+          node scripts/build-windows-pages.mjs $releases "$env:RUNNER_TEMP/candidate/site" $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($entry in 'install-mcp.ps1','install-mcp-external.ps1') {
+            $tokens = $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile("$env:RUNNER_TEMP/candidate/site/$entry", [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors -join "`n") }
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+          retention-days: 14
+
+  build:
+    needs: [build_macos, build_windows]
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      version: ${{ needs.build_macos.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-candidate
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-candidate
+          path: ${{ runner.temp }}/windows
+      - name: Assemble the single release and Pages site
+        env:
+          MACOS_VERSION: ${{ needs.build_macos.outputs.version }}
+          WINDOWS_VERSION: ${{ needs.build_windows.outputs.version }}
+        run: |
+          [[ "$MACOS_VERSION" == "$WINDOWS_VERSION" && "$MACOS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          cd "$RUNNER_TEMP"
+          for entry in install-mcp.ps1 install-mcp-external.ps1; do cp "windows/site/$entry" "candidate/site/$entry"; done
+          cp windows/assets/* candidate/assets/
+          sed -i 's/macOS arm64 · /macOS arm64 and Windows x64 · /' candidate/site/index.html
+          printf '%s\n' 'macOS arm64 and Windows x64 bundled and external archives. Verify them with the attached platform SHA-256 manifests.' '' \
+            'One-line installation: pending anonymous receiver acceptance.' > candidate/assets/release-notes.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+          retention-days: 90
+
+  release:
+    needs: [build, prepare_pages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/publish-mcp-release.sh
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-candidate
+          path: ${{ runner.temp }}/candidate
+      - name: Publish GitHub Release and check anonymous assets
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/publish-mcp-release.sh "v$VERSION" "$GITHUB_SHA" "$RUNNER_TEMP/candidate/assets"
+
+  prepare_pages:
+    needs: build
+    if: >-
+      !cancelled() && github.repository == 'HaolinHom/team-sight' && github.ref == 'refs/heads/main' &&
+      (needs.build.result == 'success' || inputs.operation == 'restore' || inputs.operation == 'withdraw')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    env:
+      OPERATION: ${{ inputs.operation }}
+      ROLLBACK_RUN: ${{ inputs.rollback_run_id }}
+    outputs:
+      current: ${{ steps.site.outputs.current }}
+      recovery: ${{ steps.site.outputs.recovery }}
+      expected: ${{ steps.site.outputs.expected }}
+    steps:
+      - name: Validate prior deployment reference
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$OPERATION" == withdraw ]]; then exit 0; fi
+          if [[ -n "$ROLLBACK_RUN" ]]; then
+            [[ "$ROLLBACK_RUN" =~ ^[1-9][0-9]*$ && "$ROLLBACK_RUN" != "$GITHUB_RUN_ID" ]]
+            gh api "repos/$GH_REPO/actions/runs/$ROLLBACK_RUN" --jq .path | grep -Fx '.github/workflows/macos-release.yml'
+            gh api "repos/$GH_REPO/actions/runs/$ROLLBACK_RUN/jobs?per_page=100" | jq -e '.jobs | any(.name == "Verify public Pages" and .conclusion == "success")' >/dev/null
+          else
+            [[ "$OPERATION" == publish ]] || { echo 'Restore requires rollback_run_id'; exit 1; }
+            for entry in install-mcp install-mcp-external install-mcp.ps1 install-mcp-external.ps1; do
+              result=$(curl --disable -sS --proto '=https' --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "$PAGES_URL/$entry")
+              [[ "$result" == 404 ]] || { echo 'An existing deployment requires rollback_run_id'; exit 1; }
+            done
+          fi
+      - uses: actions/download-artifact@v4
+        if: inputs.operation == 'publish'
+        with:
+          name: release-candidate
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/download-artifact@v4
+        if: inputs.operation != 'withdraw' && inputs.rollback_run_id != ''
+        with:
+          name: release-candidate
+          path: ${{ runner.temp }}/prior
+          run-id: ${{ inputs.rollback_run_id }}
+          github-token: ${{ github.token }}
+      - name: Stage primary and recovery sites
+        id: site
+        run: |
+          mkdir "$RUNNER_TEMP/withdrawn"
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>TeamSight MCP</title><p>One-line installation is temporarily unavailable.</p>' > "$RUNNER_TEMP/withdrawn/index.html"
+          if [[ "$OPERATION" == restore ]]; then
+            cp -R "$RUNNER_TEMP/prior/site" "$RUNNER_TEMP/current"
+          elif [[ "$OPERATION" == publish ]]; then
+            cp -R "$RUNNER_TEMP/candidate/site" "$RUNNER_TEMP/current"
+          else
+            cp -R "$RUNNER_TEMP/withdrawn" "$RUNNER_TEMP/current"
+          fi
+          if [[ "$OPERATION" == publish && -n "$ROLLBACK_RUN" ]]; then
+            for entry in install-mcp install-mcp-external install-mcp.ps1 install-mcp-external.ps1; do
+              prior="$RUNNER_TEMP/prior/site/$entry"
+              result=$(curl --disable -sS --proto '=https' --connect-timeout 10 --max-time 30 -o "$RUNNER_TEMP/active-$entry" -w '%{http_code}' "$PAGES_URL/$entry")
+              if [[ -f "$prior" ]]; then
+                [[ "$result" == 200 ]]
+                cmp "$prior" "$RUNNER_TEMP/active-$entry"
+              else
+                [[ "$entry" == *.ps1 && "$result" == 404 ]]
+              fi
+            done
+            cp -R "$RUNNER_TEMP/prior/site" "$RUNNER_TEMP/recovery"
+          else
+            cp -R "$RUNNER_TEMP/withdrawn" "$RUNNER_TEMP/recovery"
+          fi
+          echo "current=teamsight-pages-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          echo "recovery=teamsight-recovery-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          echo "expected=teamsight-expected-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: ${{ steps.site.outputs.current }}
+          path: ${{ runner.temp }}/current
+          retention-days: 14
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: ${{ steps.site.outputs.recovery }}
+          path: ${{ runner.temp }}/recovery
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.site.outputs.expected }}
+          path: ${{ runner.temp }}/current
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy_pages:
+    needs: [prepare_pages, release]
+    if: ${{ !cancelled() && needs.prepare_pages.result == 'success' && (needs.release.result == 'success' || inputs.operation != 'publish') }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
+        with:
+          artifact_name: ${{ needs.prepare_pages.outputs.current }}
+
+  verify_pages:
+    name: Verify public Pages
+    needs: [prepare_pages, deploy_pages]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.prepare_pages.outputs.expected }}
+          path: ${{ runner.temp }}/expected
+      - name: Compare anonymous Pages files to deployed files
+        run: |
+          for entry in index.html install-mcp install-mcp-external install-mcp.ps1 install-mcp-external.ps1; do
+            expected="$RUNNER_TEMP/expected/$entry"
+            path="$entry"
+            if [[ "$entry" == index.html ]]; then path=; fi
+            matched=false
+            for attempt in {1..12}; do
+              if status=$(curl --disable -sS --proto '=https' --connect-timeout 10 --max-time 25 -H 'Cache-Control: no-cache' -o "$RUNNER_TEMP/online" -w '%{http_code}' "$PAGES_URL/$path"); then
+                if [[ -f "$expected" && "$status" == 200 ]] && cmp -s "$expected" "$RUNNER_TEMP/online"; then matched=true; break; fi
+                if [[ ! -f "$expected" && "$status" == 404 ]]; then matched=true; break; fi
+              fi
+              sleep 10
+            done
+            [[ "$matched" == true ]] || { echo "Pages smoke failed: $entry"; exit 1; }
+          done
+
+  recover_pages:
+    needs: [prepare_pages, deploy_pages, verify_pages]
+    if: ${{ !cancelled() && inputs.operation == 'publish' && needs.deploy_pages.result == 'success' && needs.verify_pages.result == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ needs.prepare_pages.outputs.recovery }}

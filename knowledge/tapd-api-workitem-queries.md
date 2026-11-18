@@ -1,6 +1,8 @@
-# TAPD 任务/缺陷查询、字段差异与时间窗
+# TAPD 工作项查询、评论、历史与附件接口
 
 > 验证时间：2026-10-10｜验证方式：真实接口调用（只读）＋ 官方文档字段表
+> 2026-11-06 按 MCP 0.3.0 源码复核实现约定；下列接口数量、字段样例与 HTTP 观察保留原采样时间，本轮未再次请求 TAPD。
+> 2026-11-17 提升评论 MCP 候选：评论由本机 0.3.3 快照引入，按当前 0.3.4 源码及本次会话保存的真实需求验收证据复核。此次知识提升只做静态核对，未再次读写 TAPD；其他历史样本不变。
 
 ## 字段差异（易踩坑）
 
@@ -12,20 +14,58 @@
 | 优先级 | 推荐 `priority_label` | 同左 |
 | 工时 | `effort`（预估工时，字符串原值如 `0.5`/`4`/`1`），另有 `remain`、`effort_completed`、`progress` | 同样存在 `effort` 字段，但实测样本为 `null` |
 
-- 负责人字段的 `_<工号>` 后缀是稳定标识（9 位数字），分组与去重应以工号为准，不能以显示名称为唯一标识。
+- 负责人账号可能带 `_<9位工号>` 后缀；有工号时用工号，无工号时当前 MCP 使用 `user:完整账号`。不能要求所有账号都有工号，也不能按显示姓名合并身份，见[身份与分组](teamsight-mcp-config-scope.md)。
 - 日期字段不会自动推算，缺失即 `null`。
-- 工时单位由 TAPD 项目设置决定，接口不返回单位信息；展示时应保留原值，不要臆断「人天/小时」，也不要把 `null` 补成 0。
+- 原始 effort 保留字符串或缺失值，不能在映射阶段把 null 改成 0。当前 MCP 分析单位为小时，计算时缺预估按 0 处理并保留缺失标记；这不证明所有 TAPD 项目的单位相同，见[工时规则](teamsight-mcp-config-scope.md)。
 
 ## 成员目录查询
 
-- `GET /workspaces/users?workspace_id=<id>` 返回 `user=姓名_工号`、`name=姓名`，可建立「工号 → 姓名」索引（实测单项目 47 人）；用 `limit=200` 一页即可拉全。
-- **不支持按姓名/工号过滤**：传入 `name=陈` 或 `user=800119650` 仍返回全部成员。成员搜索必须在前端本地完成。
+- `GET /workspaces/users?workspace_id=<id>` 返回 `user=姓名_工号`、`name=姓名`，可建立「工号 → 姓名」索引（历史实测单项目 47 人，一页 200 已覆盖该样本）；当前客户端按每页 200 继续分页，不能假定所有项目均只有一页。
+- **不支持按姓名/工号过滤**：传入 `name=陈` 或 `user=800119650` 仍返回全部成员。成员搜索须在拉取目录后本地匹配；当前 MCP 在服务端完成身份解析，见[成员身份与分组范围](teamsight-mcp-config-scope.md)。
 
 ## 分页
 
-- `limit` 默认 30、最大 200（实测返回 200 条）；`page` 从 1 开始翻页。
+- 对任务／缺陷列表，`limit` 默认 30、最大 200（实测返回 200 条）；`page` 从 1 开始翻页。历史及附件接口的包装与页大小见下节。
 - 配套 `GET /tasks/count`、`GET /bugs/count` 支持相同过滤条件，可用于分页收敛判断。
 - `fields` 参数可裁剪返回字段：TAPD 默认返回数百个 `custom_field_*`，不裁剪会显著放大响应体。
+
+## 历史与附件接口的分页差异
+
+> 2026-11-06 经用户授权提升，按当前 MCP 0.3.0 客户端复核。下表不能用任务／缺陷的通用每页 200 假设替代。
+
+| 接口 | 行包装 | 当前客户端页大小 |
+| --- | --- | --- |
+| /story_changes | WorkitemChange | 100 |
+| /task_changes | WorkitemChange | 100 |
+| /attachments | Attachment | 200 |
+
+- history 返回的 story_id/task_id 须与请求匹配；过滤异常时保留缺口，不把截断、重复或权限失败当作完整结果。客户端分页最多 50 页，预算耗尽返回 incomplete。
+- /attachments/down 返回 Attachment.download_url；客户端输出 expiresAfterSeconds:300。它是链接期限契约提示，不是永久下载地址，也不证明真实链接恰好在 300 秒失效。
+- 2026-11-03 只读实测读到需求历史 4 条、任务历史 2 条；附件列表调用成功但样本为 0。真实附件下载及失效时间未验证，不能据空列表宣称下载链路通过。
+
+依据：[TAPD 客户端](../packages/tapd/src/client.ts)、[原接口测试报告](../artifacts/report/20261103_teamsight-mcp-capability-completion_测试报告.md)。本次只对照源码及已有证据，没有再次调用接口。
+
+## 评论读取、新增与回复
+
+仅提供对话 MCP 工具 `tapd_list_comments`、`tapd_add_comment`，通用操作目录为 `comments.list`、`comments.create`。没有评论表单、附件上传、评论编辑／删除或 @通知。
+
+| 项目 | 当前约定 |
+| --- | --- |
+| 公共参数 | `workspaceId`、`entityType:story/task/bug`、工作项 `id`，ID 保持字符串 |
+| 新增参数 | 纯文本 `content`（非空白，最多 12,000 字符）、`idempotencyKey`（8–160 字符），可选 `replyToId` |
+| TAPD 类型 | story → stories，task → tasks，bug → bug；缺陷读取使用 `bug\|bug_remark`，保留流转评论 |
+| 分页与完整性 | `GET /comments`，Comment 包装，每页 200，最多 50 页；分页失败、重复分页、预算耗尽或项目／工作项／类型关联异常标记 `complete:false` |
+| 返回内容 | 保留原评论 ID、author、created、description、root_id、reply_id 等字段，附加 `materials.inlineImages/references` |
+
+`content` 按纯文本转义 `& < > " '`，统一换行并写为 `<br />`，外包 `<p>`。已有 `description` HTML 保留用于读取，属于不可信内容；`materials` 只提取已有 img/src 和 a/href 引用，不代表已获取文件内容。临时链接不可保存成永久附件地址，调用方通过 `attachments.download_link` 按需获取并读取；权限失败或 `complete:false` 不可解释为没有附件。
+
+发表评论使用当前 Bearer 令牌身份。服务端实时读取 `/users/info` 及目标项目完整成员目录，仅在 nick/name 与唯一 `UserWorkspace.user` 完整账号精确匹配时发布，不接受调用方传入 author。项目及独立 comment 权限见[配置与权限](teamsight-mcp-config-scope.md)。
+
+回复前读取并核实目标评论属于同一项目、类型和工作项。服务端设置 `reply_id` 为目标评论 ID；根评论的 `root_id` 缺失或为 0 时以目标 ID 为根，回复已有回复时沿用其根 ID，并再次核实该根属于同一工作项且不是其他回复。调用方仅传 `replyToId`，不直接指定底层 root/reply 字段。
+
+评论复用持久化操作回执，`action:comment`、`targetId` 为工作项 ID、`remoteId` 为评论 ID，同时返回 `tapdUrl`。同幂等键同请求复用原回执，异请求拒绝；超时或重启后的未知结果先通过 `tapd_verify_operation` 只读核实，不自动重发。核实检查连接指纹、归属、作者、正文和回复字段；读回对 `<br />` 等空白写法及根评论缺失／0 回复 ID 做等价规范化。旧工作项创建／修改回执仍可读取，详见[回执与恢复](teamsight-server-runtime-notes.md)。
+
+2026-11-17 真实验收仅覆盖用户指定需求：新增评论和回复各 1 条，作者为令牌对应完整账号，中文、多行、转义、回复关系、读回与重复幂等调用通过，未增加重复评论。三类工作项及 bug_remark 由隔离测试覆盖；真实任务／缺陷写入、非空附件下载与失效时间未验收。依据：[评论实现报告](../artifacts/report/20261117_评论MCP支持_测试报告.md)、[本机更新报告](../artifacts/report/20261117_评论MCP本机服务更新_测试报告.md)、[客户端](../packages/tapd/src/client.ts)、[评论转换](../packages/tapd/src/comments.ts)、[参数契约](../packages/tapd/src/contracts.ts)。
 
 ## 时间查询（关键约束）
 
@@ -59,20 +99,21 @@ due   = <窗口开始> ~ <远期上限，如 2999-12-31>
 
 - `owner=姓名_工号`（单人）有效：`due=null&owner=<单人>` 命中 9 条。
 - `owner=人A,人B` 与 `owner=人A;人B` 均返回 **0 条**（既不是并集，也不报错）。
-- 推论：按成员名单收窄缺日期任务只能逐人查询；实测 6 人 × 8 项目 × 2 类型 × 2 字段 ≈ 192 次请求，不可行。
+- 成员并集需逐账号读取再去重。当前工时快照直接按项目／成员／类型查询工作项，不加日期条件，不再使用上述双空日期查询倍增的旧策略；服务端共享队列并发为 3。
 
-### 状态取值必须动态获取
+### 状态来源与完成判定
 
 - 任务实测出现 `open`、`progressing`、`done`；缺陷实测出现 `in_progress`、`closed`（还有其他工作流状态）。
 - `progressing`、`in_progress` 这类值无法从常见枚举推断，硬编码一定会漏；状态还支持自定义（可传中文）。
-- 语义判断（如「已完成」）不能依赖全量映射：建议只把系统常见终态 `done`/`closed`/`resolved`/`rejected` 视为完成，其余按未完成处理，并在界面保留原始状态值。
+- 当前工时完成判断使用 `done`／`closed`／`resolved`／`rejected`，并叠加按项目、类型配置的 completedStates，忽略大小写；不能只沿用默认终态而忽略自定义配置。状态展示保留原值。
+- 当前任务写入元数据使用 documented-task-states，需求状态取项目元数据；不能将“动态获取”误读为所有入口均已提供动态状态枚举。
 
 ## 数据量级（决定必须服务端裁剪）
 
 - 实测项目 A：任务 24272 条、缺陷 9599 条；项目 B：任务 2904 条。
 - 当前月窗口内：项目 A 任务 103 条、项目 B 任务 12 条，缺陷 0 条。
 - 缺日期任务量级同样不可忽视：项目 A `due=null` 2260 条（约 12 页/200）、`begin=null` 2374 条；叠加 `status=open` 后降到 206 条。
-- 结论：首屏必须按时间窗查询，禁止拉取全量任务后本地过滤。
+- 查询必须在服务端收窄范围。普通排期窗口查询使用日期相交条件；工时快照按所选成员账号查询以覆盖缺日期、跨月和逾期任务，不能强制套用日期窗口而漏算。
 
 ## 详情页链接形态（Web 前端）
 
@@ -83,9 +124,9 @@ due   = <窗口开始> ~ <远期上限，如 2999-12-31>
 缺陷：https://www.tapd.cn/tapd_fe/<workspace_id>/bug/detail/<bug_id>
 ```
 
-- 错误形态 `https://www.tapd.cn/<workspace_id>/<task|bug>/view/<id>` 会 **302 跳转到登录页**，不要使用。
+- 上述历史样本中的单数旧形态 `https://www.tapd.cn/<workspace_id>/<task|bug>/view/<id>` 曾跳转登录页。当前生成链接使用 tapd_fe/detail；输入另接受 `/<workspace_id>/[prong/]<stories|tasks|bugs>/view/<id>`，不能把单数旧形态与该有效的复数旧链接混为一谈。
 - 列表接口不返回详情页地址字段，链接需前端拼接；`workspace_id` 必须取该工作项自身的 `workspace_id`，不能跨项目拼接。
 - 实测样例：
   - `https://www.tapd.cn/tapd_fe/62120799/task/detail/1162120799001210310`
   - `https://www.tapd.cn/tapd_fe/63253157/bug/detail/1163253157001041841`
-- 该规则由用户在桌面端验收时纠正，并已用真实 ID 补回归测试。
+- 当前生成与输入解析分别见[排期映射](../packages/core/src/schedule.ts)与[场景链接解析](../apps/server/src/scenarios.ts)；历史样本不代表本轮真实链接验收。

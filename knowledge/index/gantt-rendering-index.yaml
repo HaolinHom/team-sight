@@ -1,12 +1,19 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "甘特图渲染"
-description: "团队成员分组甘特图的渲染方案选型与约束。"
+description: "MCP 0.3.3 成员分组 SVG、共享展示转换与交互规则。"
 
 items:
   - id: gantt-rendering-decision
-    title: "甘特图渲染选型：自研 SVG 而非 Frappe Gantt"
+    title: "甘特图渲染选型与共享布局"
     path: "knowledge/gantt-rendering-decision.md"
-    summary: "Frappe Gantt 行高与纵坐标由任务下标唯一决定且无左侧任务名列，无法低成本实现成员分组；采用项目内自研 SVG 渲染层与统一布局计算。"
-    tags: ["gantt", "frontend", "rendering"]
-    verifiedAt: "2026-10-10"
+    summary: "自研 SVG 与 core 统一布局；Frappe 1.2.2 仅作为原选型背景；Apps 名称列和表头采用 sticky，UTC 日期差与分析日分开；成员优先按分析顺序，任务稳定排序，展示区间先于布局生成。"
+    tags: ["gantt", "frontend", "rendering", "layout"]
+    verifiedAt: "2026-11-06"
+
+  - id: mcp-gantt-interaction-notes
+    title: "MCP 甘特图工时关联、虚拟排期与交互"
+    path: "knowledge/mcp-gantt-interaction-notes.md"
+    summary: "0.3.3 沿用 0.3.2 卡片精简，顶部仅标题／日期／模式按钮，底部仅状态／来源／时区；图例及特殊说明隐藏，加载和错误保留，详细依据通过对话查询；工时资料独立补查、虚拟区间与空任务过滤；Apps/导出共用展示转换；按快照日历绘制休息日表头及整列，隐藏成员行无未知提示的休息日零工时；工时填充 .22/.30 与 200ms 渐变，稳定容器驱动避免图层移动中断；隔离 Chrome 已验收，原生 Apps 仍需验收。"
+    tags: ["mcp-apps","gantt","hours","worklog","virtual-schedule","export","drawer","tooltip","iframe","validation","calendar","animation"]
+    verifiedAt: "2026-11-07"

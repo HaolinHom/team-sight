@@ -1,0 +1,19 @@
+{
+  "taskDetail": "前端功能交互验证项目 · Frontend · progressing2026-11-02 — 2026-11-03 · 预估 12h花费 3h（累计） · 剩余 9h关联需求：101隔离数据，用于核对交互与每日工时。TAPD 任务",
+  "hoursModeLayers": [
+    {
+      "data-v-55fb829f": "",
+      "data-layer": "tasks",
+      "opacity": "0.18",
+      "style": "pointer-events: none;",
+      "aria-hidden": "true"
+    },
+    {
+      "data-v-55fb829f": "",
+      "data-layer": "hours",
+      "opacity": "1",
+      "style": "pointer-events: auto;"
+    }
+  ],
+  "backgroundTaskFocus": 3
+}

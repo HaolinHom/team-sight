@@ -16,4 +16,4 @@
 3. 如需输出方案，按 `rules/plan.md` 生成方案，并保存到 `artifacts/plan`
 4. 当方案被确认后，按照方案进行代码落地
 5. 如进行了对照测试，按 `rules/test.md` 生成测试报告，并保存到 `artifacts/report`
-6. 按 `rules/knowledge.md` 判断是否需要生成知识候选
+6. 按 `rules/knowledge.md` 判断是否需要直接创建或更新正式知识

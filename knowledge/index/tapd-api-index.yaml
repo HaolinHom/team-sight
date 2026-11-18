@@ -1,26 +1,26 @@
 schemaVersion: "knowledge-index/v1"
 
 title: "TAPD Open API"
-description: "TAPD 开放平台接口的实测事实（认证、错误语义、项目枚举、工作项查询行为）。启动时只读本索引，按需再加载具体知识文件。"
+description: "历史真实接口样本及当前源码契约，含评论 MCP；verifiedAt 为源码与证据复核日期，接口观察时间及边界见正文，不表示重新在线实测。"
 
 items:
   - id: tapd-api-auth-and-errors
     title: "TAPD 认证、错误语义与访问能力"
     path: "knowledge/tapd-api-auth-and-errors.md"
-    summary: "personal_token 走 Bearer 可用、Basic 不可用；无效令牌返回 422、越权项目返回 403；项目清单可用 /workspaces/user_participant_projects 枚举，/workspaces 不行；浏览器无法直连（OPTIONS 预检 404）。"
+    summary: "历史个人令牌样本使用 Bearer，无效令牌 422、越权项目 403；项目通过 user_participant_projects 枚举，单项目详情为对象；浏览器 CORS 预检样本 404；当前 Apps 走宿主桥及 Node 服务端请求，无 Rust 代理，项目范围不按 category 硬过滤。"
     tags: ["tapd", "auth", "error-handling", "cors", "workspace"]
-    verifiedAt: "2026-10-10"
+    verifiedAt: "2026-11-06"
 
   - id: tapd-api-workitem-queries
-    title: "TAPD 任务/缺陷查询、字段差异与时间窗"
+    title: "TAPD 工作项查询、评论、历史与附件接口"
     path: "knowledge/tapd-api-workitem-queries.md"
-    summary: "任务与缺陷的标题/负责人字段名不同；分页上限 200；时间查询只支持闭区间（开区间被静默忽略）且范围查询天然排除缺日期任务；缺日期任务需用 due=null/begin=null 空值过滤；owner 不支持多值；状态取值必须动态获取；工时字段 effort 保留原值不补 0；详情页链接形态为 tapd_fe/<workspace_id>/<task|bug>/detail/<id>。"
-    tags: ["tapd", "api", "query", "pagination", "null-filter", "effort", "status"]
-    verifiedAt: "2026-10-10"
+    summary: "任务/缺陷字段差异、日期闭区间及 null 过滤、逐账号查询；评论支持 story/task/bug 读取新增回复，映射 stories/tasks/bug，缺陷含 bug_remark，分页 200/最多50页并标缺口；纯文本转义、完整令牌账号、根回复归属、持久幂等及未知先核实；图片/文件引用与附件只读，下载300秒仅契约提示；真实需求新增回复通过，真实任务/缺陷写入与非空附件下载未验收。"
+    tags: ["tapd", "api", "query", "pagination", "null-filter", "effort", "status", "history", "comments", "replies", "attachments", "identity", "idempotency"]
+    verifiedAt: "2026-11-17"
 
   - id: tapd-api-timesheets
     title: "TAPD 工时查询与每日统计"
     path: "knowledge/tapd-api-timesheets.md"
-    summary: "timesheets/count、花费日期闭区间、填报人目录匹配；每日实际与任务累计独立查询，按项目和记录ID去重，删除与异常记录处理；分页完整性及完整区间预测，真样本与单位边界。"
+    summary: "每日实际按花费日期查询且截至计算日，未结束任务累计独立查询、不按当前负责人过滤；完整账号身份，项目+记录 ID 去重；满页探测 count、重复和截断标不完整；先完整区间分配后裁剪，未知不补零，MCP 输出小时但 API 样本不证明所有项目单位一致。"
     tags: ["tapd", "timesheet", "hours", "pagination", "identity", "completeness"]
-    verifiedAt: "2026-10-16"
+    verifiedAt: "2026-11-06"

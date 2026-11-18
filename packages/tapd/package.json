@@ -1,0 +1,22 @@
+{
+  "name": "@teamsight/tapd",
+  "version": "0.3.5",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@teamsight/core": "workspace:*",
+    "zod": "4.6.7"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.json",
+    "test": "node --test test/*.test.mjs"
+  }
+}

@@ -1,26 +1,19 @@
 schemaVersion: "knowledge-index/v1"
 
-title: "前端工程与测试"
-description: "前端工程化与测试接入的已验证做法（Vue 3 + Vitest + Tauri 模拟）。"
+title: "MCP Apps 前端与工作日历"
+description: "MCP 的 Vue 测试、沙箱保存、分页一致性与共享日历规则；不收录退役 Tauri 前端约定。"
 
 items:
   - id: frontend-testing-notes
-    title: "Vue 3 + Vitest 组件测试接入"
+    title: "MCP Apps 前端与 Vue 组件测试"
     path: "knowledge/frontend-testing-notes.md"
-    summary: "按文件启用 jsdom；RouterLink stub、Tauri 运行时补丁、flushPromises；部分模块 mock、stubEnv 后动态 import、事件上抛后 setProps；保活用真实 memory Router 并卸载清理 watch；VTU 2.5.1 指针继承属性只读错误用 MouseEvent 加 pointerId 派发适配，捕获与坐标单独 mock，桌面拖拽需生产包实测。"
-    tags: ["frontend", "testing", "vitest", "vue", "pointer", "drag"]
-    verifiedAt: "2026-10-16"
-
-  - id: frontend-reliability-notes
-    title: "前端异步数据与配置一致性"
-    path: "knowledge/frontend-reliability-notes.md"
-    summary: "最新请求提交与旧数据范围标注；聚合完整性与分页警告；配置串行保存、成功后提交、失败可重试，原生控件恢复确认值；Worker快照和错误保真、完整缓存保留原时间；KeepAlive门控加载及资源清理；members数组统一展示顺序，工号移动，memberOrder控制看板，工时保留输入顺序，排序不改变查询身份、复用快照重算；项目名按ID在渲染时解析，改名不取数、不重算，工时原因保留结构。"
-    tags: ["frontend", "reliability", "async", "pagination", "settings", "testing", "worker", "cache", "keepalive", "member-order", "project-name", "identity"]
-    verifiedAt: "2026-10-17"
+    summary: "UI 包独立声明 Vue 与测试依赖；沙箱保存走 click 和普通 JSON；分页同范围读全并检查快照/generation；SVG 层移动可中断局部渐变，稳定容器以可继承注册数值属性驱动动画，须采样双向中间样式及快速切换；隔离 Chrome 不替代原生 Apps 验收。"
+    tags: ["frontend","testing","vitest","vue","mcp-apps","sandbox","forms","pagination","async","svg","animation"]
+    verifiedAt: "2026-11-07"
 
   - id: china-calendar-notes
-    title: "中国节假日及调休与永久缓存"
+    title: "中国节假日及调休与年度缓存"
     path: "knowledge/china-calendar-notes.md"
-    summary: "配置v3默认关闭中国日历并忽略旧手动日期；holiday-cn双源校验、12月补查次年公告及较后公告覆盖；年度缓存永久有效，缺失自动获取一次、已有缓存仅手动刷新，保存成功才更新状态；看板和工时Worker共享工作日映射，覆盖预测完整任务区间，规则变化复用TAPD快照重算。"
-    tags: ["frontend", "calendar", "holiday-cn", "settings", "cache", "gantt", "hours", "worker"]
-    verifiedAt: "2026-10-17"
+    summary: "0.3.4新安装默认开启中国日历，旧配置关闭或缺失不自动开启，年度缓存初始为空；共享工作日规则与年度缓存，缺失来源标 partial；分析保存范围内 calendar 覆盖，空对象回退普通周历、缺字段为旧分析；0.3.2 卡片隐藏旧日历提示，静态导出保留原行为；界面/导出及模拟沿用快照日历，视图按日期裁剪，不以零目标推断休息日。"
+    tags: ["calendar","holiday-cn","settings","cache","hours","mcp","snapshot","gantt"]
+    verifiedAt: "2026-11-17"

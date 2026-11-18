@@ -1,0 +1,28 @@
+PASS HTTPS 404 rejects without installation
+PASS HTTPS timeout rejects without installation
+PASS HTTPS corrupt rejects without installation
+PASS HTTPS interrupted rejects without installation
+PASS external missing and incompatible Node diagnosis
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: TeamSight: downloading 0.3.3 bundled over HTTPS.
+PAYLOAD_HASH_MISMATCH
+
+
+1 !== 0
+
+    at installer (file:///Users/haolin/Projects/team-sight/scripts/verify-http-installer.mjs:55:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///Users/haolin/Projects/team-sight/scripts/verify-http-installer.mjs:81:21 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.4
+__EXIT=1

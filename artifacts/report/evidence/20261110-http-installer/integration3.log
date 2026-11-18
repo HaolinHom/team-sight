@@ -1,0 +1,16 @@
+PASS HTTPS 404 rejects without installation
+PASS HTTPS timeout rejects without installation
+PASS HTTPS corrupt rejects without installation
+PASS HTTPS interrupted rejects without installation
+PASS external missing and incompatible Node diagnosis
+PASS bundled install without system Node, diagnostics, permissions, isolated MCP, live 37 tools and detached launchd service
+PASS busy service refusal and idempotent reinstall preserve local token
+PASS failed edition switch rollback after-start
+PASS failed edition switch rollback after-config
+PASS external fixed absolute Node and shared data compatibility
+PASS LaunchAgent unload/reload uses persisted absolute paths
+PASS uninstall failure restores packages, config and running service
+PASS uninstall preserves database, token and other MCP settings
+PASS port conflict refuses and cleans this attempt
+PASS unknown instance lock preserved
+__EXIT=0

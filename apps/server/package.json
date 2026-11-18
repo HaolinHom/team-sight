@@ -1,0 +1,32 @@
+{
+  "name": "@teamsight/server",
+  "version": "0.3.5",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.json",
+    "start": "node dist/cli.js serve",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@teamsight/core": "workspace:*",
+    "@teamsight/tapd": "workspace:*",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@modelcontextprotocol/core": "2.4.0",
+    "@modelcontextprotocol/server": "2.4.0",
+    "@modelcontextprotocol/node": "2.1.2",
+    "@modelcontextprotocol/ext-apps": "2.0.4",
+    "@napi-rs/keyring": "2.1.2",
+    "@resvg/resvg-js": "2.6.2",
+    "better-sqlite3": "13.0.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "22.10.5",
+    "typescript": "5.7.3"
+  }
+}
