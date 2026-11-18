@@ -1,4 +1,4 @@
-name: Publish TeamSight MCP for macOS
+name: Publish TeamSight MCP for macOS and Windows
 
 on:
   workflow_dispatch:
@@ -11,6 +11,10 @@ on:
       rollback_run_id:
         type: string
         description: Run ID of the previously verified publish (required on upgrades and restore)
+      windows_acceptance:
+        type: boolean
+        default: false
+        description: Windows 5.1 standard-user, Codex and real logon acceptance passed for this release candidate
 
 concurrency:
   group: teamsight-macos-publication
@@ -23,8 +27,8 @@ env:
   GH_REPO: HaolinHom/team-sight
 
 jobs:
-  build:
-    if: github.repository == 'HaolinHom/team-sight' && github.ref == 'refs/heads/main' && inputs.operation == 'publish'
+  build_macos:
+    if: github.repository == 'HaolinHom/team-sight' && github.ref == 'refs/heads/main' && inputs.operation == 'publish' && inputs.windows_acceptance
     runs-on: macos-15
     permissions:
       contents: read
@@ -67,9 +71,99 @@ jobs:
           for entry in install-mcp install-mcp-external; do
             /bin/sh -n "$RUNNER_TEMP/candidate/site/$entry"
           done
-          printf '%s\n' 'macOS arm64 bundled and external archives. Verify them with the attached SHA-256 manifest.' '' \
-            'One-line installer: pending anonymous receiver and Codex acceptance. Windows installers are not part of this release.' > "$RUNNER_TEMP/candidate/assets/release-notes.md"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+          retention-days: 14
+
+  build_windows:
+    if: github.repository == 'HaolinHom/team-sight' && github.ref == 'refs/heads/main' && inputs.operation == 'publish' && inputs.windows_acceptance
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.candidate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.5'
+      - run: "'TEAMSIGHT_TEST_OLD_NODE=' + (Split-Path (Get-Command node.exe).Source) >> $env:GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - uses: pnpm/action-setup@v4
+      - name: Build and verify Windows archives and entries
+        id: candidate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((node -p 'process.arch') -ne 'x64' -or (git status --porcelain)) { throw 'Unexpected build environment' }
+          $version = node -p "require('./apps/server/package.json').version"
+          if ($version -ne (node -p "require('./package.json').version")) { throw 'Version mismatch' }
+          $releases = "artifacts/releases/$version"
+          pnpm.cmd install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm.cmd mcp:build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm.cmd mcp:package win32-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm.cmd mcp:package:verify $releases "$env:RUNNER_TEMP/package-evidence" win32-x64 $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/candidate/assets" -Force | Out-Null
+          foreach ($variant in 'bundled','external') {
+            $manifest = Get-Content -Raw "$releases/teamsight-mcp-win32-x64-$variant/versions.json" | ConvertFrom-Json
+            if ($manifest.sourceHead -ne $env:GITHUB_SHA) { throw 'Source commit mismatch' }
+            Copy-Item "$releases/teamsight-mcp-$version-win32-x64-$variant.zip" "$env:RUNNER_TEMP/candidate/assets"
+          }
+          Copy-Item "$releases/SHA256SUMS-win32-x64.txt" "$env:RUNNER_TEMP/candidate/assets"
+          node scripts/build-windows-pages.mjs $releases "$env:RUNNER_TEMP/candidate/site" $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($entry in 'install-mcp.ps1','install-mcp-external.ps1') {
+            $tokens = $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile("$env:RUNNER_TEMP/candidate/site/$entry", [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors -join "`n") }
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-candidate
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+          retention-days: 14
+
+  build:
+    needs: [build_macos, build_windows]
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      version: ${{ needs.build_macos.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-candidate
+          path: ${{ runner.temp }}/candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-candidate
+          path: ${{ runner.temp }}/windows
+      - name: Assemble the single release and Pages site
+        env:
+          MACOS_VERSION: ${{ needs.build_macos.outputs.version }}
+          WINDOWS_VERSION: ${{ needs.build_windows.outputs.version }}
+        run: |
+          [[ "$MACOS_VERSION" == "$WINDOWS_VERSION" && "$MACOS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          cd "$RUNNER_TEMP"
+          for entry in install-mcp.ps1 install-mcp-external.ps1; do cp "windows/site/$entry" "candidate/site/$entry"; done
+          cp windows/assets/* candidate/assets/
+          sed -i 's/macOS arm64 · /macOS arm64 and Windows x64 · /' candidate/site/index.html
+          printf '%s\n' 'macOS arm64 and Windows x64 bundled and external archives. Verify them with the attached platform SHA-256 manifests.' '' \
+            'One-line installation: pending anonymous receiver acceptance.' > candidate/assets/release-notes.md
       - uses: actions/upload-artifact@v4
         with:
           name: release-candidate
@@ -86,7 +180,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          sparse-checkout: scripts/publish-macos-release.sh
+          sparse-checkout: scripts/publish-mcp-release.sh
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
@@ -96,7 +190,7 @@ jobs:
         env:
           VERSION: ${{ needs.build.outputs.version }}
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/publish-macos-release.sh "v$VERSION" "$GITHUB_SHA" "$RUNNER_TEMP/candidate/assets"
+        run: bash scripts/publish-mcp-release.sh "v$VERSION" "$GITHUB_SHA" "$RUNNER_TEMP/candidate/assets"
 
   prepare_pages:
     needs: build
@@ -125,7 +219,7 @@ jobs:
             gh api "repos/$GH_REPO/actions/runs/$ROLLBACK_RUN/jobs?per_page=100" | jq -e '.jobs | any(.name == "Verify public Pages" and .conclusion == "success")' >/dev/null
           else
             [[ "$OPERATION" == publish ]] || { echo 'Restore requires rollback_run_id'; exit 1; }
-            for entry in install-mcp install-mcp-external; do
+            for entry in install-mcp install-mcp-external install-mcp.ps1 install-mcp-external.ps1; do
               result=$(curl --disable -sS --proto '=https' --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "$PAGES_URL/$entry")
               [[ "$result" == 404 ]] || { echo 'An existing deployment requires rollback_run_id'; exit 1; }
             done
@@ -155,9 +249,15 @@ jobs:
             cp -R "$RUNNER_TEMP/withdrawn" "$RUNNER_TEMP/current"
           fi
           if [[ "$OPERATION" == publish && -n "$ROLLBACK_RUN" ]]; then
-            for entry in install-mcp install-mcp-external; do
-              curl --disable -fsS --proto '=https' --connect-timeout 10 --max-time 30 "$PAGES_URL/$entry" -o "$RUNNER_TEMP/active-$entry"
-              cmp "$RUNNER_TEMP/prior/site/$entry" "$RUNNER_TEMP/active-$entry"
+            for entry in install-mcp install-mcp-external install-mcp.ps1 install-mcp-external.ps1; do
+              prior="$RUNNER_TEMP/prior/site/$entry"
+              result=$(curl --disable -sS --proto '=https' --connect-timeout 10 --max-time 30 -o "$RUNNER_TEMP/active-$entry" -w '%{http_code}' "$PAGES_URL/$entry")
+              if [[ -f "$prior" ]]; then
+                [[ "$result" == 200 ]]
+                cmp "$prior" "$RUNNER_TEMP/active-$entry"
+              else
+                [[ "$entry" == *.ps1 && "$result" == 404 ]]
+              fi
             done
             cp -R "$RUNNER_TEMP/prior/site" "$RUNNER_TEMP/recovery"
           else
@@ -211,7 +311,7 @@ jobs:
           path: ${{ runner.temp }}/expected
       - name: Compare anonymous Pages files to deployed files
         run: |
-          for entry in index.html install-mcp install-mcp-external; do
+          for entry in index.html install-mcp install-mcp-external install-mcp.ps1 install-mcp-external.ps1; do
             expected="$RUNNER_TEMP/expected/$entry"
             path="$entry"
             if [[ "$entry" == index.html ]]; then path=; fi

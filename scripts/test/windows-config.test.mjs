@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { parseConfig } from '../installer/config.mjs'
+import { verifyWindowsPayload } from '../installer/windows-agent.mjs'
 
 const helper = fileURLToPath(new URL('../installer/windows-config.mjs', import.meta.url))
 const run = (...args) => spawnSync(process.execPath, [helper, ...args], { encoding: 'utf8' })
@@ -40,5 +41,23 @@ test('Windows payload helper normalizes nested keys, rejects extra files and dir
     writeFileSync(join(dir, 'extra'), 'unexpected'); assert.equal(run('verify', dir).status, 1); rmSync(join(dir, 'extra'))
     symlinkSync(dir, join(dir, 'link'), process.platform === 'win32' ? 'junction' : 'dir')
     assert.match(run('verify', dir).stderr, /PAYLOAD_LINK_REFUSED/)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('Windows Pages payload pins the checksum list, release, edition and private runtime', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'teamsight windows pages '))
+  try {
+    mkdirSync(join(dir, 'runtime'))
+    const node = 'fixture runtime', manifest = JSON.stringify({ version: '0.3.10', target: 'win32-x64', variant: 'bundled', runtime: { executableSha256: digest(node) } })
+    const sums = JSON.stringify({ 'runtime/node.exe': digest(node), 'versions.json': digest(manifest) })
+    writeFileSync(join(dir, 'runtime/node.exe'), node)
+    writeFileSync(join(dir, 'versions.json'), manifest)
+    writeFileSync(join(dir, 'checksums.json'), sums)
+    assert.equal(verifyWindowsPayload(dir, '0.3.10', 'bundled', digest(sums)).version, '0.3.10')
+    assert.throws(() => verifyWindowsPayload(dir, '0.3.9', 'bundled', digest(sums)), /PAYLOAD_RELEASE_MISMATCH/)
+    assert.throws(() => verifyWindowsPayload(dir, '0.3.10', 'external', digest(sums)), /PAYLOAD_RELEASE_MISMATCH/)
+    assert.throws(() => verifyWindowsPayload(dir, '0.3.10', 'bundled', 'a'.repeat(64)), /PAYLOAD_MANIFEST_MISMATCH/)
+    writeFileSync(join(dir, 'runtime/node.exe'), 'tampered')
+    assert.throws(() => verifyWindowsPayload(dir, '0.3.10', 'bundled', digest(sums)), /PAYLOAD_HASH_MISMATCH/)
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

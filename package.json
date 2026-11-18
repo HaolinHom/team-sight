@@ -16,6 +16,8 @@
     "mcp:package:verify": "node scripts/verify-mcp-packages.mjs",
     "mcp:installer:windows:build": "node scripts/build-windows-manager.mjs",
     "mcp:installer:windows:verify": "node scripts/verify-windows-installer.mjs",
+    "mcp:installer:windows:pages": "node scripts/build-windows-pages.mjs",
+    "mcp:installer:windows:verify-pages": "node scripts/verify-windows-pages.mjs",
     "mcp:installer:build": "node scripts/build-installer.mjs",
     "mcp:installer:verify": "node scripts/verify-http-installer.mjs",
     "mcp:installer:prepare": "node scripts/prepare-installer-release.mjs"

@@ -6,17 +6,19 @@ ASSETS=$3
 [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ && "$COMMIT" =~ ^[a-f0-9]{40}$ ]]
 [[ "$GH_REPO" = HaolinHom/team-sight ]]
 VERSION=${TAG#v}
-NAMES=("teamsight-mcp-$VERSION-darwin-arm64-bundled.tar.gz" "teamsight-mcp-$VERSION-darwin-arm64-external.tar.gz" SHA256SUMS-darwin-arm64.txt)
+NAMES=("teamsight-mcp-$VERSION-darwin-arm64-bundled.tar.gz" "teamsight-mcp-$VERSION-darwin-arm64-external.tar.gz" SHA256SUMS-darwin-arm64.txt
+       "teamsight-mcp-$VERSION-win32-x64-bundled.zip" "teamsight-mcp-$VERSION-win32-x64-external.zip" SHA256SUMS-win32-x64.txt)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 (cd "$ASSETS" && shasum -a 256 -c SHA256SUMS-darwin-arm64.txt)
+(cd "$ASSETS" && shasum -a 256 -c SHA256SUMS-win32-x64.txt)
 API="repos/$GH_REPO/git"
 if ! gh api "$API/ref/tags/$TAG" > "$TMP/tag.json"; then
   gh api --method POST "$API/refs" -f "ref=refs/tags/$TAG" -f "sha=$COMMIT" > "$TMP/tag.json"
 fi
 jq -e --arg sha "$COMMIT" '.object.type == "commit" and .object.sha == $sha' "$TMP/tag.json" >/dev/null
 if ! gh release view "$TAG" --json isDraft,assets > "$TMP/release.json"; then
-  gh release create "$TAG" --verify-tag --draft --title "TeamSight MCP $VERSION (macOS arm64)" --notes-file "$ASSETS/release-notes.md"
+  gh release create "$TAG" --verify-tag --draft --title "TeamSight MCP $VERSION" --notes-file "$ASSETS/release-notes.md"
   gh release view "$TAG" --json isDraft,assets > "$TMP/release.json"
 fi
 if jq -e '.isDraft' "$TMP/release.json" >/dev/null; then
