@@ -22,17 +22,23 @@ test('release archives preserve the package root and contents in a staging path 
   const dir = await fixture(t), name = 'teamsight-mcp-fixture'
   await mkdir(join(dir, name, 'nested'), { recursive: true })
   await writeFile(join(dir, name, 'nested', 'checksums.json'), 'fixture')
+  await writeFile(join(dir, name, 'checksums.json'), '{}')
   for (const [extension, signature] of [['zip', '504b0304'], ['tar.gz', '1f8b']]) {
     const archive = `${name}.${extension}`
-    createPackageArchive(dir, name, archive)
+    await createPackageArchive(dir, name, archive, ['nested/checksums.json', 'checksums.json'])
     assert.equal((await readFile(join(dir, archive))).toString('hex', 0, signature.length / 2), signature)
     const extracted = join(dir, `unpacked-${extension}`)
     await mkdir(extracted)
     const result = spawnSync(archiveTool(), ['-xf', join(dir, archive), '-C', extracted], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.error?.message || result.stderr)
     assert.deepEqual(await readdir(extracted), [name])
+    assert.equal(await readFile(join(extracted, name, 'checksums.json'), 'utf8'), '{}')
     assert.equal(await readFile(join(extracted, name, 'nested', 'checksums.json'), 'utf8'), 'fixture')
   }
+})
+test('ZIP creation rejects a file missing from the staged package', async t => {
+  const dir = await fixture(t)
+  await assert.rejects(createPackageArchive(dir, 'package', 'missing.zip', ['missing.txt']), { code: 'ENOENT' })
 })
 test('runtime cache verifies downloads and cached bytes; corruption never falls through', async t => {
   const dir = await fixture(t), path = join(dir, 'node.tgz'), bytes = Buffer.from('pinned fixture'), digest = sha256(bytes)

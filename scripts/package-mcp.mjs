@@ -160,7 +160,7 @@ await cp(join(root, 'docs/TeamSight-MCP-能力与使用说明.md'), join(output,
       const hashes = await fileHashes(destination)
       await writeFile(join(destination, 'checksums.json'), JSON.stringify(hashes, null, 2) + '\n')
       const archive = join(staging, item.archive)
-      createPackageArchive(staging, item.name, item.archive)
+      await createPackageArchive(staging, item.name, item.archive, [...Object.keys(hashes), 'checksums.json'])
       archiveHashes.push(sha256(await readFile(archive)) + '  ' + item.archive)
       publications.push({ from: destination, to: join(releases, item.name) }, { from: archive, to: join(releases, item.archive) })
       results.push({ target, variant: item.variant, output: join(releases, item.name), archive: join(releases, item.archive), runtimeBundled: bundled, files: Object.keys(hashes).length })
