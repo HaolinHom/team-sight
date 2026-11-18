@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { packageTargets, cachedDownload, sha256, withStaging, publishFiles, fileHashes } from '../package-mcp-lib.mjs'
+import { archiveTool, createPackageArchive, packageTargets, cachedDownload, sha256, withStaging, publishFiles, fileHashes } from '../package-mcp-lib.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 async function fixture(t) {
@@ -17,6 +17,22 @@ test('targets accept defaults and all, reject unsupported or excess arguments', 
   assert.deepEqual(packageTargets([], 'darwin-arm64'), ['darwin-arm64'])
   assert.deepEqual(packageTargets(['all']), ['darwin-arm64', 'win32-x64'])
   for (const args of [['linux-x64'], ['all', '--force'], ['../escape']]) assert.throws(() => packageTargets(args), /INVALID_TARGET/)
+})
+test('release archives preserve the package root and contents in a staging path with spaces', async t => {
+  const dir = await fixture(t), name = 'teamsight-mcp-fixture'
+  await mkdir(join(dir, name, 'nested'), { recursive: true })
+  await writeFile(join(dir, name, 'nested', 'checksums.json'), 'fixture')
+  for (const [extension, signature] of [['zip', '504b0304'], ['tar.gz', '1f8b']]) {
+    const archive = `${name}.${extension}`
+    createPackageArchive(dir, name, archive)
+    assert.equal((await readFile(join(dir, archive))).toString('hex', 0, signature.length / 2), signature)
+    const extracted = join(dir, `unpacked-${extension}`)
+    await mkdir(extracted)
+    const result = spawnSync(archiveTool(), ['-xf', join(dir, archive), '-C', extracted], { encoding: 'utf8' })
+    assert.equal(result.status, 0, result.error?.message || result.stderr)
+    assert.deepEqual(await readdir(extracted), [name])
+    assert.equal(await readFile(join(extracted, name, 'nested', 'checksums.json'), 'utf8'), 'fixture')
+  }
 })
 test('runtime cache verifies downloads and cached bytes; corruption never falls through', async t => {
   const dir = await fixture(t), path = join(dir, 'node.tgz'), bytes = Buffer.from('pinned fixture'), digest = sha256(bytes)

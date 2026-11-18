@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { verifyWindowsPackages } from './verify-windows-packages.mjs'
+import { archiveTool } from './package-mcp-lib.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const releases = resolve(process.argv[2] ?? join(root, 'artifacts/releases/0.3.4'))
@@ -55,7 +56,7 @@ for (const line of sums) {
   const directoryName = `teamsight-mcp-${target}-${variant}`
   const unpack = join(evidence, `extracted 中文 ${target} ${variant}`)
   await mkdir(unpack) // Refuse to overwrite acceptance evidence.
-  command('tar', ['-xf', archive, '-C', unpack])
+  command(archiveTool(), ['-xf', archive, '-C', unpack])
   const directory = join(unpack, directoryName)
   const manifest = JSON.parse(await readFile(join(directory, 'versions.json'), 'utf8'))
   assert.equal(manifest.version, version); assert.equal(manifest.target, target); assert.equal(manifest.variant, variant)
