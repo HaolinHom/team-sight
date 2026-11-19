@@ -52,6 +52,8 @@
 
 ## 运行包、升级与验收边界
 
+Windows 发行 ZIP 由 Node 构建工具流式创建，按包内文件清单写入顶层目录、相对路径及 `checksums.json`。验包与解包官方 Windows Node ZIP 也走 Node，避免 `tar.exe` 命令行丢失中文路径；保留期望顶层目录、文件类型、路径与包内哈希检查。macOS `.tar.gz` 的打包和验包仍使用 `tar`。跨平台验包能证明归档结构与哈希，但不能替代 Windows runner 上的构建和原生验证。
+
 同一版本按平台生成 bundled（自带运行时，默认推荐）与 external（精简）两种包，不附带 TAPD 配置或令牌。`pnpm mcp:package` 默认当前主机目标；显式指定 `darwin-arm64` 或 `win32-x64` 时生成该平台两种包，`pnpm mcp:package all` 生成四份。每个平台只准备一次服务、前端与生产依赖，再复制为两种包；业务文件和生产依赖保持一致，运行时、固定模式入口与发行清单按包类型区分。
 
 产物位于 `artifacts/releases/<版本>`，保留解压目录；归档名为 `teamsight-mcp-<版本>-darwin-arm64-{bundled,external}.tar.gz` 或 `teamsight-mcp-<版本>-win32-x64-{bundled,external}.zip`，另附归档 SHA-256 清单。拒绝覆盖既有产物；先在临时目录准备，失败清理本次暂存与本次已发布文件，保留旧包。生产依赖复制时拒绝符号链接，SQLite 原生依赖的打包方式不变。
